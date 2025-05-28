@@ -1,6 +1,7 @@
 """Constants and configuration for IT8951 e-paper driver."""
 
 from enum import IntEnum
+from typing import ClassVar
 
 
 class SystemCommand(IntEnum):
@@ -11,10 +12,10 @@ class SystemCommand(IntEnum):
     SLEEP = 0x0003
     REG_RD = 0x0010
     REG_WR = 0x0011
-    MEM_BST_RD_T = 0x0012
-    MEM_BST_RD_S = 0x0013
+    MEM_BST_RD_T = 0x0012  # Memory burst read type T (not yet implemented)
+    MEM_BST_RD_S = 0x0013  # Memory burst read type S (not yet implemented)
     MEM_BST_WR = 0x0014
-    MEM_BST_END = 0x0015
+    MEM_BST_END = 0x0015  # Memory burst end (not yet implemented)
     LD_IMG = 0x0020
     LD_IMG_AREA = 0x0021
     LD_IMG_END = 0x0022
@@ -34,13 +35,13 @@ class Register(IntEnum):
 
     LISAR = 0x0200
     REG_0204 = 0x0204
-    REG_0208 = 0x0208
-    REG_020A = 0x020A
-    REG_020C = 0x020C
-    REG_020E = 0x020E
+    REG_0208 = 0x0208  # Reserved for future use
+    REG_020A = 0x020A  # Reserved for future use
+    REG_020C = 0x020C  # Reserved for future use
+    REG_020E = 0x020E  # Reserved for future use
     MISC = 0x1E50
-    PWR = 0x1E54
-    MCSR = 0x18004
+    PWR = 0x1E54  # Power register (for power management features)
+    MCSR = 0x18004  # Memory controller status register
 
 
 class DisplayMode(IntEnum):
@@ -51,18 +52,18 @@ class DisplayMode(IntEnum):
     GC16 = 2
     GL16 = 3
     A2 = 4
-    GLR16 = 5
-    GLD16 = 6
-    DU4 = 7
+    GLR16 = 5  # Ghost reduction 16-level (not yet implemented)
+    GLD16 = 6  # Ghost level detection 16 (not yet implemented)
+    DU4 = 7  # Direct update 4-level (not yet implemented)
 
 
 class PixelFormat(IntEnum):
     """Pixel format options."""
 
-    BPP_2 = 0
-    BPP_3 = 1
-    BPP_4 = 2
-    BPP_8 = 3
+    BPP_2 = 0  # 2 bits per pixel (not yet implemented)
+    BPP_3 = 1  # 3 bits per pixel (not yet implemented)
+    BPP_4 = 2  # 4 bits per pixel (not yet implemented, recommended by Waveshare)
+    BPP_8 = 3  # 8 bits per pixel (current implementation)
 
 
 class Rotation(IntEnum):
@@ -74,23 +75,33 @@ class Rotation(IntEnum):
     ROTATE_270 = 3
 
 
+class RotationAngle:
+    """Rotation angles in degrees for PIL operations."""
+
+    ANGLE_90 = -90
+    ANGLE_180 = 180
+    ANGLE_270 = 90
+
+
 class EndianType(IntEnum):
     """Endian type for image loading."""
 
     LITTLE = 0
-    BIG = 1
+    BIG = 1  # Big endian (not used in current implementation)
 
 
 class SPIConstants:
     """SPI communication constants."""
 
-    PREAMBLE_WRITE = 0x0000
+    PREAMBLE_WRITE = 0x0000  # Same as PREAMBLE_DATA, kept for clarity
     PREAMBLE_READ = 0x1000
     PREAMBLE_CMD = 0x6000
     PREAMBLE_DATA = 0x0000
     DUMMY_DATA = 0x0000
     SPI_SPEED_HZ = 12000000
     SPI_MODE = 0
+    READ_DUMMY_BYTES: ClassVar[list[int]] = [0x00, 0x00]
+    MOCK_DEFAULT_VALUE = 0xFFFF
 
 
 class GPIOPin:
@@ -98,7 +109,7 @@ class GPIOPin:
 
     RESET = 17
     BUSY = 24
-    CS = 8
+    CS = 8  # Chip select (handled by spidev, kept for reference)
 
 
 class DisplayConstants:
@@ -109,11 +120,37 @@ class DisplayConstants:
     MAX_VCOM = -0.2
     MAX_WIDTH = 2048
     MAX_HEIGHT = 2048
-    TIMEOUT_MS = 5000
+    TIMEOUT_MS = 30000  # 30 second timeout
+    DEFAULT_CLEAR_COLOR = 0xFF  # White
+    GRAYSCALE_MAX = 255
+    PIXEL_ALIGNMENT = 4
 
 
 class MemoryConstants:
     """Memory-related constants."""
 
     IMAGE_BUFFER_ADDR = 0x001236E0
-    WAVEFORM_ADDR = 0x00886332
+    WAVEFORM_ADDR = 0x00886332  # Waveform memory address (not yet used)
+
+
+class ProtocolConstants:
+    """Protocol and communication constants."""
+
+    DEVICE_INFO_SIZE = 20
+    PACKED_WRITE_BIT = 0x0001
+    VCOM_FACTOR = 1000
+    ADDRESS_MASK = 0xFFFF
+    BYTE_SHIFT = 8
+    BYTE_MASK = 0xFF
+    LISAR_HIGH_OFFSET = 2
+    LUT_STATE_BIT_POSITION = 7
+
+
+class TimingConstants:
+    """Timing-related constants."""
+
+    RESET_DURATION_S = 0.1
+    BUSY_POLL_FAST_S = 0.001
+    BUSY_POLL_SLOW_S = 0.01
+    DISPLAY_TIMEOUT_MS = 30000
+    DISPLAY_POLL_S = 0.01

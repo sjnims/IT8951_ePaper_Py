@@ -3,8 +3,10 @@
 import time
 
 from IT8951_ePaper_Py.constants import (
+    ProtocolConstants,
     Register,
     SystemCommand,
+    TimingConstants,
     UserCommand,
 )
 from IT8951_ePaper_Py.exceptions import (
@@ -78,7 +80,7 @@ class IT8951:
             Device information.
         """
         self._spi.write_command(UserCommand.GET_DEV_INFO)
-        data = self._spi.read_data_bulk(20)
+        data = self._spi.read_data_bulk(ProtocolConstants.DEVICE_INFO_SIZE)
 
         fw_version: list[int] = []
         lut_version: list[int] = []
@@ -146,7 +148,7 @@ class IT8951:
         self._spi.write_command(UserCommand.VCOM)
         self._spi.write_data(0)
         vcom_raw = self._spi.read_data()
-        return -vcom_raw / 1000.0
+        return -vcom_raw / ProtocolConstants.VCOM_FACTOR
 
     def set_vcom(self, voltage: float) -> None:
         """Set VCOM voltage.
@@ -162,7 +164,7 @@ class IT8951:
             config = VCOMConfig(voltage=voltage)
         except Exception as e:
             raise InvalidParameterError(f"Invalid VCOM voltage: {e}") from e
-        vcom_raw = int(-config.voltage * 1000)
+        vcom_raw = int(-config.voltage * ProtocolConstants.VCOM_FACTOR)
         self._spi.write_command(UserCommand.VCOM)
         self._spi.write_data(1)
         self._spi.write_data(vcom_raw)
@@ -174,8 +176,11 @@ class IT8951:
             address: Target memory address.
         """
         self._ensure_initialized()
-        self._write_register(Register.LISAR, address & 0xFFFF)
-        self._write_register(Register.LISAR + 2, (address >> 16) & 0xFFFF)
+        self._write_register(Register.LISAR, address & ProtocolConstants.ADDRESS_MASK)
+        self._write_register(
+            Register.LISAR + ProtocolConstants.LISAR_HIGH_OFFSET,
+            (address >> (ProtocolConstants.BYTE_SHIFT * 2)) & ProtocolConstants.ADDRESS_MASK,
+        )
 
     def load_image_start(self, info: LoadImageInfo) -> None:
         """Start loading an image to controller memory.
@@ -303,8 +308,8 @@ class IT8951:
             area.width,
             area.height,
             area.mode,
-            address & 0xFFFF,
-            (address >> 16) & 0xFFFF,
+            address & ProtocolConstants.ADDRESS_MASK,
+            (address >> (ProtocolConstants.BYTE_SHIFT * 2)) & ProtocolConstants.ADDRESS_MASK,
         ]
 
         self._spi.write_command(UserCommand.DPY_BUF_AREA)
@@ -314,7 +319,7 @@ class IT8951:
         if wait:
             self._wait_display_ready()
 
-    def _wait_display_ready(self, timeout_ms: int = 30000) -> None:
+    def _wait_display_ready(self, timeout_ms: int = TimingConstants.DISPLAY_TIMEOUT_MS) -> None:
         """Wait for display operation to complete.
 
         Args:
@@ -325,10 +330,12 @@ class IT8951:
         """
         start_time = time.time()
         while time.time() - start_time < timeout_ms / 1000:
-            lut_state = self._read_register(Register.MISC) >> 7
+            lut_state = (
+                self._read_register(Register.MISC) >> ProtocolConstants.LUT_STATE_BIT_POSITION
+            )
             if lut_state == 0:
                 return
-            time.sleep(0.01)
+            time.sleep(TimingConstants.DISPLAY_POLL_S)
 
         raise CommunicationError(f"Display operation timeout after {timeout_ms}ms")
 

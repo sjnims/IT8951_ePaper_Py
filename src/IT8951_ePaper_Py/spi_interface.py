@@ -5,7 +5,7 @@ import time
 from abc import ABC, abstractmethod
 from typing import Protocol
 
-from IT8951_ePaper_Py.constants import GPIOPin, SPIConstants
+from IT8951_ePaper_Py.constants import GPIOPin, ProtocolConstants, SPIConstants, TimingConstants
 from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
 
 
@@ -162,9 +162,9 @@ class RaspberryPiSPI(SPIInterface):
             raise InitializationError("GPIO not initialized")
 
         self._gpio.output(GPIOPin.RESET, 0)
-        time.sleep(0.1)
+        time.sleep(TimingConstants.RESET_DURATION_S)
         self._gpio.output(GPIOPin.RESET, 1)
-        time.sleep(0.1)
+        time.sleep(TimingConstants.RESET_DURATION_S)
 
     def wait_busy(self, timeout_ms: int = 5000) -> None:
         """Wait for device to be ready."""
@@ -175,7 +175,7 @@ class RaspberryPiSPI(SPIInterface):
         while time.time() - start_time < timeout_ms / 1000:
             if self._gpio.input(GPIOPin.BUSY) == 0:
                 return
-            time.sleep(0.001)
+            time.sleep(TimingConstants.BUSY_POLL_FAST_S)
 
         raise CommunicationError(f"Device busy timeout after {timeout_ms}ms")
 
@@ -186,8 +186,12 @@ class RaspberryPiSPI(SPIInterface):
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_CMD
-        self._spi.writebytes([preamble >> 8, preamble & 0xFF])
-        self._spi.writebytes([command >> 8, command & 0xFF])
+        self._spi.writebytes(
+            [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
+        )
+        self._spi.writebytes(
+            [command >> ProtocolConstants.BYTE_SHIFT, command & ProtocolConstants.BYTE_MASK]
+        )
 
     def write_data(self, data: int) -> None:
         """Write data to the device."""
@@ -196,8 +200,12 @@ class RaspberryPiSPI(SPIInterface):
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_DATA
-        self._spi.writebytes([preamble >> 8, preamble & 0xFF])
-        self._spi.writebytes([data >> 8, data & 0xFF])
+        self._spi.writebytes(
+            [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
+        )
+        self._spi.writebytes(
+            [data >> ProtocolConstants.BYTE_SHIFT, data & ProtocolConstants.BYTE_MASK]
+        )
 
     def write_data_bulk(self, data: list[int]) -> None:
         """Write bulk data to the device."""
@@ -206,10 +214,14 @@ class RaspberryPiSPI(SPIInterface):
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_DATA
-        self._spi.writebytes([preamble >> 8, preamble & 0xFF])
+        self._spi.writebytes(
+            [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
+        )
 
         for value in data:
-            self._spi.writebytes([value >> 8, value & 0xFF])
+            self._spi.writebytes(
+                [value >> ProtocolConstants.BYTE_SHIFT, value & ProtocolConstants.BYTE_MASK]
+            )
 
     def read_data(self) -> int:
         """Read data from the device."""
@@ -218,13 +230,17 @@ class RaspberryPiSPI(SPIInterface):
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_READ
-        self._spi.writebytes([preamble >> 8, preamble & 0xFF])
+        self._spi.writebytes(
+            [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
+        )
 
         dummy = SPIConstants.DUMMY_DATA
-        self._spi.writebytes([dummy >> 8, dummy & 0xFF])
+        self._spi.writebytes(
+            [dummy >> ProtocolConstants.BYTE_SHIFT, dummy & ProtocolConstants.BYTE_MASK]
+        )
 
-        result = self._spi.xfer2([0x00, 0x00])
-        return (result[0] << 8) | result[1]
+        result = self._spi.xfer2(SPIConstants.READ_DUMMY_BYTES)
+        return (result[0] << ProtocolConstants.BYTE_SHIFT) | result[1]
 
     def read_data_bulk(self, length: int) -> list[int]:
         """Read bulk data from the device."""
@@ -233,15 +249,19 @@ class RaspberryPiSPI(SPIInterface):
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_READ
-        self._spi.writebytes([preamble >> 8, preamble & 0xFF])
+        self._spi.writebytes(
+            [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
+        )
 
         dummy = SPIConstants.DUMMY_DATA
-        self._spi.writebytes([dummy >> 8, dummy & 0xFF])
+        self._spi.writebytes(
+            [dummy >> ProtocolConstants.BYTE_SHIFT, dummy & ProtocolConstants.BYTE_MASK]
+        )
 
         data: list[int] = []
         for _ in range(length):
-            result = self._spi.xfer2([0x00, 0x00])
-            data.append((result[0] << 8) | result[1])
+            result = self._spi.xfer2(SPIConstants.READ_DUMMY_BYTES)
+            data.append((result[0] << ProtocolConstants.BYTE_SHIFT) | result[1])
 
         return data
 
@@ -276,7 +296,7 @@ class MockSPI(SPIInterface):
     def reset(self) -> None:
         """Simulate hardware reset."""
         self._busy = False
-        time.sleep(0.1)
+        time.sleep(TimingConstants.RESET_DURATION_S)
 
     def wait_busy(self, timeout_ms: int = 5000) -> None:
         """Simulate waiting for device ready."""
@@ -319,7 +339,7 @@ class MockSPI(SPIInterface):
         self.wait_busy()
         if self._read_data:
             return self._read_data.pop(0)
-        return 0xFFFF
+        return SPIConstants.MOCK_DEFAULT_VALUE
 
     def read_data_bulk(self, length: int) -> list[int]:
         """Simulate reading bulk data."""
@@ -332,7 +352,7 @@ class MockSPI(SPIInterface):
             if self._read_data:
                 data.append(self._read_data.pop(0))
             else:
-                data.append(0xFFFF)
+                data.append(SPIConstants.MOCK_DEFAULT_VALUE)
         return data
 
     def set_read_data(self, data: list[int]) -> None:

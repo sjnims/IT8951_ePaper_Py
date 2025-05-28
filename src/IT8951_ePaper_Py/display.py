@@ -19,6 +19,7 @@ from IT8951_ePaper_Py.constants import (
     MemoryConstants,
     PixelFormat,
     Rotation,
+    RotationAngle,
 )
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError
 from IT8951_ePaper_Py.it8951 import IT8951
@@ -71,7 +72,7 @@ class EPaperDisplay:
             self._controller.close()
         self._initialized = False
 
-    def clear(self, color: int = 0xFF) -> None:
+    def clear(self, color: int = DisplayConstants.DEFAULT_CLEAR_COLOR) -> None:
         """Clear the display to a solid color.
 
         Args:
@@ -252,11 +253,11 @@ class EPaperDisplay:
             Prepared image.
         """
         if rotation == Rotation.ROTATE_90:
-            image = image.rotate(-90, expand=True)
+            image = image.rotate(RotationAngle.ANGLE_90, expand=True)
         elif rotation == Rotation.ROTATE_180:
-            image = image.rotate(180)
+            image = image.rotate(RotationAngle.ANGLE_180)
         elif rotation == Rotation.ROTATE_270:
-            image = image.rotate(90, expand=True)
+            image = image.rotate(RotationAngle.ANGLE_270, expand=True)
 
         return image
 

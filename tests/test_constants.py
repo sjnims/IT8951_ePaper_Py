@@ -7,10 +7,13 @@ from IT8951_ePaper_Py.constants import (
     GPIOPin,
     MemoryConstants,
     PixelFormat,
+    ProtocolConstants,
     Register,
     Rotation,
+    RotationAngle,
     SPIConstants,
     SystemCommand,
+    TimingConstants,
     UserCommand,
 )
 
@@ -76,6 +79,8 @@ class TestConstants:
         assert SPIConstants.PREAMBLE_READ == 0x1000
         assert SPIConstants.SPI_SPEED_HZ == 12000000
         assert SPIConstants.SPI_MODE == 0
+        assert SPIConstants.READ_DUMMY_BYTES == [0x00, 0x00]
+        assert SPIConstants.MOCK_DEFAULT_VALUE == 0xFFFF
 
     def test_display_constants(self) -> None:
         """Test display constants."""
@@ -84,7 +89,10 @@ class TestConstants:
         assert DisplayConstants.MAX_VCOM == -0.2
         assert DisplayConstants.MAX_WIDTH == 2048
         assert DisplayConstants.MAX_HEIGHT == 2048
-        assert DisplayConstants.TIMEOUT_MS == 5000
+        assert DisplayConstants.TIMEOUT_MS == 30000
+        assert DisplayConstants.DEFAULT_CLEAR_COLOR == 0xFF
+        assert DisplayConstants.GRAYSCALE_MAX == 255
+        assert DisplayConstants.PIXEL_ALIGNMENT == 4
 
     def test_memory_constants(self) -> None:
         """Test memory constants."""
@@ -97,3 +105,28 @@ class TestConstants:
         assert Register.REG_0204 == 0x0204
         assert Register.MISC == 0x1E50
         assert Register.PWR == 0x1E54
+
+    def test_protocol_constants(self) -> None:
+        """Test protocol constants."""
+        assert ProtocolConstants.DEVICE_INFO_SIZE == 20
+        assert ProtocolConstants.PACKED_WRITE_BIT == 0x0001
+        assert ProtocolConstants.VCOM_FACTOR == 1000
+        assert ProtocolConstants.ADDRESS_MASK == 0xFFFF
+        assert ProtocolConstants.BYTE_SHIFT == 8
+        assert ProtocolConstants.BYTE_MASK == 0xFF
+        assert ProtocolConstants.LISAR_HIGH_OFFSET == 2
+        assert ProtocolConstants.LUT_STATE_BIT_POSITION == 7
+
+    def test_timing_constants(self) -> None:
+        """Test timing constants."""
+        assert TimingConstants.RESET_DURATION_S == 0.1
+        assert TimingConstants.BUSY_POLL_FAST_S == 0.001
+        assert TimingConstants.BUSY_POLL_SLOW_S == 0.01
+        assert TimingConstants.DISPLAY_TIMEOUT_MS == 30000
+        assert TimingConstants.DISPLAY_POLL_S == 0.01
+
+    def test_rotation_angle_constants(self) -> None:
+        """Test rotation angle constants."""
+        assert RotationAngle.ANGLE_90 == -90
+        assert RotationAngle.ANGLE_180 == 180
+        assert RotationAngle.ANGLE_270 == 90

@@ -3,23 +3,30 @@
 
 from pydantic import BaseModel, Field, field_validator
 
-from IT8951_ePaper_Py.constants import DisplayMode, EndianType, PixelFormat, Rotation
+from IT8951_ePaper_Py.constants import (
+    DisplayConstants,
+    DisplayMode,
+    EndianType,
+    PixelFormat,
+    ProtocolConstants,
+    Rotation,
+)
 
 
 class DeviceInfo(BaseModel):
     """IT8951 device information."""
 
-    panel_width: int = Field(..., ge=1, le=2048)
-    panel_height: int = Field(..., ge=1, le=2048)
-    memory_addr_l: int = Field(..., ge=0, le=0xFFFF)
-    memory_addr_h: int = Field(..., ge=0, le=0xFFFF)
+    panel_width: int = Field(..., ge=1, le=DisplayConstants.MAX_WIDTH)
+    panel_height: int = Field(..., ge=1, le=DisplayConstants.MAX_HEIGHT)
+    memory_addr_l: int = Field(..., ge=0, le=ProtocolConstants.ADDRESS_MASK)
+    memory_addr_h: int = Field(..., ge=0, le=ProtocolConstants.ADDRESS_MASK)
     fw_version: str | list[int] = Field(...)
     lut_version: str | list[int] = Field(...)
 
     @property
     def memory_address(self) -> int:
         """Get the full memory address."""
-        return (self.memory_addr_h << 16) | self.memory_addr_l
+        return (self.memory_addr_h << (ProtocolConstants.BYTE_SHIFT * 2)) | self.memory_addr_l
 
     @field_validator("fw_version", "lut_version", mode="before")
     @classmethod
@@ -83,28 +90,33 @@ class DisplayArea(BaseModel):
     @classmethod
     def validate_position(cls, v: int) -> int:
         """Validate position is aligned to 4 pixels."""
-        if v % 4 != 0:
-            raise ValueError("Position must be aligned to 4 pixels")
+        if v % DisplayConstants.PIXEL_ALIGNMENT != 0:
+            raise ValueError(
+                f"Position must be aligned to {DisplayConstants.PIXEL_ALIGNMENT} pixels"
+            )
         return v
 
     @field_validator("width", "height")
     @classmethod
     def validate_dimensions(cls, v: int) -> int:
         """Validate dimensions are multiples of 4."""
-        if v % 4 != 0:
-            raise ValueError("Dimensions must be multiples of 4")
+        if v % DisplayConstants.PIXEL_ALIGNMENT != 0:
+            raise ValueError(f"Dimensions must be multiples of {DisplayConstants.PIXEL_ALIGNMENT}")
         return v
 
 
 class VCOMConfig(BaseModel):
     """VCOM voltage configuration."""
 
-    voltage: float = Field(..., ge=-5.0, le=-0.2)
+    voltage: float = Field(..., ge=DisplayConstants.MIN_VCOM, le=DisplayConstants.MAX_VCOM)
 
     @field_validator("voltage")
     @classmethod
     def validate_voltage(cls, v: float) -> float:
         """Validate VCOM voltage is within safe range."""
-        if not -5.0 <= v <= -0.2:
-            raise ValueError("VCOM voltage must be between -5.0V and -0.2V")
+        if not DisplayConstants.MIN_VCOM <= v <= DisplayConstants.MAX_VCOM:
+            raise ValueError(
+                f"VCOM voltage must be between {DisplayConstants.MIN_VCOM}V "
+                f"and {DisplayConstants.MAX_VCOM}V"
+            )
         return round(v, 2)
