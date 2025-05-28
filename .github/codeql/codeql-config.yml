@@ -1,0 +1,62 @@
+# CodeQL configuration for IT8951 e-paper Python driver
+# https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/customizing-code-scanning
+
+name: "IT8951 CodeQL config"
+
+# Specify the queries to run
+queries:
+  - uses: security-and-quality
+  - uses: security-experimental
+  - uses: security-extended
+
+# Define custom query suites
+query-filters:
+  - exclude:
+      # Exclude test files from certain security checks
+      id: 
+        - py/unused-import
+        - py/unused-local-variable
+      tags contain:
+        - test
+        - testing
+
+# Paths to include in the analysis
+paths:
+  - src/
+  - examples/
+
+# Paths to exclude from the analysis
+paths-ignore:
+  - tests/
+  - docs/
+  - htmlcov/
+  - stubs/
+  - "**/__pycache__/"
+  - "**/test_*.py"
+
+# Language-specific configuration
+languages:
+  python:
+    # Python version for the analysis
+    python_setup:
+      version: "3.11"
+    
+    # Additional setup commands if needed
+    # setup:
+    #   - "pip install -r requirements.txt"
+
+# Set the severity levels for different query categories
+severity:
+  security: error
+  correctness: error
+  reliability: warning
+  performance: note
+  style: note
+  maintainability: note
+
+# Custom query paths (if you add custom queries later)
+# packs:
+#   - sjnims/it8951-queries
+
+# Enable detailed logging
+# debug: true

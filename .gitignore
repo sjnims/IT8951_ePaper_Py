@@ -1,0 +1,112 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Poetry
+.venv/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+cov_annotate/
+
+# Sphinx documentation
+docs/_build/
+docs/_static/
+docs/_templates/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# VS Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/tasks.json
+
+# Claude
+.claude/
+
+# Ruff
+.ruff_cache/
+
+# Local development
+*.local
+.benchmarks/
+preview/
+cache/
+tmp/
+logs/
+*.pid
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*~
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Security - never commit these
+.env.*
+*.pem
+*.key
+*.cert
+*.crt
+secrets/
+credentials/
+
+# Project specific
+MagicMock/
+
+# Temporary test outputs
+test-results/
+test-output/
+*.test.png
+*.test.jpg

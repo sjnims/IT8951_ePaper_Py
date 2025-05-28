@@ -1,0 +1,87 @@
+# Dependabot configuration for IT8951 e-paper Python driver
+# https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+
+version: 2
+updates:
+  # Python dependencies via Poetry
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    # Group updates to reduce noise
+    groups:
+      development:
+        patterns:
+          - "pytest*"
+          - "ruff"
+          - "black"
+          - "isort"
+          - "pyright"
+          - "pre-commit"
+        update-types:
+          - "minor"
+          - "patch"
+      documentation:
+        patterns:
+          - "sphinx*"
+        update-types:
+          - "minor"
+          - "patch"
+    # Version update preferences
+    versioning-strategy: "increase-if-necessary"
+    # Labels for PRs
+    labels:
+      - "dependencies"
+      - "python"
+    # Commit message customization
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+    # Allow certain updates
+    allow:
+      # Keep Python dependencies up to date
+      - dependency-type: "all"
+    # Security updates should be prioritized
+    priority: 1
+    # Ignore specific versions if needed
+    ignore:
+      # Example: ignore numpy 2.0 if it breaks compatibility
+      # - dependency-name: "numpy"
+      #   versions: ["2.0.*"]
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    # Group all GitHub Actions updates
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+
+  # Docker dependencies (if you add Docker support later)
+  # - package-ecosystem: "docker"
+  #   directory: "/"
+  #   schedule:
+  #     interval: "weekly"
+  #   labels:
+  #     - "dependencies"
+  #     - "docker"
+
+# Configuration for security updates
+# Security updates are automatically enabled for all ecosystems

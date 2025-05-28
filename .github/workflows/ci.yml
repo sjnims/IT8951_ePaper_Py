@@ -1,0 +1,416 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.11.12"
+
+jobs:
+  # Detect what files changed to optimize workflow
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      docs: ${{ steps.filter.outputs.docs }}
+      deps: ${{ steps.filter.outputs.deps }}
+      ci: ${{ steps.filter.outputs.ci }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'src/**'
+              - 'tests/**'
+              - 'examples/**'
+              - '*.py'
+            docs:
+              - 'docs/**'
+              - '**/*.md'
+              - '**/*.rst'
+              - 'mkdocs.yml'
+            deps:
+              - 'pyproject.toml'
+              - 'poetry.lock'
+              - 'requirements*.txt'
+            ci:
+              - '.github/workflows/**'
+              - '.github/actions/**'
+  
+  # Quick checks that should pass before running expensive tests
+  pre-checks:
+    name: Pre-checks
+    runs-on: ubuntu-latest
+    needs: changes
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for better analysis
+
+      - name: Check PR status
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "PR mergeable state: ${{ github.event.pull_request.mergeable_state }}"
+          if [ "${{ github.event.pull_request.mergeable }}" = "false" ]; then
+            echo "PR is not mergeable!"
+            exit 1
+          fi
+      
+      - name: Dependency Review
+        if: github.event_name == 'pull_request'
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: moderate
+
+  lint:
+    name: Lint & Type Check
+    runs-on: ubuntu-latest
+    needs: [changes, pre-checks]
+    # Run on code changes, dependency changes, CI changes, or manual trigger
+    if: |
+      needs.changes.outputs.code == 'true' || 
+      needs.changes.outputs.deps == 'true' || 
+      needs.changes.outputs.ci == 'true' || 
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
+      
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+      
+      - name: Install project
+        run: poetry install --no-interaction
+      
+      - name: Run ruff linting
+        run: poetry run ruff check .
+      
+      - name: Run ruff formatting check
+        run: poetry run ruff format --check .
+      
+      - name: Run pyright
+        run: poetry run pyright
+      
+      - name: Check Poetry lock file consistency
+        run: poetry check --lock
+
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    needs: [changes, pre-checks]
+    # Skip tests for docs-only changes
+    if: |
+      needs.changes.outputs.code == 'true' || 
+      needs.changes.outputs.deps == 'true' || 
+      needs.changes.outputs.ci == 'true' || 
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        # Optionally test on Windows too
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-py311-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            venv-${{ runner.os }}-py311-
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction --no-root
+      
+      - name: Install project
+        run: poetry install --no-interaction
+      
+      - name: Run tests with coverage
+        run: |
+          poetry run pytest \
+            --cov=src/IT8951_ePaper_Py \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --cov-report=html \
+            -v
+      
+      - name: Upload coverage reports
+        if: matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+      
+      - name: Upload coverage to Codecov
+        if: matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          flags: unittests
+          name: Python 3.11 - ${{ matrix.os }}
+          fail_ci_if_error: false  # Don't fail if Codecov is down
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+
+  
+  # Separate CodeQL job for better performance
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    needs: [changes, pre-checks]
+    if: |
+      needs.changes.outputs.code == 'true' || 
+      needs.changes.outputs.ci == 'true' || 
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python' ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          config-file: ./.github/codeql/codeql-config.yml
+      
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v3
+      
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{matrix.language}}"
+  
+  complexity:
+    name: Code Complexity Analysis
+    runs-on: ubuntu-latest
+    needs: [changes, pre-checks]
+    if: |
+      needs.changes.outputs.code == 'true' || 
+      needs.changes.outputs.ci == 'true' || 
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      
+      - name: Run Radon Cyclomatic Complexity
+        run: |
+          echo "## Cyclomatic Complexity Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run radon cc src/ -a -s >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if complexity is too high
+          poetry run radon cc src/ -a -ne -nb --total-average
+      
+      - name: Run Radon Maintainability Index
+        run: |
+          echo "## Maintainability Index Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run radon mi src/ -s >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Run Radon Raw Metrics
+        run: |
+          echo "## Raw Metrics Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run radon raw src/ -s >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+      
+      - name: Run Radon Halstead Metrics
+        run: |
+          echo "## Halstead Metrics Report" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run radon hal src/ >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+      
+      - name: Check complexity with ruff
+        run: |
+          echo "## Ruff Complexity Check" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run ruff check src/ --select=C90 --statistics >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    needs: [changes, pre-checks]
+    # Run when docs change OR code changes (API docs)
+    if: |
+      needs.changes.outputs.docs == 'true' || 
+      needs.changes.outputs.code == 'true' || 
+      needs.changes.outputs.ci == 'true' || 
+      github.event_name == 'workflow_dispatch' ||
+      startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      
+      - name: Check docstring coverage
+        run: |
+          echo "## Docstring Issues" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          poetry run ruff check src/ --select=D --statistics >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+        continue-on-error: true
+
+
+  # Summary for skipped jobs
+  skipped-summary:
+    name: Summary (Docs Only)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: |
+      needs.changes.outputs.code != 'true' && 
+      needs.changes.outputs.deps != 'true' && 
+      needs.changes.outputs.docs == 'true'
+    steps:
+      - name: Documentation-only changes summary
+        run: |
+          echo "## 📚 Documentation-Only Changes Detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This PR contains only documentation changes. The following checks were skipped:" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏭️ Linting & Type Checking" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏭️ Unit Tests" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏭️ CodeQL Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "- ⏭️ Complexity Analysis" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Documentation checks run as part of the main workflow." >> $GITHUB_STEP_SUMMARY
+
+  # Final job to check all required jobs passed
+  all-checks:
+    name: All Checks
+    runs-on: ubuntu-latest
+    needs: [changes, lint, test, codeql, complexity, docs]
+    if: |
+      always() && 
+      (needs.changes.outputs.code == 'true' || 
+       needs.changes.outputs.deps == 'true' || 
+       needs.changes.outputs.ci == 'true' ||
+       github.event_name == 'workflow_dispatch' ||
+       startsWith(github.ref, 'refs/tags/'))
+    steps:
+      - name: Check all jobs status
+        run: |
+          echo "## Workflow Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Test | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| CodeQL | ${{ needs.codeql.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Complexity | ${{ needs.complexity.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docs | ${{ needs.docs.result }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if any job failed
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ]; then
+            echo "❌ One or more jobs failed!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          elif [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            echo "⚠️ One or more jobs were cancelled!" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          else
+            echo "✅ All jobs passed!" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Alternative check for docs-only changes
+  docs-only-check:
+    name: Docs Only Check
+    runs-on: ubuntu-latest
+    needs: [changes, skipped-summary]
+    if: |
+      always() &&
+      needs.changes.outputs.code != 'true' && 
+      needs.changes.outputs.deps != 'true' && 
+      needs.changes.outputs.docs == 'true'
+    steps:
+      - name: Mark as successful
+        run: |
+          echo "✅ Documentation-only changes verified!" >> $GITHUB_STEP_SUMMARY
+          echo "All expensive CI jobs were skipped as intended." >> $GITHUB_STEP_SUMMARY
+
