@@ -186,25 +186,35 @@ jobs:
             --cov-report=xml \
             --cov-report=term-missing \
             --cov-report=html \
+            --junitxml=junit.xml \
+            -o junit_family=xunit2 \
             -v
       
-      - name: Upload coverage reports
+      - name: Upload coverage and test reports
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-reports
+          name: test-reports
           path: |
             coverage.xml
+            junit.xml
             htmlcov/
       
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
+          token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
           flags: unittests
-          name: Python 3.11 - ${{ matrix.os }}
-          fail_ci_if_error: false  # Don't fail if Codecov is down
+          fail_ci_if_error: false
+      
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
+          files: ./junit.xml
+          flags: unittests
+          fail_ci_if_error: false
 
   
   # Separate CodeQL job for better performance

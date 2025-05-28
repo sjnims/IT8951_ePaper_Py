@@ -118,6 +118,16 @@ This roadmap outlines the phased implementation of missing features and improvem
 6.3.3 Add troubleshooting section
 6.3.4 Document all new APIs
 
+## Phase 7: CI/CD Optimizations
+*Improve development workflow efficiency as the project scales*
+
+### 7.1 Automated Test Selection (Codecov ATS)
+7.1.1 Integrate Codecov CLI into CI workflow
+7.1.2 Configure ATS for pytest test filtering
+7.1.3 Set up test impact analysis
+7.1.4 Add fallback for full test runs when needed
+7.1.5 Monitor and tune ATS performance
+
 ## Implementation Notes
 
 - Each phase builds upon previous phases

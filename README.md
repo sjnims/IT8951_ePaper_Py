@@ -1,10 +1,11 @@
 # IT8951 e-Paper Python Driver
 
-[![CI](https://github.com/sjnims/IT8951_ePaper_Py/actions/workflows/ci.yml/badge.svg)](https://github.com/sjnims/IT8951_ePaper_Py/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/sjnims/IT8951_ePaper_Py/branch/main/graph/badge.svg)](https://codecov.io/gh/sjnims/IT8951_ePaper_Py)
-[![Python 3.11](https://img.shields.io/badge/python-3.11.12-blue.svg)](https://www.python.org/downloads/)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/charliermarsh/ruff)
+[![CI/CD](https://github.com/sjnims/IT8951_ePaper_Py/actions/workflows/ci.yml/badge.svg)](https://github.com/sjnims/IT8951_ePaper_Py/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/sjnims/IT8951_ePaper_Py/graph/badge.svg?token=BB2VKPF6YL)](https://codecov.io/gh/sjnims/IT8951_ePaper_Py)
+[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/release/python-3112/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![code style: ruff](https://img.shields.io/badge/code%20style-ruff-000000.svg)](https://github.com/astral-sh/ruff)
+[![CodeQL](https://img.shields.io/badge/CodeQL-enabled-green.svg)](https://github.com/sjnims/IT8951_ePaper_Py/security/code-scanning)
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
@@ -71,15 +72,15 @@ try:
     # Initialize and get display dimensions
     width, height = display.init()
     print(f"Display size: {width}x{height}")
-    
+
     # Clear display to white
     display.clear(color=0xFF)
-    
+
     # Display an image
     from PIL import Image
     img = Image.open("example.jpg")
     display.display_image(img, x=0, y=0, mode=DisplayMode.GC16)
-    
+
 finally:
     display.close()
 ```
@@ -114,29 +115,31 @@ python examples/partial_update.py
 python examples/vcom_calibration.py
 ```
 
+See all examples in the [`examples/`](examples/) directory.
+
 ## Architecture
 
 The driver follows a layered architecture:
 
-1. **Hardware Abstraction Layer** (`spi_interface.py`)
+1. **Hardware Abstraction Layer** ([`spi_interface.py`](src/IT8951_ePaper_Py/spi_interface.py))
    - `SPIInterface` - Abstract base class
    - `RaspberryPiSPI` - Hardware implementation
    - `MockSPI` - Mock implementation for testing
 
-2. **Core Driver** (`it8951.py`)
+2. **Core Driver** ([`it8951.py`](src/IT8951_ePaper_Py/it8951.py))
    - Low-level IT8951 controller communication
    - Register operations and command execution
 
-3. **High-Level Display** (`display.py`)
+3. **High-Level Display** ([`display.py`](src/IT8951_ePaper_Py/display.py))
    - User-friendly display interface
    - Image processing and alignment
    - Automatic format conversion
 
-4. **Data Models** (`models.py`)
+4. **Data Models** ([`models.py`](src/IT8951_ePaper_Py/models.py))
    - Type-safe configuration with Pydantic
    - Validation and data structures
 
-5. **Exception Hierarchy** (`exceptions.py`)
+5. **Exception Hierarchy** ([`exceptions.py`](src/IT8951_ePaper_Py/exceptions.py))
    - `IT8951Error` - Base exception
    - `CommunicationError` - SPI communication failures
    - `DeviceError` - Device-reported errors
@@ -220,8 +223,19 @@ IT8951_ePaper_Py/
 ├── examples/                  # Example scripts
 ├── stubs/                     # Type stubs for external libs
 ├── docs/                      # Documentation
+├── ROADMAP.md                # Development roadmap
+├── CLAUDE.md                 # AI assistant instructions
 └── pyproject.toml            # Project configuration
 ```
+
+## Roadmap
+
+See our [Development Roadmap](ROADMAP.md) for planned features and improvements, including:
+- 4bpp support for better performance
+- Lower bit depth support (1bpp, 2bpp)
+- Power management features
+- Enhanced display modes
+- And more!
 
 ## Contributing
 
@@ -279,4 +293,4 @@ sudo usermod -a -G spi,gpio $USER
 
 ## License
 
-MIT License - see LICENSE file for details
+MIT License - see [LICENSE](LICENSE) file for details
