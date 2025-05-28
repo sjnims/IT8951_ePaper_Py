@@ -243,6 +243,24 @@ class IT8951:
         self._ensure_initialized()
         self._spi.write_command(SystemCommand.LD_IMG_END)
 
+    def _validate_display_area(self, area: DisplayArea) -> None:
+        """Validate display area bounds.
+
+        Args:
+            area: Display area to validate.
+
+        Raises:
+            DeviceError: If device info not available.
+            InvalidParameterError: If area exceeds panel bounds.
+        """
+        if not self._device_info:
+            raise DeviceError("Device info not available")
+
+        if area.x + area.width > self._device_info.panel_width:
+            raise InvalidParameterError("Display area exceeds panel width")
+        if area.y + area.height > self._device_info.panel_height:
+            raise InvalidParameterError("Display area exceeds panel height")
+
     def display_area(self, area: DisplayArea, wait: bool = True) -> None:
         """Display an area with specified mode.
 
@@ -251,14 +269,7 @@ class IT8951:
             wait: Whether to wait for display to complete.
         """
         self._ensure_initialized()
-
-        if not self._device_info:
-            raise DeviceError("Device info not available")
-
-        if area.x + area.width > self._device_info.panel_width:
-            raise InvalidParameterError("Display area exceeds panel width")
-        if area.y + area.height > self._device_info.panel_height:
-            raise InvalidParameterError("Display area exceeds panel height")
+        self._validate_display_area(area)
 
         args = [
             area.x,
@@ -284,14 +295,7 @@ class IT8951:
             wait: Whether to wait for display to complete.
         """
         self._ensure_initialized()
-
-        if not self._device_info:
-            raise DeviceError("Device info not available")
-
-        if area.x + area.width > self._device_info.panel_width:
-            raise InvalidParameterError("Display area exceeds panel width")
-        if area.y + area.height > self._device_info.panel_height:
-            raise InvalidParameterError("Display area exceeds panel height")
+        self._validate_display_area(area)
 
         args = [
             area.x,
