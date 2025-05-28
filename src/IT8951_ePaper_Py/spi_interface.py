@@ -18,17 +18,14 @@ class GPIOInterface(Protocol):
 
     def setmode(self, mode: int) -> None:
         """Set the GPIO pin numbering mode."""
-        ...
 
     def setup(
         self, channel: int | list[int], direction: int, pull_up_down: int = 20, initial: int = -1
     ) -> None:
         """Set up a GPIO pin."""
-        ...
 
     def output(self, channel: int | list[int], state: int | bool | list[int] | list[bool]) -> None:
         """Set GPIO pin output value."""
-        ...
 
     def input(self, channel: int) -> int:
         """Read GPIO pin input value."""
@@ -36,7 +33,6 @@ class GPIOInterface(Protocol):
 
     def cleanup(self) -> None:
         """Clean up GPIO resources."""
-        ...
 
 
 class SPIDeviceInterface(Protocol):
@@ -47,11 +43,9 @@ class SPIDeviceInterface(Protocol):
 
     def open(self, bus: int, device: int) -> None:
         """Open SPI device."""
-        ...
 
     def writebytes(self, values: list[int]) -> None:
         """Write bytes to SPI."""
-        ...
 
     def xfer2(
         self, values: list[int], speed_hz: int = 0, delay_usecs: int = 0, bits_per_word: int = 0
@@ -61,7 +55,6 @@ class SPIDeviceInterface(Protocol):
 
     def close(self) -> None:
         """Close SPI device."""
-        ...
 
 
 class SPIInterface(ABC):
@@ -287,6 +280,8 @@ class MockSPI(SPIInterface):
 
     def wait_busy(self, timeout_ms: int = 5000) -> None:
         """Simulate waiting for device ready."""
+        # Mock implementation ignores timeout_ms parameter
+        _ = timeout_ms  # Unused in mock
         if self._busy:
             time.sleep(0.01)
             self._busy = False
