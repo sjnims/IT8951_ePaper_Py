@@ -145,9 +145,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
-        # Optionally test on Windows too
-        # os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
+        # Testing on Ubuntu only since this is a Raspberry Pi driver
+        # Development on macOS is supported via MockSPI
 
     steps:
       - uses: actions/checkout@v4
@@ -189,7 +189,6 @@ jobs:
             -v
       
       - name: Upload coverage reports
-        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-reports
@@ -198,7 +197,6 @@ jobs:
             htmlcov/
       
       - name: Upload coverage to Codecov
-        if: matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@v5
         with:
           files: ./coverage.xml
