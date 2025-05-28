@@ -7,6 +7,7 @@ Our Python implementation correctly implements the core functionality of the Wav
 ## Implementation Status
 
 ### ✅ Fully Implemented
+
 - All core commands and constants
 - SPI communication protocol with proper preambles
 - Device initialization sequence
@@ -17,24 +18,23 @@ Our Python implementation correctly implements the core functionality of the Wav
 - Display modes: INIT, DU, GC16, GL16, A2
 
 ### ⚠️ Missing Features
+
 1. **Lower bit depth support (1/2/4 bpp)**
    - Would enable faster updates for simple graphics
    - Useful for battery-powered applications
-
 2. **Power management commands**
    - `standby()` and `sleep()` methods
    - Important for low-power applications
-
 3. **Register read capability**
    - Currently only have write_register()
    - Useful for debugging and verification
-
 4. **Extended display modes**
    - GLR16, GLD16, DU4 modes present in constants but untested
 
 ## Code Examples for Missing Features
 
 ### 1. Add Power Management
+
 ```python
 # In IT8951 class:
 def standby(self) -> None:
@@ -49,6 +49,7 @@ def sleep(self) -> None:
 ```
 
 ### 2. Add Register Read
+
 ```python
 def read_register(self, address: int) -> int:
     """Read a 16-bit register value."""
@@ -59,6 +60,7 @@ def read_register(self, address: int) -> int:
 ```
 
 ### 3. Add Lower Bit Depth Support
+
 ```python
 def display_image_1bpp(self, data: bytes, area: DisplayArea) -> None:
     """Display 1-bit per pixel image."""

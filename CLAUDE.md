@@ -5,6 +5,7 @@ This file provides guidance to Claude Code when working with this IT8951 e-paper
 ## Project Overview
 
 A Python driver for the IT8951 e-paper controller, designed for use with Waveshare's 10.3-inch e-paper HAT. The driver communicates via SPI and is optimized for low power consumption:
+
 - **Hardware**: 10.3-inch e-paper HAT from Waveshare with IT8951 controller, and Raspberry Pi (any variant)
 - **Goal**: Provide a simple, efficient interface for rendering images to e-paper displays
 - **Dev Machine**: macOS M2 MAX (all dependencies must be macOS-compatible)
@@ -35,6 +36,7 @@ poetry run pyright
 # Linting and formatting
 poetry run ruff check .
 poetry run black .
+
 ```
 
 ## Common Pitfalls to Avoid
@@ -50,6 +52,7 @@ poetry run black .
 ## Type Stubs
 
 When pyright complains about external libraries:
+
 1. Create stubs in `stubs/<library>/`
 2. Include `__init__.pyi` and `py.typed`
 3. Match external API exactly (even non-PEP8 names)
@@ -94,9 +97,9 @@ When pyright complains about external libraries:
 
 ## Code Style Enforcement
 
-- **Formatter**: black (line length: 100)
+- **Formatter**: ruff format (line length: 100)
 - **Linter**: ruff with extensive rule sets
-- **Import Sorting**: isort with black profile
+- **Import Sorting**: ruff with isort profile
 - **Type Checking**: pyright in strict mode
 - **Pre-commit**: Hooks configured for automated checks
 

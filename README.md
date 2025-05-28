@@ -80,7 +80,6 @@ try:
     from PIL import Image
     img = Image.open("example.jpg")
     display.display_image(img, x=0, y=0, mode=DisplayMode.GC16)
-
 finally:
     display.close()
 ```
@@ -125,20 +124,16 @@ The driver follows a layered architecture:
    - `SPIInterface` - Abstract base class
    - `RaspberryPiSPI` - Hardware implementation
    - `MockSPI` - Mock implementation for testing
-
 2. **Core Driver** ([`it8951.py`](src/IT8951_ePaper_Py/it8951.py))
    - Low-level IT8951 controller communication
    - Register operations and command execution
-
 3. **High-Level Display** ([`display.py`](src/IT8951_ePaper_Py/display.py))
    - User-friendly display interface
    - Image processing and alignment
    - Automatic format conversion
-
 4. **Data Models** ([`models.py`](src/IT8951_ePaper_Py/models.py))
    - Type-safe configuration with Pydantic
    - Validation and data structures
-
 5. **Exception Hierarchy** ([`exceptions.py`](src/IT8951_ePaper_Py/exceptions.py))
    - `IT8951Error` - Base exception
    - `CommunicationError` - SPI communication failures
@@ -204,11 +199,12 @@ poetry run pytest --cov
 
 # Run specific test file
 poetry run pytest tests/test_display.py
+
 ```
 
 ### Project Structure
 
-```
+```text
 IT8951_ePaper_Py/
 ├── src/
 │   └── IT8951_ePaper_Py/
@@ -231,6 +227,7 @@ IT8951_ePaper_Py/
 ## Roadmap
 
 See our [Development Roadmap](ROADMAP.md) for planned features and improvements, including:
+
 - 4bpp support for better performance
 - Lower bit depth support (1bpp, 2bpp)
 - Power management features
