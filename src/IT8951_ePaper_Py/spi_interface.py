@@ -350,6 +350,9 @@ class MockSPI(SPIInterface):
 
 def create_spi_interface() -> SPIInterface:
     """Create appropriate SPI interface based on platform."""
-    if sys.platform == "linux" and ("arm" in sys.platform or "aarch" in sys.platform):
-        return RaspberryPiSPI()
+    if sys.platform == "linux":
+        import platform
+        machine = platform.machine().lower()
+        if "arm" in machine or "aarch" in machine:
+            return RaspberryPiSPI()
     return MockSPI()

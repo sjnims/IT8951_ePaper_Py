@@ -7,7 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from IT8951_ePaper_Py.constants import GPIOPin
-from IT8951_ePaper_Py.exceptions import InitializationError
+from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
 from IT8951_ePaper_Py.spi_interface import MockSPI, RaspberryPiSPI, create_spi_interface
 
 
@@ -114,6 +114,30 @@ class TestMockSPI:
 
         assert data == [0x1111, 0x2222, 0x3333, 0xFFFF, 0xFFFF]
 
+    def test_write_data_without_init(self) -> None:
+        """Test write_data fails without initialization."""
+        spi = MockSPI()
+        with pytest.raises(InitializationError):
+            spi.write_data(0x1234)
+
+    def test_write_data_bulk_without_init(self) -> None:
+        """Test write_data_bulk fails without initialization."""
+        spi = MockSPI()
+        with pytest.raises(InitializationError):
+            spi.write_data_bulk([0x1234])
+
+    def test_read_data_without_init(self) -> None:
+        """Test read_data fails without initialization."""
+        spi = MockSPI()
+        with pytest.raises(InitializationError):
+            spi.read_data()
+
+    def test_read_data_bulk_without_init(self) -> None:
+        """Test read_data_bulk fails without initialization."""
+        spi = MockSPI()
+        with pytest.raises(InitializationError):
+            spi.read_data_bulk(5)
+
 
 class TestRaspberryPiSPI:
     """Test RaspberryPiSPI implementation."""
@@ -182,6 +206,403 @@ class TestRaspberryPiSPI:
         spi.close()
         mock_gpio.cleanup.assert_called_once()
 
+    def test_init_already_initialized(self, mocker: MockerFixture) -> None:
+        """Test init when already initialized."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        # Clear the call counts
+        mock_gpio.setmode.reset_mock()
+        
+        # Init again - should return early
+        spi.init()
+        
+        # Should not call setmode again
+        mock_gpio.setmode.assert_not_called()
+        
+        spi.close()
+
+    def test_init_general_exception(self, mocker: MockerFixture) -> None:
+        """Test init with general exception."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.setmode.side_effect = Exception("Hardware error")
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mocker.MagicMock(),
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        with pytest.raises(InitializationError) as exc_info:
+            spi.init()
+        
+        assert "Failed to initialize SPI" in str(exc_info.value)
+        assert "Hardware error" in str(exc_info.value)
+
+    def test_reset_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test hardware reset with mocked GPIO."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        # Clear previous calls from init
+        mock_gpio.output.reset_mock()
+        
+        # Test reset
+        start = time.time()
+        spi.reset()
+        elapsed = time.time() - start
+        
+        # Should set RESET low, wait, then high
+        assert mock_gpio.output.call_count == 2
+        mock_gpio.output.assert_any_call(GPIOPin.RESET, 0)
+        mock_gpio.output.assert_any_call(GPIOPin.RESET, 1)
+        assert elapsed >= 0.2  # Two 0.1s sleeps
+        
+        spi.close()
+
+    def test_wait_busy_timeout(self, mocker: MockerFixture) -> None:
+        """Test wait_busy timeout scenario."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 1  # Always busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        with pytest.raises(CommunicationError) as exc_info:
+            spi.wait_busy(timeout_ms=100)
+        
+        assert "Device busy timeout after 100ms" in str(exc_info.value)
+        spi.close()
+
+    def test_wait_busy_success(self, mocker: MockerFixture) -> None:
+        """Test successful wait_busy."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.side_effect = [1, 1, 0]  # Busy twice, then ready
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        spi.wait_busy()
+        assert mock_gpio.input.call_count == 3
+        
+        spi.close()
+
+    def test_write_command_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test write_command with mocked hardware."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        spi.write_command(0x1234)
+        
+        # Should write preamble and command
+        assert mock_spi_instance.writebytes.call_count == 2
+        # Preamble
+        mock_spi_instance.writebytes.assert_any_call([0x60, 0x00])
+        # Command
+        mock_spi_instance.writebytes.assert_any_call([0x12, 0x34])
+        
+        spi.close()
+
+    def test_write_data_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test write_data with mocked hardware."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        spi.write_data(0x5678)
+        
+        # Should write preamble and data
+        assert mock_spi_instance.writebytes.call_count == 2
+        # Preamble
+        mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
+        # Data
+        mock_spi_instance.writebytes.assert_any_call([0x56, 0x78])
+        
+        spi.close()
+
+    def test_write_data_bulk_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test write_data_bulk with mocked hardware."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        data = [0x1111, 0x2222, 0x3333]
+        spi.write_data_bulk(data)
+        
+        # Should write preamble + 3 data values = 4 calls
+        assert mock_spi_instance.writebytes.call_count == 4
+        # Preamble
+        mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
+        # Data values
+        mock_spi_instance.writebytes.assert_any_call([0x11, 0x11])
+        mock_spi_instance.writebytes.assert_any_call([0x22, 0x22])
+        mock_spi_instance.writebytes.assert_any_call([0x33, 0x33])
+        
+        spi.close()
+
+    def test_read_data_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test read_data with mocked hardware."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spi_instance.xfer2.return_value = [0xAB, 0xCD]
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        result = spi.read_data()
+        
+        # Should write preamble and dummy, then read
+        assert mock_spi_instance.writebytes.call_count == 2
+        # Read preamble
+        mock_spi_instance.writebytes.assert_any_call([0x10, 0x00])
+        # Dummy data
+        mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
+        
+        # Should transfer to read result
+        mock_spi_instance.xfer2.assert_called_once_with([0x00, 0x00])
+        assert result == 0xABCD
+        
+        spi.close()
+
+    def test_read_data_bulk_with_hardware(self, mocker: MockerFixture) -> None:
+        """Test read_data_bulk with mocked hardware."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+        
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spi_instance.xfer2.side_effect = [
+            [0x11, 0x11],
+            [0x22, 0x22],
+            [0x33, 0x33],
+        ]
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi.init()
+        
+        result = spi.read_data_bulk(3)
+        
+        # Should write preamble and dummy
+        assert mock_spi_instance.writebytes.call_count == 2
+        # Read preamble
+        mock_spi_instance.writebytes.assert_any_call([0x10, 0x00])
+        # Dummy data
+        mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
+        
+        # Should transfer 3 times
+        assert mock_spi_instance.xfer2.call_count == 3
+        assert result == [0x1111, 0x2222, 0x3333]
+        
+        spi.close()
+
+    def test_write_data_without_init(self) -> None:
+        """Test write_data fails without initialization."""
+        spi = RaspberryPiSPI()
+        with pytest.raises(InitializationError):
+            spi.write_data(0x1234)
+
+    def test_write_data_bulk_without_init(self) -> None:
+        """Test write_data_bulk fails without initialization."""
+        spi = RaspberryPiSPI()
+        with pytest.raises(InitializationError):
+            spi.write_data_bulk([0x1234])
+
+    def test_read_data_without_init(self) -> None:
+        """Test read_data fails without initialization."""
+        spi = RaspberryPiSPI()
+        with pytest.raises(InitializationError):
+            spi.read_data()
+
+    def test_read_data_bulk_without_init(self) -> None:
+        """Test read_data_bulk fails without initialization."""
+        spi = RaspberryPiSPI()
+        with pytest.raises(InitializationError):
+            spi.read_data_bulk(5)
+
+    def test_close_partial_init(self, mocker: MockerFixture) -> None:
+        """Test close when only partially initialized."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mocker.MagicMock(),
+            },
+        )
+        
+        spi = RaspberryPiSPI()
+        spi._gpio = mock_gpio  # type: ignore[reportPrivateUsage]
+        spi._spi = None  # type: ignore[reportPrivateUsage]
+        
+        spi.close()
+        
+        mock_gpio.cleanup.assert_called_once()
+        assert spi._gpio is None  # type: ignore[reportPrivateUsage]
+
 
 class TestCreateSPIInterface:
     """Test SPI interface factory function."""
@@ -195,6 +616,7 @@ class TestCreateSPIInterface:
     def test_create_mock_on_non_arm_linux(self, mocker: MockerFixture) -> None:
         """Test MockSPI is created on non-ARM Linux."""
         mocker.patch("sys.platform", "linux")
+        mocker.patch("platform.machine", return_value="x86_64")
         spi = create_spi_interface()
         assert isinstance(spi, MockSPI)
 
@@ -204,5 +626,19 @@ class TestCreateSPIInterface:
     )
     def test_create_raspberry_pi_on_arm_linux(self) -> None:
         """Test RaspberryPiSPI is created on ARM Linux."""
+        spi = create_spi_interface()
+        assert isinstance(spi, RaspberryPiSPI)
+
+    def test_create_raspberry_pi_on_arm_linux_mocked(self, mocker: MockerFixture) -> None:
+        """Test RaspberryPiSPI is created on ARM Linux using mocked platform."""
+        mocker.patch("sys.platform", "linux")
+        mocker.patch("platform.machine", return_value="armv7l")
+        spi = create_spi_interface()
+        assert isinstance(spi, RaspberryPiSPI)
+
+    def test_create_raspberry_pi_on_aarch64_linux_mocked(self, mocker: MockerFixture) -> None:
+        """Test RaspberryPiSPI is created on aarch64 Linux using mocked platform."""
+        mocker.patch("sys.platform", "linux")
+        mocker.patch("platform.machine", return_value="aarch64")
         spi = create_spi_interface()
         assert isinstance(spi, RaspberryPiSPI)
