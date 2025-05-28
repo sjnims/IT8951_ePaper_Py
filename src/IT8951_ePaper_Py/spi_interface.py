@@ -34,6 +34,133 @@ from IT8951_ePaper_Py.constants import GPIOPin, ProtocolConstants, SPIConstants,
 from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
 
 
+def _get_pi_revision() -> str | None:
+    """Read Raspberry Pi revision from /proc/cpuinfo.
+
+    Returns:
+        str | None: Revision string or None if not found.
+    """
+    try:
+        with open("/proc/cpuinfo") as f:
+            for line in f:
+                if line.startswith("Revision"):
+                    return line.split(":")[-1].strip()
+    except OSError:
+        # File doesn't exist or can't be read (not on Pi)
+        return None
+    return None
+
+
+def _detect_from_new_revision(revision: str) -> int | None:
+    """Detect Pi version from new-style revision codes.
+
+    Args:
+        revision: Revision string (6+ hex digits).
+
+    Returns:
+        int | None: Pi version or None if not detected.
+    """
+    if len(revision) < 6:
+        return None
+
+    try:
+        # Extract processor field (bits 12-15, chars 2-3 in hex string)
+        processor = int(revision[-4:-2], 16) if len(revision) > 4 else 0
+        # Map processor to Pi version
+        # BCM2835=0 (Pi1/Zero), BCM2836=1 (Pi2), BCM2837=2 (Pi3), BCM2711=3 (Pi4), BCM2712=4 (Pi5)
+        processor_map = {0: 1, 1: 2, 2: 3, 3: 4, 4: 5}
+        return processor_map.get(processor)
+    except ValueError:
+        return None
+
+
+def detect_raspberry_pi_version() -> int:
+    """Detect Raspberry Pi version from /proc/cpuinfo.
+
+    Returns:
+        int: Pi version (1, 2, 3, 4, or 5), or 4 if unknown/not a Pi.
+
+    Note:
+        This function reads /proc/cpuinfo to determine the Pi model.
+        Falls back to 4 (conservative speed) if detection fails.
+    """
+    revision = _get_pi_revision()
+    if not revision:
+        return 4  # Conservative default
+
+    # Try new-style revision codes first
+    version = _detect_from_new_revision(revision)
+    if version is not None:
+        return version
+
+    # Fall back to old-style revision codes
+    old_style_map = {
+        # Pi 1
+        (
+            "0002",
+            "0003",
+            "0004",
+            "0005",
+            "0006",
+            "0007",
+            "0008",
+            "0009",
+            "000d",
+            "000e",
+            "000f",
+            "0010",
+            "0011",
+            "0012",
+            "0013",
+            "0014",
+            "0015",
+        ): 1,
+        # Pi 2
+        ("a01040", "a01041", "a21041", "a22042"): 2,
+        # Pi 3
+        ("a02082", "a22082", "a32082", "a52082", "a22083"): 3,
+    }
+
+    for revisions, version in old_style_map.items():
+        if revision in revisions:
+            return version
+
+    # Check prefixes for Pi 4 and 5
+    if any(revision.startswith(prefix) for prefix in ["a03", "b03", "c03", "d03"]):
+        return 4
+    if any(revision.startswith(prefix) for prefix in ["c04", "d04"]):
+        return 5
+
+    return 4  # Conservative default
+
+
+def get_spi_speed_for_pi(pi_version: int | None = None, override_hz: int | None = None) -> int:
+    """Get appropriate SPI speed for Raspberry Pi version.
+
+    Args:
+        pi_version: Pi version (1-5). If None, auto-detects.
+        override_hz: Manual speed override in Hz. If provided, uses this instead.
+
+    Returns:
+        int: SPI speed in Hz.
+
+    Note:
+        Pi 3 can use faster speeds, Pi 4+ needs slower speeds for stability.
+        Based on Waveshare wiki recommendations.
+    """
+    if override_hz is not None:
+        return override_hz
+
+    if pi_version is None:
+        pi_version = detect_raspberry_pi_version()
+
+    # Use Pi-specific speeds based on Waveshare recommendations
+    if pi_version <= 3:
+        return SPIConstants.SPI_SPEED_PI3_HZ
+    # Pi 4, 5, and unknown versions use conservative speed
+    return SPIConstants.SPI_SPEED_PI4_HZ
+
+
 class GPIOInterface(Protocol):
     """Protocol for GPIO operations."""
 
@@ -235,11 +362,17 @@ class SPIInterface(ABC):
 class RaspberryPiSPI(SPIInterface):
     """SPI interface implementation for Raspberry Pi."""
 
-    def __init__(self) -> None:
-        """Initialize Raspberry Pi SPI interface."""
+    def __init__(self, spi_speed_hz: int | None = None) -> None:
+        """Initialize Raspberry Pi SPI interface.
+
+        Args:
+            spi_speed_hz: Manual SPI speed override in Hz. If None, auto-detects
+                         based on Pi version.
+        """
         self._gpio: GPIOInterface | None = None
         self._spi: SPIDeviceInterface | None = None
         self._initialized = False
+        self._spi_speed_hz = spi_speed_hz
 
     def init(self) -> None:
         """Initialize SPI interface."""
@@ -257,7 +390,8 @@ class RaspberryPiSPI(SPIInterface):
 
             self._spi = spidev.SpiDev()  # type: ignore[assignment]
             self._spi.open(0, 0)
-            self._spi.max_speed_hz = SPIConstants.SPI_SPEED_HZ
+            # Auto-detect Pi version and use appropriate speed, or use override
+            self._spi.max_speed_hz = get_spi_speed_for_pi(override_hz=self._spi_speed_hz)
             self._spi.mode = SPIConstants.SPI_MODE
 
             self._initialized = True
@@ -506,21 +640,30 @@ class MockSPI(SPIInterface):
         return self._data_buffer.copy()
 
 
-def create_spi_interface() -> SPIInterface:
+def create_spi_interface(spi_speed_hz: int | None = None) -> SPIInterface:
     """Create appropriate SPI interface based on platform.
 
     Automatically selects the correct SPI implementation:
     - RaspberryPiSPI for ARM Linux systems (Raspberry Pi)
     - MockSPI for all other platforms (development/testing)
 
+    Args:
+        spi_speed_hz: Manual SPI speed override in Hz. Only used for RaspberryPiSPI.
+                     If None, auto-detects based on Pi version.
+
     Returns:
         SPIInterface: Appropriate SPI interface instance.
 
     Examples:
+        >>> # Auto-detect Pi version and use appropriate speed
         >>> spi = create_spi_interface()
         >>> spi.init()
         >>> # Use spi for communication
         >>> spi.close()
+
+        >>> # Manual speed override
+        >>> spi = create_spi_interface(spi_speed_hz=10000000)  # 10MHz
+        >>> spi.init()
     """
     if sys.platform == "linux":
         import platform
@@ -529,5 +672,5 @@ def create_spi_interface() -> SPIInterface:
         # Check for ARM architecture (not sensitive - just CPU detection)
         # CodeQL: This is not sensitive information, just platform detection
         if "arm" in machine or "aarch" in machine:  # nosec
-            return RaspberryPiSPI()
+            return RaspberryPiSPI(spi_speed_hz=spi_speed_hz)
     return MockSPI()

@@ -6,9 +6,15 @@ import time
 import pytest
 from pytest_mock import MockerFixture
 
-from IT8951_ePaper_Py.constants import GPIOPin
+from IT8951_ePaper_Py.constants import GPIOPin, SPIConstants
 from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
-from IT8951_ePaper_Py.spi_interface import MockSPI, RaspberryPiSPI, create_spi_interface
+from IT8951_ePaper_Py.spi_interface import (
+    MockSPI,
+    RaspberryPiSPI,
+    create_spi_interface,
+    detect_raspberry_pi_version,
+    get_spi_speed_for_pi,
+)
 
 
 class TestMockSPI:
@@ -642,3 +648,204 @@ class TestCreateSPIInterface:
         mocker.patch("platform.machine", return_value="aarch64")
         spi = create_spi_interface()
         assert isinstance(spi, RaspberryPiSPI)
+
+    def test_create_with_speed_override(self, mocker: MockerFixture) -> None:
+        """Test creating interface with manual speed override."""
+        mocker.patch("sys.platform", "linux")
+        mocker.patch("platform.machine", return_value="armv7l")
+        spi = create_spi_interface(spi_speed_hz=10000000)
+        assert isinstance(spi, RaspberryPiSPI)
+
+
+class TestPiDetection:
+    """Test Raspberry Pi version detection and speed selection."""
+
+    def test_detect_pi_3(self, mocker: MockerFixture) -> None:
+        """Test detecting Raspberry Pi 3."""
+        cpuinfo = """processor       : 0
+model name      : ARMv7 Processor rev 4 (v7l)
+BogoMIPS        : 76.80
+Features        : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm crc32
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xd08
+CPU revision    : 3
+
+Hardware        : BCM2835
+Revision        : a32082
+Serial          : 00000000abcdef12
+Model           : Raspberry Pi 3 Model B Rev 1.2
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 3
+
+    def test_detect_pi_4(self, mocker: MockerFixture) -> None:
+        """Test detecting Raspberry Pi 4."""
+        cpuinfo = """processor       : 0
+model name      : ARMv7 Processor rev 3 (v7l)
+BogoMIPS        : 108.00
+Features        : half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm crc32
+CPU implementer : 0x41
+CPU architecture: 7
+CPU variant     : 0x0
+CPU part        : 0xd08
+CPU revision    : 3
+
+Hardware        : BCM2711
+Revision        : c03112
+Serial          : 100000001234abcd
+Model           : Raspberry Pi 4 Model B Rev 1.2
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 4
+
+    def test_detect_pi_5(self, mocker: MockerFixture) -> None:
+        """Test detecting Raspberry Pi 5."""
+        cpuinfo = """processor       : 0
+BogoMIPS        : 108.00
+Features        : fp asimd evtstrm aes pmull sha1 sha2 crc32 atomics fphp asimdhp cpuid asimdrdm lrcpc dcpop asimddp
+CPU implementer : 0x41
+CPU architecture: 8
+CPU variant     : 0x4
+CPU part        : 0xd0b
+CPU revision    : 1
+
+Hardware        : BCM2712
+Revision        : c04170
+Serial          : 100000001234abcd
+Model           : Raspberry Pi 5 Model B Rev 1.0
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 5
+
+    def test_detect_unknown_pi(self, mocker: MockerFixture) -> None:
+        """Test detecting unknown Pi returns 4 (conservative)."""
+        cpuinfo = """processor       : 0
+model name      : Unknown Processor
+Revision        : unknown123
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 4  # Conservative default
+
+    def test_detect_no_revision(self, mocker: MockerFixture) -> None:
+        """Test handling missing revision info."""
+        cpuinfo = """processor       : 0
+model name      : ARMv7 Processor
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 4  # Conservative default
+
+    def test_detect_file_error(self, mocker: MockerFixture) -> None:
+        """Test handling file read error."""
+        mocker.patch("builtins.open", side_effect=OSError("File not found"))
+
+        version = detect_raspberry_pi_version()
+        assert version == 4  # Conservative default
+
+    def test_get_spi_speed_pi3(self) -> None:
+        """Test getting SPI speed for Pi 3."""
+        speed = get_spi_speed_for_pi(pi_version=3)
+        assert speed == SPIConstants.SPI_SPEED_PI3_HZ
+
+    def test_get_spi_speed_pi4(self) -> None:
+        """Test getting SPI speed for Pi 4."""
+        speed = get_spi_speed_for_pi(pi_version=4)
+        assert speed == SPIConstants.SPI_SPEED_PI4_HZ
+
+    def test_get_spi_speed_pi5(self) -> None:
+        """Test getting SPI speed for Pi 5."""
+        speed = get_spi_speed_for_pi(pi_version=5)
+        assert speed == SPIConstants.SPI_SPEED_PI4_HZ  # Uses conservative speed
+
+    def test_get_spi_speed_override(self) -> None:
+        """Test SPI speed override."""
+        speed = get_spi_speed_for_pi(pi_version=3, override_hz=10000000)
+        assert speed == 10000000
+
+    def test_get_spi_speed_auto_detect(self, mocker: MockerFixture) -> None:
+        """Test SPI speed with auto-detection."""
+        mocker.patch("IT8951_ePaper_Py.spi_interface.detect_raspberry_pi_version", return_value=3)
+
+        speed = get_spi_speed_for_pi()
+        assert speed == SPIConstants.SPI_SPEED_PI3_HZ
+
+
+class TestRaspberryPiSPIWithSpeed:
+    """Test RaspberryPiSPI with speed configuration."""
+
+    def test_init_with_auto_speed(self, mocker: MockerFixture) -> None:
+        """Test RaspberryPiSPI initialization with auto-detected speed."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+
+        # Mock Pi version detection to return Pi 3
+        mocker.patch("IT8951_ePaper_Py.spi_interface.detect_raspberry_pi_version", return_value=3)
+
+        spi = RaspberryPiSPI()
+        spi.init()
+
+        # Should use Pi 3 speed
+        assert mock_spi_instance.max_speed_hz == SPIConstants.SPI_SPEED_PI3_HZ
+
+        spi.close()
+
+    def test_init_with_manual_speed(self, mocker: MockerFixture) -> None:
+        """Test RaspberryPiSPI initialization with manual speed override."""
+        mock_gpio = mocker.MagicMock()
+        mock_gpio.BCM = 11
+        mock_gpio.OUT = 0
+        mock_gpio.IN = 1
+        mock_gpio.input.return_value = 0  # Not busy
+
+        mock_spidev_class = mocker.MagicMock()
+        mock_spi_instance = mocker.MagicMock()
+        mock_spidev_class.SpiDev.return_value = mock_spi_instance
+
+        mocker.patch.dict(
+            "sys.modules",
+            {
+                "RPi": mocker.MagicMock(GPIO=mock_gpio),
+                "RPi.GPIO": mock_gpio,
+                "spidev": mock_spidev_class,
+            },
+        )
+
+        spi = RaspberryPiSPI(spi_speed_hz=10000000)
+        spi.init()
+
+        # Should use manual override speed
+        assert mock_spi_instance.max_speed_hz == 10000000
+
+        spi.close()

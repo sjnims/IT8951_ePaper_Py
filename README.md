@@ -84,6 +84,25 @@ finally:
     display.close()
 ```
 
+### SPI Speed Configuration
+
+The driver automatically detects your Raspberry Pi version and selects the optimal SPI speed:
+
+- **Raspberry Pi 3 and below**: 15.625 MHz (faster)
+- **Raspberry Pi 4 and above**: 7.8125 MHz (more stable)
+
+You can also manually override the SPI speed:
+
+```python
+# Manual speed override (10 MHz)
+display = EPaperDisplay(vcom=-2.0, spi_speed_hz=10000000)
+
+# Use default auto-detection
+display = EPaperDisplay(vcom=-2.0)
+```
+
+**Note**: These speeds are based on Waveshare's recommendations. Pi 4+ requires slower speeds due to hardware differences.
+
 ## Examples
 
 ### Basic Display

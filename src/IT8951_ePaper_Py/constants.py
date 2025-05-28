@@ -113,7 +113,12 @@ class SPIConstants:
     PREAMBLE_CMD = 0x6000
     PREAMBLE_DATA = 0x0000
     DUMMY_DATA = 0x0000
-    SPI_SPEED_HZ = 12000000
+    SPI_SPEED_HZ = 12000000  # Default speed (12MHz)
+    # Pi-specific speeds based on core clock dividers (Waveshare recommendations)
+    # Pi 3: 400MHz core / 16 = 25MHz (but we use conservative 15.625MHz based on 250MHz/16)
+    # Pi 4: More conservative divider for stability
+    SPI_SPEED_PI3_HZ = 15625000  # 250MHz / 16 = 15.625MHz
+    SPI_SPEED_PI4_HZ = 7812500  # 250MHz / 32 = 7.8125MHz
     SPI_MODE = 0
     READ_DUMMY_BYTES: ClassVar[list[int]] = [0x00, 0x00]
     MOCK_DEFAULT_VALUE = 0xFFFF

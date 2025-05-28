@@ -46,7 +46,7 @@ from IT8951_ePaper_Py.constants import (
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import AreaImageInfo, DisplayArea, LoadImageInfo
-from IT8951_ePaper_Py.spi_interface import SPIInterface
+from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
 
 
 class EPaperDisplay:
@@ -65,13 +65,19 @@ class EPaperDisplay:
         self,
         vcom: float = DisplayConstants.DEFAULT_VCOM,
         spi_interface: SPIInterface | None = None,
+        spi_speed_hz: int | None = None,
     ) -> None:
         """Initialize e-paper display.
 
         Args:
             vcom: VCOM voltage setting (negative value).
-            spi_interface: Optional SPI interface for testing.
+            spi_interface: Optional SPI interface for testing. If provided,
+                          spi_speed_hz is ignored.
+            spi_speed_hz: Manual SPI speed override in Hz. If None, auto-detects
+                         based on Pi version. Only used when spi_interface is None.
         """
+        if spi_interface is None:
+            spi_interface = create_spi_interface(spi_speed_hz=spi_speed_hz)
         self._controller = IT8951(spi_interface)
         self._vcom = vcom
         self._width = 0
