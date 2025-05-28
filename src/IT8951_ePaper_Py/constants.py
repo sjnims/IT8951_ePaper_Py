@@ -1,4 +1,19 @@
-"""Constants and configuration for IT8951 e-paper driver."""
+"""Constants and configuration for IT8951 e-paper driver.
+
+This module contains all hardware constants, command definitions, and
+configuration values for the IT8951 e-paper controller. Constants are
+organized into logical groups using IntEnum and dataclasses.
+
+Constant Categories:
+    - SystemCommand: Low-level system control commands
+    - UserCommand: High-level user commands
+    - DisplayMode: Display refresh modes (speed vs quality tradeoffs)
+    - PixelFormat: Supported pixel bit depths
+    - Rotation: Image rotation options
+    - EndianType: Byte order options
+    - Register: Hardware register addresses
+    - Various configuration constants for GPIO, SPI, timing, etc.
+"""
 
 from enum import IntEnum
 from typing import ClassVar

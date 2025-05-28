@@ -5,12 +5,12 @@ This roadmap outlines the phased implementation of missing features and improvem
 ## Phase 1: Performance Optimizations
 *High-impact features that significantly improve display performance and user experience*
 
-### 1.1 Implement 4bpp Support (Wiki Recommended)
-1.1.1 Add 4bpp pixel packing functionality in `it8951.py`
-1.1.2 Create `display_image_4bpp()` method in `display.py`
-1.1.3 Add pixel format conversion utilities (8bpp to 4bpp)
-1.1.4 Update examples to demonstrate 4bpp usage
-1.1.5 Add performance comparison tests (4bpp vs 8bpp)
+### 1.1 Implement 4bpp Support (Wiki Recommended) ✅
+1.1.1 ✅ Add 4bpp pixel packing functionality in `it8951.py`
+1.1.2 ✅ Create `display_image_4bpp()` method in `display.py` (implemented as parameter)
+1.1.3 ✅ Add pixel format conversion utilities (8bpp to 4bpp) (integrated in pack_pixels)
+1.1.4 ✅ Update examples to demonstrate 4bpp usage (performance_4bpp.py)
+1.1.5 ✅ Add performance comparison tests (4bpp vs 8bpp) (test_performance.py)
 
 ### 1.2 Dynamic SPI Speed Configuration
 1.2.1 Add Raspberry Pi version detection utility

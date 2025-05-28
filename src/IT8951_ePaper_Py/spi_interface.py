@@ -1,4 +1,29 @@
-"""SPI interface abstraction for IT8951 communication."""
+"""SPI interface abstraction for IT8951 communication.
+
+This module provides hardware abstraction for SPI communication with the IT8951
+e-paper controller. It includes:
+
+- Protocol definitions for GPIO and SPI operations
+- Abstract base class for SPI interfaces
+- MockSPI implementation for testing
+- RaspberryPiSPI implementation for hardware
+- Factory function for automatic interface selection
+
+Examples:
+    Creating an SPI interface::
+
+        # Automatic selection based on platform
+        spi = create_spi_interface()
+
+        # Or explicitly use mock for testing
+        spi = MockSPI()
+
+        # Initialize and use
+        spi.init()
+        spi.write_command(0x01)
+        data = spi.read_data()
+        spi.close()
+"""
 
 import sys
 import time
@@ -17,18 +42,41 @@ class GPIOInterface(Protocol):
     IN: int
 
     def setmode(self, mode: int) -> None:
-        """Set the GPIO pin numbering mode."""
+        """Set the GPIO pin numbering mode.
+
+        Args:
+            mode: Pin numbering mode (e.g., BCM).
+        """
 
     def setup(
         self, channel: int | list[int], direction: int, pull_up_down: int = 20, initial: int = -1
     ) -> None:
-        """Set up a GPIO pin."""
+        """Set up a GPIO pin.
+
+        Args:
+            channel: GPIO pin number(s) to configure.
+            direction: Pin direction (IN or OUT).
+            pull_up_down: Pull resistor configuration (default: 20).
+            initial: Initial output value (default: -1).
+        """
 
     def output(self, channel: int | list[int], state: int | bool | list[int] | list[bool]) -> None:
-        """Set GPIO pin output value."""
+        """Set GPIO pin output value.
+
+        Args:
+            channel: GPIO pin number(s) to set.
+            state: Output state(s) (0/1, True/False).
+        """
 
     def input(self, channel: int) -> int:
-        """Read GPIO pin input value."""
+        """Read GPIO pin input value.
+
+        Args:
+            channel: GPIO pin number to read.
+
+        Returns:
+            int: Pin state (0 or 1).
+        """
         ...
 
     def cleanup(self) -> None:
@@ -42,15 +90,34 @@ class SPIDeviceInterface(Protocol):
     mode: int
 
     def open(self, bus: int, device: int) -> None:
-        """Open SPI device."""
+        """Open SPI device.
+
+        Args:
+            bus: SPI bus number.
+            device: SPI device number.
+        """
 
     def writebytes(self, values: list[int]) -> None:
-        """Write bytes to SPI."""
+        """Write bytes to SPI.
+
+        Args:
+            values: List of byte values to write.
+        """
 
     def xfer2(
         self, values: list[int], speed_hz: int = 0, delay_usecs: int = 0, bits_per_word: int = 0
     ) -> list[int]:
-        """Transfer data to/from SPI."""
+        """Transfer data to/from SPI.
+
+        Args:
+            values: Data to send.
+            speed_hz: Transfer speed in Hz (0 = default).
+            delay_usecs: Delay between transfers in microseconds.
+            bits_per_word: Bits per word (0 = default).
+
+        Returns:
+            list[int]: Data received during transfer.
+        """
         ...
 
     def close(self) -> None:
@@ -62,47 +129,106 @@ class SPIInterface(ABC):
 
     @abstractmethod
     def init(self) -> None:
-        """Initialize SPI interface."""
+        """Initialize SPI interface.
+
+        Sets up GPIO pins, opens SPI device, and performs hardware reset.
+
+        Raises:
+            InitializationError: If initialization fails.
+        """
         pass
 
     @abstractmethod
     def close(self) -> None:
-        """Close SPI interface and cleanup resources."""
+        """Close SPI interface and cleanup resources.
+
+        Releases GPIO pins and closes SPI device.
+        """
         pass
 
     @abstractmethod
     def reset(self) -> None:
-        """Hardware reset the device."""
+        """Hardware reset the device.
+
+        Performs a hardware reset by toggling the reset pin.
+        """
         pass
 
     @abstractmethod
     def wait_busy(self, timeout_ms: int = 5000) -> None:
-        """Wait for device to be ready."""
+        """Wait for device to be ready.
+
+        Polls the busy pin until device is ready or timeout occurs.
+
+        Args:
+            timeout_ms: Maximum wait time in milliseconds.
+
+        Raises:
+            CommunicationError: If timeout occurs.
+        """
         pass
 
     @abstractmethod
     def write_command(self, command: int) -> None:
-        """Write a command to the device."""
+        """Write a command to the device.
+
+        Args:
+            command: Command byte to write.
+
+        Raises:
+            CommunicationError: If not initialized.
+        """
         pass
 
     @abstractmethod
     def write_data(self, data: int) -> None:
-        """Write data to the device."""
+        """Write data to the device.
+
+        Args:
+            data: Data word (16-bit) to write.
+
+        Raises:
+            CommunicationError: If not initialized.
+        """
         pass
 
     @abstractmethod
     def write_data_bulk(self, data: list[int]) -> None:
-        """Write bulk data to the device."""
+        """Write bulk data to the device.
+
+        Args:
+            data: List of data words to write.
+
+        Raises:
+            CommunicationError: If not initialized.
+        """
         pass
 
     @abstractmethod
     def read_data(self) -> int:
-        """Read data from the device."""
+        """Read data from the device.
+
+        Returns:
+            int: Data word (16-bit) read from device.
+
+        Raises:
+            CommunicationError: If not initialized.
+        """
         pass
 
     @abstractmethod
     def read_data_bulk(self, length: int) -> list[int]:
-        """Read bulk data from the device."""
+        """Read bulk data from the device.
+
+        Args:
+            length: Number of data words to read.
+
+        Returns:
+            list[int]: List of data words read.
+
+        Raises:
+            CommunicationError: If not initialized.
+        """
         pass
 
 
@@ -356,20 +482,46 @@ class MockSPI(SPIInterface):
         return data
 
     def set_read_data(self, data: list[int]) -> None:
-        """Set data to be returned by read operations (for testing)."""
+        """Set data to be returned by read operations (for testing).
+
+        Args:
+            data: List of data words to queue for reading.
+        """
         self._read_data.extend(data)
 
     def get_last_command(self) -> int | None:
-        """Get the last command written (for testing)."""
+        """Get the last command written (for testing).
+
+        Returns:
+            int | None: Last command byte written, or None if no commands.
+        """
         return self._last_command
 
     def get_data_buffer(self) -> list[int]:
-        """Get the data buffer (for testing)."""
+        """Get the data buffer (for testing).
+
+        Returns:
+            list[int]: Copy of all data written to the device.
+        """
         return self._data_buffer.copy()
 
 
 def create_spi_interface() -> SPIInterface:
-    """Create appropriate SPI interface based on platform."""
+    """Create appropriate SPI interface based on platform.
+
+    Automatically selects the correct SPI implementation:
+    - RaspberryPiSPI for ARM Linux systems (Raspberry Pi)
+    - MockSPI for all other platforms (development/testing)
+
+    Returns:
+        SPIInterface: Appropriate SPI interface instance.
+
+    Examples:
+        >>> spi = create_spi_interface()
+        >>> spi.init()
+        >>> # Use spi for communication
+        >>> spi.close()
+    """
     if sys.platform == "linux":
         import platform
 

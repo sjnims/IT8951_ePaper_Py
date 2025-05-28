@@ -1,4 +1,26 @@
-"""High-level display interface for IT8951 e-paper."""
+"""High-level display interface for IT8951 e-paper.
+
+This module provides a user-friendly API for controlling e-paper displays
+with the IT8951 controller. It handles image loading, format conversion,
+and display operations.
+
+Examples:
+    Basic usage::
+
+        from IT8951_ePaper_Py import EPaperDisplay
+
+        # Initialize display
+        display = EPaperDisplay(vcom=-2.0)
+        width, height = display.init()
+
+        # Display an image
+        from PIL import Image
+        img = Image.open("picture.png")
+        display.display_image(img)
+
+        # Clean up
+        display.close()
+"""
 
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
@@ -28,7 +50,16 @@ from IT8951_ePaper_Py.spi_interface import SPIInterface
 
 
 class EPaperDisplay:
-    """High-level interface for IT8951 e-paper display."""
+    """High-level interface for IT8951 e-paper display.
+
+    This class provides simplified methods for common e-paper operations,
+    abstracting the low-level IT8951 protocol details.
+
+    Attributes:
+        width: Display width in pixels (after init).
+        height: Display height in pixels (after init).
+        size: Display size as (width, height) tuple (after init).
+    """
 
     def __init__(
         self,
@@ -297,18 +328,39 @@ class EPaperDisplay:
 
     @property
     def width(self) -> int:
-        """Get display width in pixels."""
+        """Get display width in pixels.
+
+        Returns:
+            int: Display width in pixels.
+
+        Raises:
+            DisplayError: If display not initialized.
+        """
         self._ensure_initialized()
         return self._width
 
     @property
     def height(self) -> int:
-        """Get display height in pixels."""
+        """Get display height in pixels.
+
+        Returns:
+            int: Display height in pixels.
+
+        Raises:
+            DisplayError: If display not initialized.
+        """
         self._ensure_initialized()
         return self._height
 
     @property
     def size(self) -> tuple[int, int]:
-        """Get display size as (width, height)."""
+        """Get display size as (width, height).
+
+        Returns:
+            tuple[int, int]: Display dimensions as (width, height).
+
+        Raises:
+            DisplayError: If display not initialized.
+        """
         self._ensure_initialized()
         return (self._width, self._height)
