@@ -8,6 +8,7 @@ from PIL import Image
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
     NumpyArray = NDArray[np.uint8]
 else:
     NumpyArray = np.ndarray

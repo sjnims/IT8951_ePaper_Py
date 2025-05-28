@@ -38,7 +38,7 @@ class TestEPaperDisplay:
         mock_spi.set_read_data([0x0000])
 
         # Mock clear to avoid complex setup
-        mocker.patch.object(display, 'clear')
+        mocker.patch.object(display, "clear")
 
         display.init()
         return display
@@ -51,7 +51,7 @@ class TestEPaperDisplay:
         mock_spi.set_read_data([0x0000])
 
         # Mock clear to avoid complex setup
-        mocker.patch.object(display, 'clear')
+        mocker.patch.object(display, "clear")
 
         width, height = display.init()
 
