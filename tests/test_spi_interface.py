@@ -212,11 +212,11 @@ class TestRaspberryPiSPI:
         mock_gpio.BCM = 11
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -225,19 +225,19 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         # Clear the call counts
         mock_gpio.setmode.reset_mock()
-        
+
         # Init again - should return early
         spi.init()
-        
+
         # Should not call setmode again
         mock_gpio.setmode.assert_not_called()
-        
+
         spi.close()
 
     def test_init_general_exception(self, mocker: MockerFixture) -> None:
@@ -247,7 +247,7 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.setmode.side_effect = Exception("Hardware error")
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -256,11 +256,11 @@ class TestRaspberryPiSPI:
                 "spidev": mocker.MagicMock(),
             },
         )
-        
+
         spi = RaspberryPiSPI()
         with pytest.raises(InitializationError) as exc_info:
             spi.init()
-        
+
         assert "Failed to initialize SPI" in str(exc_info.value)
         assert "Hardware error" in str(exc_info.value)
 
@@ -270,11 +270,11 @@ class TestRaspberryPiSPI:
         mock_gpio.BCM = 11
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -283,24 +283,24 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         # Clear previous calls from init
         mock_gpio.output.reset_mock()
-        
+
         # Test reset
         start = time.time()
         spi.reset()
         elapsed = time.time() - start
-        
+
         # Should set RESET low, wait, then high
         assert mock_gpio.output.call_count == 2
         mock_gpio.output.assert_any_call(GPIOPin.RESET, 0)
         mock_gpio.output.assert_any_call(GPIOPin.RESET, 1)
         assert elapsed >= 0.2  # Two 0.1s sleeps
-        
+
         spi.close()
 
     def test_wait_busy_timeout(self, mocker: MockerFixture) -> None:
@@ -310,11 +310,11 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 1  # Always busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -323,13 +323,13 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         with pytest.raises(CommunicationError) as exc_info:
             spi.wait_busy(timeout_ms=100)
-        
+
         assert "Device busy timeout after 100ms" in str(exc_info.value)
         spi.close()
 
@@ -340,11 +340,11 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.side_effect = [1, 1, 0]  # Busy twice, then ready
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -353,13 +353,13 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         spi.wait_busy()
         assert mock_gpio.input.call_count == 3
-        
+
         spi.close()
 
     def test_write_command_with_hardware(self, mocker: MockerFixture) -> None:
@@ -369,11 +369,11 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 0  # Not busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -382,19 +382,19 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         spi.write_command(0x1234)
-        
+
         # Should write preamble and command
         assert mock_spi_instance.writebytes.call_count == 2
         # Preamble
         mock_spi_instance.writebytes.assert_any_call([0x60, 0x00])
         # Command
         mock_spi_instance.writebytes.assert_any_call([0x12, 0x34])
-        
+
         spi.close()
 
     def test_write_data_with_hardware(self, mocker: MockerFixture) -> None:
@@ -404,11 +404,11 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 0  # Not busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -417,19 +417,19 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         spi.write_data(0x5678)
-        
+
         # Should write preamble and data
         assert mock_spi_instance.writebytes.call_count == 2
         # Preamble
         mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
         # Data
         mock_spi_instance.writebytes.assert_any_call([0x56, 0x78])
-        
+
         spi.close()
 
     def test_write_data_bulk_with_hardware(self, mocker: MockerFixture) -> None:
@@ -439,11 +439,11 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 0  # Not busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -452,13 +452,13 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         data = [0x1111, 0x2222, 0x3333]
         spi.write_data_bulk(data)
-        
+
         # Should write preamble + 3 data values = 4 calls
         assert mock_spi_instance.writebytes.call_count == 4
         # Preamble
@@ -467,7 +467,7 @@ class TestRaspberryPiSPI:
         mock_spi_instance.writebytes.assert_any_call([0x11, 0x11])
         mock_spi_instance.writebytes.assert_any_call([0x22, 0x22])
         mock_spi_instance.writebytes.assert_any_call([0x33, 0x33])
-        
+
         spi.close()
 
     def test_read_data_with_hardware(self, mocker: MockerFixture) -> None:
@@ -477,12 +477,12 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 0  # Not busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spi_instance.xfer2.return_value = [0xAB, 0xCD]
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -491,23 +491,23 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         result = spi.read_data()
-        
+
         # Should write preamble and dummy, then read
         assert mock_spi_instance.writebytes.call_count == 2
         # Read preamble
         mock_spi_instance.writebytes.assert_any_call([0x10, 0x00])
         # Dummy data
         mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
-        
+
         # Should transfer to read result
         mock_spi_instance.xfer2.assert_called_once_with([0x00, 0x00])
         assert result == 0xABCD
-        
+
         spi.close()
 
     def test_read_data_bulk_with_hardware(self, mocker: MockerFixture) -> None:
@@ -517,7 +517,7 @@ class TestRaspberryPiSPI:
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
         mock_gpio.input.return_value = 0  # Not busy
-        
+
         mock_spidev_class = mocker.MagicMock()
         mock_spi_instance = mocker.MagicMock()
         mock_spi_instance.xfer2.side_effect = [
@@ -526,7 +526,7 @@ class TestRaspberryPiSPI:
             [0x33, 0x33],
         ]
         mock_spidev_class.SpiDev.return_value = mock_spi_instance
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -535,23 +535,23 @@ class TestRaspberryPiSPI:
                 "spidev": mock_spidev_class,
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi.init()
-        
+
         result = spi.read_data_bulk(3)
-        
+
         # Should write preamble and dummy
         assert mock_spi_instance.writebytes.call_count == 2
         # Read preamble
         mock_spi_instance.writebytes.assert_any_call([0x10, 0x00])
         # Dummy data
         mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
-        
+
         # Should transfer 3 times
         assert mock_spi_instance.xfer2.call_count == 3
         assert result == [0x1111, 0x2222, 0x3333]
-        
+
         spi.close()
 
     def test_write_data_without_init(self) -> None:
@@ -584,7 +584,7 @@ class TestRaspberryPiSPI:
         mock_gpio.BCM = 11
         mock_gpio.OUT = 0
         mock_gpio.IN = 1
-        
+
         mocker.patch.dict(
             "sys.modules",
             {
@@ -593,13 +593,13 @@ class TestRaspberryPiSPI:
                 "spidev": mocker.MagicMock(),
             },
         )
-        
+
         spi = RaspberryPiSPI()
         spi._gpio = mock_gpio  # type: ignore[reportPrivateUsage]
         spi._spi = None  # type: ignore[reportPrivateUsage]
-        
+
         spi.close()
-        
+
         mock_gpio.cleanup.assert_called_once()
         assert spi._gpio is None  # type: ignore[reportPrivateUsage]
 

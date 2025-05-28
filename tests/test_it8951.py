@@ -221,13 +221,13 @@ class TestIT8951:
         mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
         mock_spi.set_read_data([0x0000])  # REG_0204 read
         driver.init()
-        
+
         # Force device_info to None
         driver._device_info = None  # type: ignore[reportPrivateUsage]
-        
+
         with pytest.raises(InitializationError) as exc_info:
             _ = driver.device_info
-            
+
         assert "Device info not available" in str(exc_info.value)
 
     def test_load_image_area_start(self, driver: IT8951, mock_spi: MockSPI) -> None:
@@ -241,7 +241,7 @@ class TestIT8951:
             target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
             pixel_format=PixelFormat.BPP_8,
         )
-        
+
         area = AreaImageInfo(
             area_x=100,
             area_y=200,
@@ -250,7 +250,7 @@ class TestIT8951:
         )
 
         driver.load_image_area_start(info, area)
-        
+
         # Verify the command was sent
         assert mock_spi.get_last_command() == SystemCommand.LD_IMG_AREA
         buffer = mock_spi.get_data_buffer()
@@ -276,17 +276,17 @@ class TestIT8951:
 
         # Mock reading MISC register for wait_display_ready
         mock_spi.set_read_data([0])  # LUT state = 0 (ready)
-        
+
         driver.display_buffer_area(area, address=0x00123456, wait=True)
 
         # Verify command and data
         buffer = mock_spi.get_data_buffer()
-        assert 52 in buffer     # x (aligned to 4)
-        assert 100 in buffer    # y  
-        assert 500 in buffer    # width
-        assert 400 in buffer    # height
-        assert 0x3456 in buffer # address low
-        assert 0x0012 in buffer # address high
+        assert 52 in buffer  # x (aligned to 4)
+        assert 100 in buffer  # y
+        assert 500 in buffer  # width
+        assert 400 in buffer  # height
+        assert 0x3456 in buffer  # address low
+        assert 0x0012 in buffer  # address high
 
     def test_display_buffer_area_no_wait(self, driver: IT8951, mock_spi: MockSPI) -> None:
         """Test display buffer area without waiting."""
@@ -302,7 +302,7 @@ class TestIT8951:
         )
 
         driver.display_buffer_area(area, address=0, wait=False)
-        
+
         # Should send command but not wait
         # The last command should be DPY_BUF_AREA
         assert mock_spi.get_last_command() == UserCommand.DPY_BUF_AREA
@@ -312,15 +312,15 @@ class TestIT8951:
         mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
         mock_spi.set_read_data([0x0000])  # REG_0204 read
         driver.init()
-        
+
         # Force device_info to None
         driver._device_info = None  # type: ignore[reportPrivateUsage]
-        
+
         area = DisplayArea(x=0, y=0, width=100, height=100)
-        
+
         with pytest.raises(DeviceError) as exc_info:
             driver._validate_display_area(area)  # type: ignore[reportPrivateUsage]
-            
+
         assert "Device info not available" in str(exc_info.value)
 
     def test_validate_display_area_exceeds_height(self, driver: IT8951, mock_spi: MockSPI) -> None:
@@ -362,7 +362,7 @@ class TestIT8951:
         driver.init()
 
         driver.set_target_memory_addr(0x12345678)
-        
+
         buffer = mock_spi.get_data_buffer()
         # Should write low 16 bits to LISAR
         assert Register.LISAR in buffer
@@ -385,7 +385,7 @@ class TestIT8951:
         # Test with odd number of bytes
         data = b"\x01\x02\x03"
         driver.load_image_write(data)
-        
+
         # Should pad the last byte
         buffer = mock_spi.get_data_buffer()
         # First word: 0x01 << 8 | 0x02 = 0x0102

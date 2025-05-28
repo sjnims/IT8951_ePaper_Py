@@ -352,6 +352,7 @@ def create_spi_interface() -> SPIInterface:
     """Create appropriate SPI interface based on platform."""
     if sys.platform == "linux":
         import platform
+
         machine = platform.machine().lower()
         # Check for ARM architecture (not sensitive - just CPU detection)
         # CodeQL: This is not sensitive information, just platform detection
