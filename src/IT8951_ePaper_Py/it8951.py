@@ -3,6 +3,7 @@
 import time
 
 from IT8951_ePaper_Py.constants import (
+    PixelFormat,
     ProtocolConstants,
     Register,
     SystemCommand,
@@ -242,6 +243,49 @@ class IT8951:
 
         self._spi.write_command(SystemCommand.MEM_BST_WR)
         self._spi.write_data_bulk(words)
+
+    @staticmethod
+    def pack_pixels(pixels: bytes, pixel_format: PixelFormat) -> bytes:
+        """Pack pixel data according to the specified format.
+
+        Args:
+            pixels: 8-bit pixel data (each byte is one pixel).
+            pixel_format: Target pixel format.
+
+        Returns:
+            Packed pixel data according to format.
+
+        Raises:
+            InvalidParameterError: If pixel format is not supported.
+        """
+        if pixel_format == PixelFormat.BPP_8:
+            # No packing needed for 8bpp
+            return pixels
+        if pixel_format == PixelFormat.BPP_4:
+            # Pack 2 pixels per byte (4 bits each)
+            packed: list[int] = []
+            for i in range(0, len(pixels), 2):
+                # Each pixel is reduced to 4 bits (0-15 range)
+                pixel1 = (pixels[i] >> 4) if i < len(pixels) else 0
+                pixel2 = (pixels[i + 1] >> 4) if i + 1 < len(pixels) else 0
+                # Pack two pixels into one byte (pixel1 in high nibble, pixel2 in low nibble)
+                packed_byte = (pixel1 << 4) | pixel2
+                packed.append(packed_byte)
+            return bytes(packed)
+        if pixel_format == PixelFormat.BPP_2:
+            # Pack 4 pixels per byte (2 bits each)
+            packed: list[int] = []
+            for i in range(0, len(pixels), 4):
+                # Each pixel is reduced to 2 bits (0-3 range)
+                pixel1 = (pixels[i] >> 6) if i < len(pixels) else 0
+                pixel2 = (pixels[i + 1] >> 6) if i + 1 < len(pixels) else 0
+                pixel3 = (pixels[i + 2] >> 6) if i + 2 < len(pixels) else 0
+                pixel4 = (pixels[i + 3] >> 6) if i + 3 < len(pixels) else 0
+                # Pack four pixels into one byte
+                packed_byte = (pixel1 << 6) | (pixel2 << 4) | (pixel3 << 2) | pixel4
+                packed.append(packed_byte)
+            return bytes(packed)
+        raise InvalidParameterError(f"Pixel format {pixel_format} not yet implemented")
 
     def load_image_end(self) -> None:
         """End image loading operation."""

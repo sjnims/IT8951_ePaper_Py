@@ -36,7 +36,12 @@ def main() -> None:
                     img.putpixel((x, y), 255)
 
         print("Displaying checkerboard pattern...")
+        # Use default 8bpp format
         display.display_image(img, x=100, y=100, mode=DisplayMode.GC16)
+
+        # Or use 4bpp format for better performance (recommended by Waveshare)
+        # display.display_image(img, x=100, y=100, mode=DisplayMode.GC16,
+        #                      pixel_format=PixelFormat.BPP_4)
 
         print("Display complete!")
 

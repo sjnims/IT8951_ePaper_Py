@@ -103,13 +103,14 @@ class EPaperDisplay:
 
         self._controller.display_area(area, wait=True)
 
-    def display_image(
+    def display_image(  # noqa: PLR0913
         self,
         image: Image.Image | str | Path | BinaryIO,
         x: int = 0,
         y: int = 0,
         mode: DisplayMode = DisplayMode.GC16,
         rotation: Rotation = Rotation.ROTATE_0,
+        pixel_format: PixelFormat = PixelFormat.BPP_8,
     ) -> None:
         """Display an image on the e-paper.
 
@@ -119,6 +120,8 @@ class EPaperDisplay:
             y: Y coordinate for image placement.
             mode: Display update mode.
             rotation: Image rotation.
+            pixel_format: Pixel format (BPP_8, BPP_4, or BPP_2).
+                         BPP_4 is recommended by Waveshare for better performance.
         """
         self._ensure_initialized()
 
@@ -138,12 +141,16 @@ class EPaperDisplay:
         if width != img.width or height != img.height:
             img = img.resize((width, height), Image.Resampling.LANCZOS)
 
-        data = img.tobytes()
+        # Get 8-bit pixel data
+        data_8bpp = img.tobytes()
+
+        # Pack pixels according to the requested format
+        packed_data = self._controller.pack_pixels(data_8bpp, pixel_format)
 
         info = LoadImageInfo(
-            source_buffer=data,
+            source_buffer=packed_data,
             target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
-            pixel_format=PixelFormat.BPP_8,
+            pixel_format=pixel_format,
             rotate=rotation,
         )
 
@@ -155,7 +162,7 @@ class EPaperDisplay:
         )
 
         self._controller.load_image_area_start(info, area_info)
-        self._controller.load_image_write(data)
+        self._controller.load_image_write(packed_data)
         self._controller.load_image_end()
 
         display_area = DisplayArea(
