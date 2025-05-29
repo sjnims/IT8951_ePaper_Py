@@ -1,14 +1,4 @@
 {
-    "[python]": {
-        "editor.defaultFormatter": "charliermarsh.ruff",
-        "editor.codeActionsOnSave": [
-            "source.fixAll.ruff",
-            "source.organizeImports.ruff"
-        ],
-        "editor.rulers": [
-            100
-        ]
-    },
     "files.exclude": {
         "**/__pycache__/**": true,
         "**/.pytest_cache/**": true,
@@ -16,16 +6,6 @@
         "**/.benchmarks/**": true,
         "**/htmlcov/**": true
     },
-    "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestArgs": [
-        "tests"
-    ],
-    "python.languageServer": "Pylance",
-    "python.analysis.autoImportCompletions": true,
-    "python.analysis.inlayHints.functionReturnTypes": true,
-    "python.analysis.inlayHints.variableTypes": true,
-    "editor.formatOnSave": true,
     "github-actions.workflows.pinned.workflows": [
         ".github/workflows/ci.yml"
     ]
