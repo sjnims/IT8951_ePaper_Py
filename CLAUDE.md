@@ -115,3 +115,20 @@ When pyright complains about external libraries:
 - Explain context for changes
 - Use friendly tone
 - Reference specific files and line numbers when discussing code
+
+## Release Process
+
+- Development happens on `main` branch
+- Releases are marked with annotated tags (e.g., `v0.2.0`)
+- No separate release branches - tags provide release points
+- Version bumps committed directly to `main`
+- For patches, create temporary branch from tag if needed
+
+### Release Workflow
+
+1. Complete all features for the release
+2. Update version in `src/IT8951_ePaper_Py/__init__.py`
+3. Commit version bump to `main`
+4. Create annotated tag: `git tag -a v0.x.0 -m "Release notes"`
+5. Push tag: `git push origin v0.x.0`
+6. Create GitHub release from tag if desired
