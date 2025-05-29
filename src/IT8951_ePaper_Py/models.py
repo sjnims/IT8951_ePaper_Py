@@ -98,14 +98,14 @@ class LoadImageInfo(BaseModel):
 
     Attributes:
         endian_type: Byte order for pixel data (default: LITTLE).
-        pixel_format: Bits per pixel format (default: BPP_8).
+        pixel_format: Bits per pixel format (default: BPP_4).
         rotate: Image rotation in 90° increments (default: ROTATE_0).
         source_buffer: Raw pixel data as bytes.
         target_memory_addr: Target address in controller memory.
     """
 
     endian_type: EndianType = Field(default=EndianType.LITTLE)
-    pixel_format: PixelFormat = Field(default=PixelFormat.BPP_8)
+    pixel_format: PixelFormat = Field(default=PixelFormat.BPP_4)
     rotate: Rotation = Field(default=Rotation.ROTATE_0)
     source_buffer: bytes = Field(...)
     target_memory_addr: int = Field(..., ge=0)

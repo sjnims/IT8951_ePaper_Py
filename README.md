@@ -84,6 +84,22 @@ finally:
     display.close()
 ```
 
+### Pixel Format
+
+The driver defaults to 4bpp (4 bits per pixel) format as recommended by Waveshare for optimal performance. This provides 16 grayscale levels while reducing data transfer by 50% compared to 8bpp:
+
+```python
+# Uses default 4bpp format (recommended)
+display.display_image(img)
+
+# Explicitly use 8bpp for full 256 grayscale levels
+from IT8951_ePaper_Py.constants import PixelFormat
+display.display_image(img, pixel_format=PixelFormat.BPP_8)
+
+# Use 2bpp for even faster updates (4 grayscale levels)
+display.display_image(img, pixel_format=PixelFormat.BPP_2)
+```
+
 ### SPI Speed Configuration
 
 The driver automatically detects your Raspberry Pi version and selects the optimal SPI speed:

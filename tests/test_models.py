@@ -94,7 +94,7 @@ class TestLoadImageInfo:
             target_memory_addr=0,
         )
         assert info.endian_type == EndianType.LITTLE
-        assert info.pixel_format == PixelFormat.BPP_8
+        assert info.pixel_format == PixelFormat.BPP_4
         assert info.rotate == Rotation.ROTATE_0
 
     def test_empty_buffer_validation(self) -> None:

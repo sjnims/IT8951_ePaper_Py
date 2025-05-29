@@ -321,6 +321,141 @@ class TestEPaperDisplay:
         assert enhanced_display.width == 1024
         assert enhanced_display.height == 768
 
+    def test_align_coordinate_default(self, display: EPaperDisplay) -> None:
+        """Test coordinate alignment with default pixel format."""
+        # Test alignment to 4-pixel boundary (default)
+        assert display._align_coordinate(0) == 0
+        assert display._align_coordinate(1) == 0
+        assert display._align_coordinate(3) == 0
+        assert display._align_coordinate(4) == 4
+        assert display._align_coordinate(5) == 4
+        assert display._align_coordinate(7) == 4
+        assert display._align_coordinate(8) == 8
+        assert display._align_coordinate(100) == 100
+        assert display._align_coordinate(101) == 100
+
+    def test_align_coordinate_1bpp(self, display: EPaperDisplay) -> None:
+        """Test coordinate alignment with 1bpp pixel format."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        # Test alignment to 32-pixel boundary for 1bpp
+        assert display._align_coordinate(0, PixelFormat.BPP_1) == 0
+        assert display._align_coordinate(1, PixelFormat.BPP_1) == 0
+        assert display._align_coordinate(31, PixelFormat.BPP_1) == 0
+        assert display._align_coordinate(32, PixelFormat.BPP_1) == 32
+        assert display._align_coordinate(33, PixelFormat.BPP_1) == 32
+        assert display._align_coordinate(63, PixelFormat.BPP_1) == 32
+        assert display._align_coordinate(64, PixelFormat.BPP_1) == 64
+        assert display._align_coordinate(100, PixelFormat.BPP_1) == 96
+        assert display._align_coordinate(128, PixelFormat.BPP_1) == 128
+
+    def test_align_dimension_default(self, display: EPaperDisplay) -> None:
+        """Test dimension alignment with default pixel format."""
+        # Test alignment to 4-pixel multiple (default)
+        assert display._align_dimension(0) == 0
+        assert display._align_dimension(1) == 4
+        assert display._align_dimension(3) == 4
+        assert display._align_dimension(4) == 4
+        assert display._align_dimension(5) == 8
+        assert display._align_dimension(7) == 8
+        assert display._align_dimension(8) == 8
+        assert display._align_dimension(100) == 100
+        assert display._align_dimension(101) == 104
+
+    def test_align_dimension_1bpp(self, display: EPaperDisplay) -> None:
+        """Test dimension alignment with 1bpp pixel format."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        # Test alignment to 32-pixel multiple for 1bpp
+        assert display._align_dimension(0, PixelFormat.BPP_1) == 0
+        assert display._align_dimension(1, PixelFormat.BPP_1) == 32
+        assert display._align_dimension(31, PixelFormat.BPP_1) == 32
+        assert display._align_dimension(32, PixelFormat.BPP_1) == 32
+        assert display._align_dimension(33, PixelFormat.BPP_1) == 64
+        assert display._align_dimension(63, PixelFormat.BPP_1) == 64
+        assert display._align_dimension(64, PixelFormat.BPP_1) == 64
+        assert display._align_dimension(100, PixelFormat.BPP_1) == 128
+        assert display._align_dimension(128, PixelFormat.BPP_1) == 128
+
+    def test_validate_alignment_default(self, display: EPaperDisplay) -> None:
+        """Test alignment validation with default pixel format."""
+        # Aligned values should pass
+        is_valid, warnings = display.validate_alignment(0, 0, 100, 100)
+        assert is_valid
+        assert len(warnings) == 0
+
+        # Unaligned X coordinate
+        is_valid, warnings = display.validate_alignment(1, 0, 100, 100)
+        assert not is_valid
+        assert len(warnings) == 1
+        assert "X coordinate 1 not aligned to 4-pixel boundary" in warnings[0]
+
+        # Multiple unaligned values
+        is_valid, warnings = display.validate_alignment(1, 2, 101, 102)
+        assert not is_valid
+        assert len(warnings) == 4
+
+    def test_validate_alignment_1bpp(self, display: EPaperDisplay) -> None:
+        """Test alignment validation with 1bpp pixel format."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        # Aligned values should pass
+        is_valid, warnings = display.validate_alignment(0, 0, 64, 64, PixelFormat.BPP_1)
+        assert is_valid
+        assert len(warnings) == 0
+
+        # Unaligned values for 1bpp
+        is_valid, warnings = display.validate_alignment(16, 16, 100, 100, PixelFormat.BPP_1)
+        assert not is_valid
+        assert len(warnings) == 5  # 4 alignment warnings + 1 special 1bpp note
+        assert "1bpp mode requires strict 32-pixel alignment" in warnings[0]
+        assert "X coordinate 16 not aligned to 32-pixel (4-byte) boundary" in warnings[1]
+
+    def test_display_image_with_alignment_warnings(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test that display_image generates alignment warnings."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        # Create a test image with unaligned dimensions
+        img = Image.new("L", (33, 33), color=128)
+
+        # Mock pack_pixels to avoid implementation
+        mocker.patch.object(
+            initialized_display._controller, "pack_pixels", return_value=b"\x00" * (64 * 64)
+        )
+
+        # Mock the controller methods to avoid timeout
+        mocker.patch.object(initialized_display._controller, "load_image_area_start")
+        mocker.patch.object(initialized_display._controller, "load_image_write")
+        mocker.patch.object(initialized_display._controller, "load_image_end")
+        mocker.patch.object(initialized_display._controller, "display_area")
+
+        # Mock warnings module to capture warnings
+        mock_warn = mocker.patch("warnings.warn")
+
+        # Display with 1bpp format to trigger alignment warnings
+        initialized_display.display_image(img, x=1, y=1, pixel_format=PixelFormat.BPP_1)
+
+        # Check that warnings were issued
+        assert mock_warn.call_count > 0
+        warning_messages = [call[0][0] for call in mock_warn.call_args_list]
+
+        # Verify specific warnings
+        assert any(
+            "1bpp mode requires strict 32-pixel alignment" in msg for msg in warning_messages
+        )
+        assert any("X coordinate 1 not aligned" in msg for msg in warning_messages)
+
+    def test_requires_special_1bpp_alignment(self, initialized_display: EPaperDisplay) -> None:
+        """Test model detection for 1bpp alignment requirements."""
+        # Currently always returns True (conservative approach)
+        assert initialized_display._requires_special_1bpp_alignment() is True
+
+        # Test with no device info (before init)
+        display = EPaperDisplay(spi_interface=MockSPI())
+        assert display._requires_special_1bpp_alignment() is True
+
     def test_dump_registers(
         self, initialized_display: EPaperDisplay, mocker: MockerFixture
     ) -> None:

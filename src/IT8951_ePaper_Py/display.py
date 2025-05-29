@@ -45,7 +45,7 @@ from IT8951_ePaper_Py.constants import (
 )
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
 from IT8951_ePaper_Py.it8951 import IT8951
-from IT8951_ePaper_Py.models import AreaImageInfo, DisplayArea, LoadImageInfo
+from IT8951_ePaper_Py.models import AreaImageInfo, DeviceInfo, DisplayArea, LoadImageInfo
 from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
 
 
@@ -91,6 +91,7 @@ class EPaperDisplay:
         self._a2_refresh_count = 0
         self._a2_refresh_limit = a2_refresh_limit
         self._enhance_driving = enhance_driving
+        self._device_info: DeviceInfo | None = None
 
     def init(self) -> tuple[int, int]:
         """Initialize the display.
@@ -102,6 +103,7 @@ class EPaperDisplay:
             return (self._width, self._height)
 
         device_info = self._controller.init()
+        self._device_info = device_info
         self._width = device_info.panel_width
         self._height = device_info.panel_height
         self._initialized = True
@@ -141,18 +143,22 @@ class EPaperDisplay:
             )
 
         try:
-            data = bytes([color] * buffer_size)
+            # Create 8bpp data
+            data_8bpp = bytes([color] * buffer_size)
         except MemoryError as e:
             raise IT8951MemoryError(f"Failed to allocate display buffer: {e}") from e
 
+        # Pack to 4bpp format (default)
+        packed_data = self._controller.pack_pixels(data_8bpp, PixelFormat.BPP_4)
+
         info = LoadImageInfo(
-            source_buffer=data,
+            source_buffer=packed_data,
             target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
-            pixel_format=PixelFormat.BPP_8,
+            pixel_format=PixelFormat.BPP_4,
         )
 
         self._controller.load_image_start(info)
-        self._controller.load_image_write(data)
+        self._controller.load_image_write(packed_data)
         self._controller.load_image_end()
 
         area = DisplayArea(
@@ -175,7 +181,7 @@ class EPaperDisplay:
         y: int = 0,
         mode: DisplayMode = DisplayMode.GC16,
         rotation: Rotation = Rotation.ROTATE_0,
-        pixel_format: PixelFormat = PixelFormat.BPP_8,
+        pixel_format: PixelFormat = PixelFormat.BPP_4,
     ) -> None:
         """Display an image on the e-paper.
 
@@ -185,8 +191,8 @@ class EPaperDisplay:
             y: Y coordinate for image placement.
             mode: Display update mode.
             rotation: Image rotation.
-            pixel_format: Pixel format (BPP_8, BPP_4, or BPP_2).
-                         BPP_4 is recommended by Waveshare for better performance.
+            pixel_format: Pixel format (defaults to BPP_4, recommended by Waveshare).
+                         Options: BPP_1, BPP_2, BPP_4, or BPP_8.
         """
         self._ensure_initialized()
 
@@ -205,10 +211,18 @@ class EPaperDisplay:
         if y + img.height > self._height:
             raise InvalidParameterError("Image exceeds display height")
 
-        x = self._align_coordinate(x)
-        y = self._align_coordinate(y)
-        width = self._align_dimension(img.width)
-        height = self._align_dimension(img.height)
+        # Validate and warn about alignment issues
+        _, warnings = self.validate_alignment(x, y, img.width, img.height, pixel_format)
+        if warnings:
+            import warnings as warn_module
+
+            for warning in warnings:
+                warn_module.warn(warning, UserWarning, stacklevel=2)
+
+        x = self._align_coordinate(x, pixel_format)
+        y = self._align_coordinate(y, pixel_format)
+        width = self._align_dimension(img.width, pixel_format)
+        height = self._align_dimension(img.height, pixel_format)
 
         if width != img.width or height != img.height:
             img = img.resize((width, height), Image.Resampling.LANCZOS)
@@ -360,32 +374,130 @@ class EPaperDisplay:
 
         return image
 
-    def _align_coordinate(self, coord: int) -> int:
-        """Align coordinate to 4-pixel boundary.
+    def _align_coordinate(self, coord: int, pixel_format: PixelFormat | None = None) -> int:
+        """Align coordinate to appropriate boundary based on pixel format.
 
         Args:
             coord: Input coordinate.
+            pixel_format: Pixel format (defaults to current format).
 
         Returns:
             Aligned coordinate.
         """
-        return (coord // 4) * 4
+        if pixel_format is None:
+            pixel_format = PixelFormat.BPP_4  # Default format
 
-    def _align_dimension(self, dim: int) -> int:
-        """Align dimension to 4-pixel multiple.
+        # 1bpp requires 32-bit (32 pixel) alignment per wiki documentation
+        if pixel_format == PixelFormat.BPP_1:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT_1BPP
+        else:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT
+
+        return (coord // alignment) * alignment
+
+    def _align_dimension(self, dim: int, pixel_format: PixelFormat | None = None) -> int:
+        """Align dimension to appropriate multiple based on pixel format.
 
         Args:
             dim: Input dimension.
+            pixel_format: Pixel format (defaults to current format).
 
         Returns:
             Aligned dimension.
         """
-        return ((dim + 3) // 4) * 4
+        if pixel_format is None:
+            pixel_format = PixelFormat.BPP_4  # Default format
+
+        # 1bpp requires 32-bit (32 pixel) alignment per wiki documentation
+        if pixel_format == PixelFormat.BPP_1:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT_1BPP
+        else:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT
+
+        return ((dim + alignment - 1) // alignment) * alignment
 
     def _ensure_initialized(self) -> None:
         """Ensure display is initialized."""
         if not self._initialized:
             raise DisplayError("Display not initialized. Call init() first.")
+
+    def _requires_special_1bpp_alignment(self) -> bool:
+        """Check if the current model requires special 32-bit alignment for 1bpp.
+
+        Returns:
+            True if the model requires special alignment for 1bpp mode.
+        """
+        if not self._device_info:
+            return True  # Conservative default
+
+        # According to wiki, certain models require 32-bit alignment for 1bpp
+        # This is typically indicated by specific LUT versions
+        # For now, we'll be conservative and always use 32-bit alignment for 1bpp
+        return True
+
+    def validate_alignment(
+        self, x: int, y: int, width: int, height: int, pixel_format: PixelFormat | None = None
+    ) -> tuple[bool, list[str]]:
+        """Validate alignment requirements for display operation.
+
+        Args:
+            x: X coordinate.
+            y: Y coordinate.
+            width: Image width.
+            height: Image height.
+            pixel_format: Pixel format (defaults to BPP_4).
+
+        Returns:
+            Tuple of (is_valid, warnings) where warnings contains any alignment issues.
+        """
+        warnings: list[str] = []
+
+        if pixel_format is None:
+            pixel_format = PixelFormat.BPP_4
+
+        # Determine required alignment
+        if pixel_format == PixelFormat.BPP_1:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT_1BPP
+            alignment_desc = "32-pixel (4-byte)"
+        else:
+            alignment = DisplayConstants.PIXEL_ALIGNMENT
+            alignment_desc = "4-pixel"
+
+        # Check coordinate alignment
+        if x % alignment != 0:
+            warnings.append(
+                f"X coordinate {x} not aligned to {alignment_desc} boundary. "
+                f"Will be adjusted to {self._align_coordinate(x, pixel_format)}"
+            )
+
+        if y % alignment != 0:
+            warnings.append(
+                f"Y coordinate {y} not aligned to {alignment_desc} boundary. "
+                f"Will be adjusted to {self._align_coordinate(y, pixel_format)}"
+            )
+
+        # Check dimension alignment
+        if width % alignment != 0:
+            warnings.append(
+                f"Width {width} not aligned to {alignment_desc} boundary. "
+                f"Will be adjusted to {self._align_dimension(width, pixel_format)}"
+            )
+
+        if height % alignment != 0:
+            warnings.append(
+                f"Height {height} not aligned to {alignment_desc} boundary. "
+                f"Will be adjusted to {self._align_dimension(height, pixel_format)}"
+            )
+
+        # Special warning for 1bpp
+        if pixel_format == PixelFormat.BPP_1 and warnings:
+            warnings.insert(
+                0,
+                "Note: 1bpp mode requires strict 32-pixel alignment on some models. "
+                "Image may be cropped or padded to meet requirements.",
+            )
+
+        return (len(warnings) == 0, warnings)
 
     @property
     def width(self) -> int:

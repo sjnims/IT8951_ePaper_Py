@@ -36,12 +36,13 @@ def main() -> None:
                     img.putpixel((x, y), DisplayConstants.GRAYSCALE_MAX)
 
         print("Displaying checkerboard pattern...")
-        # Use default 8bpp format
+        # Uses default 4bpp format (recommended by Waveshare)
         display.display_image(img, x=100, y=100, mode=DisplayMode.GC16)
 
-        # Or use 4bpp format for better performance (recommended by Waveshare)
+        # Or explicitly specify 8bpp format for full grayscale range
+        # from IT8951_ePaper_Py.constants import PixelFormat
         # display.display_image(img, x=100, y=100, mode=DisplayMode.GC16,
-        #                      pixel_format=PixelFormat.BPP_4)
+        #                      pixel_format=PixelFormat.BPP_8)
 
         print("Display complete!")
 

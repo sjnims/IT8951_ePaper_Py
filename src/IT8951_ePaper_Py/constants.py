@@ -84,10 +84,10 @@ class DisplayMode(IntEnum):
 class PixelFormat(IntEnum):
     """Pixel format options."""
 
-    BPP_2 = 0  # 2 bits per pixel (not yet implemented)
-    BPP_3 = 1  # 3 bits per pixel (not yet implemented)
-    BPP_4 = 2  # 4 bits per pixel (not yet implemented, recommended by Waveshare)
-    BPP_8 = 3  # 8 bits per pixel (current implementation)
+    BPP_1 = 0  # 1 bit per pixel (for binary images, requires 32-bit alignment)
+    BPP_2 = 1  # 2 bits per pixel (4 gray levels)
+    BPP_4 = 2  # 4 bits per pixel (16 gray levels, default, recommended by Waveshare)
+    BPP_8 = 3  # 8 bits per pixel (256 gray levels)
 
 
 class Rotation(IntEnum):
@@ -152,7 +152,8 @@ class DisplayConstants:
     TIMEOUT_MS = 30000  # 30 second timeout
     DEFAULT_CLEAR_COLOR = 0xFF  # White
     GRAYSCALE_MAX = 255
-    PIXEL_ALIGNMENT = 4
+    PIXEL_ALIGNMENT = 4  # Default alignment for most modes
+    PIXEL_ALIGNMENT_1BPP = 32  # 32-bit alignment for 1bpp mode (per wiki)
 
 
 class MemoryConstants:

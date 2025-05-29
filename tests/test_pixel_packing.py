@@ -68,9 +68,9 @@ class TestPixelPacking:
         """Test unsupported pixel format raises error."""
         pixels = bytes([0, 255])
 
-        # BPP_3 is defined but not implemented
+        # BPP_1 is defined but not implemented
         with pytest.raises(InvalidParameterError, match="not yet implemented"):
-            IT8951.pack_pixels(pixels, PixelFormat.BPP_3)
+            IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
 
     def test_pack_pixels_empty(self) -> None:
         """Test packing empty pixel data."""

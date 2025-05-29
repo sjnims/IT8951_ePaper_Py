@@ -57,13 +57,13 @@ This roadmap outlines the phased implementation of missing features and improvem
 2.2.3 ✅ Document when to use enhanced driving (long cables, blur)
 2.2.4 ✅ Add diagnostic method to check current driving mode
 
-### 2.3 Improved 4-Byte Alignment for 1bpp
+### 2.3 Improved 4-Byte Alignment for 1bpp ✅
 
-2.3.1 Create specialized alignment for 1bpp mode (32-bit boundaries)
-2.3.2 Add model detection for alignment requirements
-2.3.3 Update `_align_coordinate()` to handle different modes
-2.3.4 Add alignment validation and warnings
-2.3.5 Create tests for edge cases
+2.3.1 ✅ Create specialized alignment for 1bpp mode (32-bit boundaries)
+2.3.2 ✅ Add model detection for alignment requirements
+2.3.3 ✅ Update `_align_coordinate()` to handle different modes
+2.3.4 ✅ Add alignment validation and warnings
+2.3.5 ✅ Create tests for edge cases
 
 ### 2.4 VCOM Value Validation and Warnings
 

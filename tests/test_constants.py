@@ -49,8 +49,8 @@ class TestConstants:
 
     def test_pixel_formats(self) -> None:
         """Test pixel format values."""
-        assert PixelFormat.BPP_2 == 0
-        assert PixelFormat.BPP_3 == 1
+        assert PixelFormat.BPP_1 == 0
+        assert PixelFormat.BPP_2 == 1
         assert PixelFormat.BPP_4 == 2
         assert PixelFormat.BPP_8 == 3
 
