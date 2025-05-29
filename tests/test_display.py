@@ -46,6 +46,25 @@ class TestEPaperDisplay:
         display.init()
         return display
 
+    @pytest.fixture
+    def enhanced_display(self, mock_spi: MockSPI, mocker: MockerFixture) -> EPaperDisplay:
+        """Create EPaperDisplay with enhanced driving enabled."""
+        display = EPaperDisplay(spi_interface=mock_spi, enhance_driving=True)
+
+        # Data for _get_device_info (20 values)
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        # Data for _enable_packed_write register read
+        mock_spi.set_read_data([0x0000])
+
+        # Mock clear to avoid complex setup
+        mocker.patch.object(display, "clear")
+
+        display.init()
+        return display
+
     def test_init(self, display: EPaperDisplay, mock_spi: MockSPI, mocker: MockerFixture) -> None:
         """Test display initialization."""
         # Data for _get_device_info (20 values)
@@ -282,6 +301,47 @@ class TestEPaperDisplay:
             display.clear()
 
         assert "Failed to allocate display buffer" in str(exc_info.value)
+
+    def test_enhanced_driving_init(
+        self, enhanced_display: EPaperDisplay, mock_spi: MockSPI
+    ) -> None:
+        """Test that enhanced driving is applied during initialization."""
+        # Verify that enhance_driving_capability was called
+        # We need to check the buffer for the register write
+        buffer = mock_spi.get_data_buffer()
+
+        # Import constants for the test
+        from IT8951_ePaper_Py.constants import ProtocolConstants, Register
+
+        # Verify enhanced driving register was written
+        assert Register.ENHANCE_DRIVING in buffer
+        assert ProtocolConstants.ENHANCED_DRIVING_VALUE in buffer
+
+        # Verify display still initializes correctly
+        assert enhanced_display.width == 1024
+        assert enhanced_display.height == 768
+
+    def test_dump_registers(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test register dump functionality."""
+        # Mock the controller's dump_registers method
+        mock_registers = {
+            "LISAR": 0x1234,
+            "REG_0204": 0x5678,
+            "MISC": 0x9ABC,
+            "ENHANCE_DRIVING": 0x0602,
+        }
+        mocker.patch.object(
+            initialized_display._controller, "dump_registers", return_value=mock_registers
+        )
+
+        # Call dump_registers
+        registers = initialized_display.dump_registers()
+
+        # Verify the result
+        assert registers == mock_registers
+        assert registers["ENHANCE_DRIVING"] == 0x0602
 
 
 class TestA2ModeAutoClearing:

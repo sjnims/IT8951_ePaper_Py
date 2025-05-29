@@ -46,15 +46,24 @@ class UserCommand(IntEnum):
 
 
 class Register(IntEnum):
-    """IT8951 registers."""
+    """IT8951 registers.
 
-    LISAR = 0x0200
-    REG_0204 = 0x0204
+    Key registers for IT8951 control and status monitoring:
+    - LISAR: Load Image Start Address Register (target memory address)
+    - REG_0204: Configuration register (packed write mode control)
+    - MISC: Miscellaneous status register (LUT busy state)
+    - PWR: Power control register (standby/sleep modes)
+    - MCSR: Memory Controller Status Register
+    """
+
+    LISAR = 0x0200  # Load Image Start Address Register (16-bit low)
+    REG_0204 = 0x0204  # Configuration register (bit 0: packed write enable)
     REG_0208 = 0x0208  # Reserved for future use
     REG_020A = 0x020A  # Reserved for future use
     REG_020C = 0x020C  # Reserved for future use
     REG_020E = 0x020E  # Reserved for future use
-    MISC = 0x1E50
+    ENHANCE_DRIVING = 0x0038  # Enhanced driving capability register (0x0602 for blur fix)
+    MISC = 0x1E50  # Miscellaneous register (bit 7: LUT busy)
     PWR = 0x1E54  # Power register (for power management features)
     MCSR = 0x18004  # Memory controller status register
 
@@ -167,6 +176,7 @@ class ProtocolConstants:
     BYTE_MASK = 0xFF
     LISAR_HIGH_OFFSET = 2
     LUT_STATE_BIT_POSITION = 7
+    ENHANCED_DRIVING_VALUE = 0x0602  # Value for ENHANCE_DRIVING register to fix blur
 
 
 class TimingConstants:

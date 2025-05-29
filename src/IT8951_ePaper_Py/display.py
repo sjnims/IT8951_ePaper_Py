@@ -67,6 +67,7 @@ class EPaperDisplay:
         spi_interface: SPIInterface | None = None,
         spi_speed_hz: int | None = None,
         a2_refresh_limit: int = 10,
+        enhance_driving: bool = False,
     ) -> None:
         """Initialize e-paper display.
 
@@ -77,6 +78,7 @@ class EPaperDisplay:
             spi_speed_hz: Manual SPI speed override in Hz. If None, auto-detects
                          based on Pi version. Only used when spi_interface is None.
             a2_refresh_limit: Number of A2 refreshes before automatic INIT clear.
+            enhance_driving: Enable enhanced driving for long cables or blurry displays.
                             Set to 0 to disable auto-clearing.
         """
         if spi_interface is None:
@@ -88,6 +90,7 @@ class EPaperDisplay:
         self._initialized = False
         self._a2_refresh_count = 0
         self._a2_refresh_limit = a2_refresh_limit
+        self._enhance_driving = enhance_driving
 
     def init(self) -> tuple[int, int]:
         """Initialize the display.
@@ -104,6 +107,11 @@ class EPaperDisplay:
         self._initialized = True
 
         self._controller.set_vcom(self._vcom)
+
+        # Apply enhanced driving if requested
+        if self._enhance_driving:
+            self._controller.enhance_driving_capability()
+
         self.clear()
 
         return (self._width, self._height)
@@ -435,3 +443,19 @@ class EPaperDisplay:
             int: Number of A2 refreshes before auto-clear (0 = disabled).
         """
         return self._a2_refresh_limit
+
+    def is_enhanced_driving_enabled(self) -> bool:
+        """Check if enhanced driving capability is enabled.
+
+        Returns:
+            bool: True if enhanced driving is enabled, False otherwise.
+        """
+        return self._controller.is_enhanced_driving_enabled()
+
+    def dump_registers(self) -> dict[str, int]:
+        """Dump common register values for debugging.
+
+        Returns:
+            dict[str, int]: Dictionary of register names to values.
+        """
+        return self._controller.dump_registers()

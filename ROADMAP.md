@@ -43,28 +43,35 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Features that improve display quality and handle edge cases**
 
-### 2.1 Enhanced Driving Capability
+### 2.1 Register Read Capability (moved from Phase 5.1) ✅
 
-2.1.1 Add `enhance_driving_capability()` method to `IT8951`
-2.1.2 Add `enhance_driving` parameter to `EPaperDisplay.__init__()`
-2.1.3 Document when to use enhanced driving (long cables, blur)
-2.1.4 Add diagnostic method to check current driving mode
+2.1.1 ✅ Implement `read_register()` in `IT8951`
+2.1.2 ✅ Add register dump utility
+2.1.3 ✅ Create register verification methods
+2.1.4 ✅ Add register documentation
 
-### 2.2 Improved 4-Byte Alignment for 1bpp
+### 2.2 Enhanced Driving Capability ✅
 
-2.2.1 Create specialized alignment for 1bpp mode (32-bit boundaries)
-2.2.2 Add model detection for alignment requirements
-2.2.3 Update `_align_coordinate()` to handle different modes
-2.2.4 Add alignment validation and warnings
-2.2.5 Create tests for edge cases
+2.2.1 ✅ Add `enhance_driving_capability()` method to `IT8951`
+2.2.2 ✅ Add `enhance_driving` parameter to `EPaperDisplay.__init__()`
+2.2.3 ✅ Document when to use enhanced driving (long cables, blur)
+2.2.4 ✅ Add diagnostic method to check current driving mode
 
-### 2.3 VCOM Value Validation and Warnings
+### 2.3 Improved 4-Byte Alignment for 1bpp
 
-2.3.1 Add VCOM range validation with clear error messages
-2.3.2 Create prominent VCOM warning in all examples
-2.3.3 Add `get_vcom()` method using register read
-2.3.4 Implement VCOM calibration helper
-2.3.5 Add VCOM mismatch detection
+2.3.1 Create specialized alignment for 1bpp mode (32-bit boundaries)
+2.3.2 Add model detection for alignment requirements
+2.3.3 Update `_align_coordinate()` to handle different modes
+2.3.4 Add alignment validation and warnings
+2.3.5 Create tests for edge cases
+
+### 2.4 VCOM Value Validation and Warnings
+
+2.4.1 Add VCOM range validation with clear error messages
+2.4.2 Create prominent VCOM warning in all examples
+2.4.3 Add `get_vcom()` method using register read
+2.4.4 Implement VCOM calibration helper
+2.4.5 Add VCOM mismatch detection
 
 ## Phase 3: Additional Bit Depth Support (v0.4.0)
 
@@ -108,20 +115,13 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Tools for troubleshooting and verification**
 
-### 5.1 Register Read Capability
+### 5.1 Extended Display Modes Testing
 
-5.1.1 Implement `read_register()` in `IT8951`
-5.1.2 Add register dump utility
-5.1.3 Create register verification methods
-5.1.4 Add register documentation
-
-### 5.2 Extended Display Modes Testing
-
-5.2.1 Test and document GLR16 mode
-5.2.2 Test and document GLD16 mode
-5.2.3 Test and document DU4 mode
-5.2.4 Create mode comparison examples
-5.2.5 Add mode selection guide
+5.1.1 Test and document GLR16 mode
+5.1.2 Test and document GLD16 mode
+5.1.3 Test and document DU4 mode
+5.1.4 Create mode comparison examples
+5.1.5 Add mode selection guide
 
 ## Phase 6: Developer Experience (v0.7.0)
 

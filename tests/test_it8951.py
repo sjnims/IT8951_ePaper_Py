@@ -6,6 +6,7 @@ from IT8951_ePaper_Py.constants import (
     DisplayMode,
     MemoryConstants,
     PixelFormat,
+    ProtocolConstants,
     Register,
     SystemCommand,
     UserCommand,
@@ -409,3 +410,173 @@ class TestIT8951:
         assert 0x0102 in buffer
         # Second word: 0x03 << 8 | 0x00 = 0x0300 (padded)
         assert 0x0300 in buffer
+
+    def test_read_register(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test reading a register value."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Set up the expected register value
+        expected_value = 0x1234
+        mock_spi.set_read_data([expected_value])
+
+        # Read the register
+        value = driver._read_register(Register.MISC)
+
+        # Verify the correct command was sent
+        assert mock_spi.get_last_command() == SystemCommand.REG_RD
+
+        # Verify the register address was sent
+        buffer = mock_spi.get_data_buffer()
+        assert Register.MISC in buffer
+
+        # Verify the returned value
+        assert value == expected_value
+
+    def test_write_register(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test writing a register value."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Write to register
+        test_value = 0x5678
+        driver._write_register(Register.REG_0204, test_value)
+
+        # Verify the correct command was sent
+        assert mock_spi.get_last_command() == SystemCommand.REG_WR
+
+        # Verify both register address and value were sent
+        buffer = mock_spi.get_data_buffer()
+        assert Register.REG_0204 in buffer
+        assert test_value in buffer
+
+    def test_dump_registers(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test register dump functionality."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Set up expected register values
+        mock_spi.set_read_data(
+            [
+                0x1234,  # LISAR
+                0x5678,  # REG_0204
+                0x9ABC,  # MISC
+                0xDEF0,  # PWR
+                0x1111,  # MCSR
+            ]
+        )
+
+        # Dump registers
+        dump = driver.dump_registers()
+
+        # Verify all expected registers were read
+        assert "LISAR" in dump
+        assert dump["LISAR"] == 0x1234
+        assert "REG_0204" in dump
+        assert dump["REG_0204"] == 0x5678
+        assert "MISC" in dump
+        assert dump["MISC"] == 0x9ABC
+        assert "PWR" in dump
+        assert dump["PWR"] == 0xDEF0
+        assert "MCSR" in dump
+        assert dump["MCSR"] == 0x1111
+
+        # Verify read commands were sent
+        buffer = mock_spi.get_data_buffer()
+        assert Register.LISAR in buffer
+        assert Register.REG_0204 in buffer
+        assert Register.MISC in buffer
+        assert Register.PWR in buffer
+        assert Register.MCSR in buffer
+
+    def test_check_lut_busy(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test LUT busy check."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Test LUT busy (bit 7 set)
+        mock_spi.set_read_data([0x80])
+        assert driver.check_lut_busy() is True
+
+        # Test LUT not busy (bit 7 clear)
+        mock_spi.set_read_data([0x00])
+        assert driver.check_lut_busy() is False
+
+        # Test with other bits set but not bit 7
+        mock_spi.set_read_data([0x7F])
+        assert driver.check_lut_busy() is False
+
+    def test_verify_packed_write_enabled(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test packed write verification."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Test packed write enabled
+        mock_spi.set_read_data([ProtocolConstants.PACKED_WRITE_BIT])
+        assert driver.verify_packed_write_enabled() is True
+
+        # Test packed write disabled
+        mock_spi.set_read_data([0x0000])
+        assert driver.verify_packed_write_enabled() is False
+
+        # Test with other bits set
+        mock_spi.set_read_data([0xFFFF])
+        assert driver.verify_packed_write_enabled() is True
+
+    def test_get_memory_address(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test reading current memory address."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Test reading a 32-bit address
+        mock_spi.set_read_data([0x5678])  # Low 16 bits
+        mock_spi.set_read_data([0x1234])  # High 16 bits
+
+        address = driver.get_memory_address()
+        assert address == 0x12345678
+
+        # Verify correct registers were read
+        buffer = mock_spi.get_data_buffer()
+        assert Register.LISAR in buffer
+        assert Register.LISAR + 2 in buffer
+
+    def test_enhance_driving_capability(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test enhanced driving capability."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Enable enhanced driving
+        driver.enhance_driving_capability()
+
+        # Verify the correct command was sent
+        assert mock_spi.get_last_command() == SystemCommand.REG_WR
+
+        # Verify register and value were sent
+        buffer = mock_spi.get_data_buffer()
+        assert Register.ENHANCE_DRIVING in buffer
+        assert ProtocolConstants.ENHANCED_DRIVING_VALUE in buffer
+
+    def test_is_enhanced_driving_enabled(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test checking enhanced driving status."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Test when enhanced driving is disabled (default)
+        mock_spi.set_read_data([0x0000])
+        assert driver.is_enhanced_driving_enabled() is False
+
+        # Test when enhanced driving is enabled
+        mock_spi.set_read_data([ProtocolConstants.ENHANCED_DRIVING_VALUE])
+        assert driver.is_enhanced_driving_enabled() is True
+
+        # Test with different value
+        mock_spi.set_read_data([0x1234])
+        assert driver.is_enhanced_driving_enabled() is False

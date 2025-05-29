@@ -113,7 +113,7 @@ class IT8951:
             register: Register address.
 
         Returns:
-            Register value.
+            int: Register value (16-bit).
         """
         self._spi.write_command(SystemCommand.REG_RD)
         self._spi.write_data(register)
@@ -130,6 +130,68 @@ class IT8951:
         self._spi.write_data(register)
         self._spi.write_data(value)
 
+    def dump_registers(self) -> dict[str, int]:
+        """Dump common register values for debugging.
+
+        Returns:
+            dict[str, int]: Dictionary of register names to values.
+        """
+        self._ensure_initialized()
+
+        registers = {
+            "LISAR": Register.LISAR,
+            "REG_0204": Register.REG_0204,
+            "MISC": Register.MISC,
+            "PWR": Register.PWR,
+            "MCSR": Register.MCSR,
+            "ENHANCE_DRIVING": Register.ENHANCE_DRIVING,
+        }
+
+        dump: dict[str, int] = {}
+        for name, address in registers.items():
+            try:
+                value = self._read_register(address)
+                dump[name] = value
+            except Exception:
+                # If register read fails, mark as unreadable
+                dump[name] = -1
+
+        return dump
+
+    def check_lut_busy(self) -> bool:
+        """Check if LUT engine is busy.
+
+        Returns:
+            bool: True if LUT is busy, False otherwise.
+        """
+        self._ensure_initialized()
+        misc_value = self._read_register(Register.MISC)
+        # Bit 7 indicates LUT busy state
+        return (misc_value & 0x80) != 0
+
+    def verify_packed_write_enabled(self) -> bool:
+        """Verify that packed write mode is enabled.
+
+        Returns:
+            bool: True if packed write is enabled, False otherwise.
+        """
+        self._ensure_initialized()
+        reg_value = self._read_register(Register.REG_0204)
+        return (reg_value & ProtocolConstants.PACKED_WRITE_BIT) != 0
+
+    def get_memory_address(self) -> int:
+        """Get current target memory address from LISAR registers.
+
+        Returns:
+            int: Current memory address (32-bit).
+        """
+        self._ensure_initialized()
+        # Read low 16 bits
+        low = self._read_register(Register.LISAR)
+        # Read high 16 bits
+        high = self._read_register(Register.LISAR + 2)
+        return (high << 16) | low
+
     def standby(self) -> None:
         """Put device into standby mode."""
         self._ensure_initialized()
@@ -139,6 +201,31 @@ class IT8951:
         """Put device into sleep mode."""
         self._ensure_initialized()
         self._spi.write_command(SystemCommand.SLEEP)
+
+    def enhance_driving_capability(self) -> None:
+        """Enhance driving capability for long cables or blurry displays.
+
+        This sets the enhanced driving register to improve signal quality,
+        which can help with:
+        - Blurry or unclear display output
+        - Long FPC cable connections
+        - Display instability issues
+
+        Note: This should be called after initialization but before
+        displaying images.
+        """
+        self._ensure_initialized()
+        self._write_register(Register.ENHANCE_DRIVING, ProtocolConstants.ENHANCED_DRIVING_VALUE)
+
+    def is_enhanced_driving_enabled(self) -> bool:
+        """Check if enhanced driving capability is enabled.
+
+        Returns:
+            bool: True if enhanced driving is enabled (0x0602), False otherwise.
+        """
+        self._ensure_initialized()
+        value = self._read_register(Register.ENHANCE_DRIVING)
+        return value == ProtocolConstants.ENHANCED_DRIVING_VALUE
 
     def get_vcom(self) -> float:
         """Get current VCOM voltage.
