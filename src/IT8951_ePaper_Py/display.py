@@ -43,7 +43,7 @@ from IT8951_ePaper_Py.constants import (
     Rotation,
     RotationAngle,
 )
-from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError
+from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import AreaImageInfo, DisplayArea, LoadImageInfo
 from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
@@ -66,6 +66,7 @@ class EPaperDisplay:
         vcom: float = DisplayConstants.DEFAULT_VCOM,
         spi_interface: SPIInterface | None = None,
         spi_speed_hz: int | None = None,
+        a2_refresh_limit: int = 10,
     ) -> None:
         """Initialize e-paper display.
 
@@ -75,6 +76,8 @@ class EPaperDisplay:
                           spi_speed_hz is ignored.
             spi_speed_hz: Manual SPI speed override in Hz. If None, auto-detects
                          based on Pi version. Only used when spi_interface is None.
+            a2_refresh_limit: Number of A2 refreshes before automatic INIT clear.
+                            Set to 0 to disable auto-clearing.
         """
         if spi_interface is None:
             spi_interface = create_spi_interface(spi_speed_hz=spi_speed_hz)
@@ -83,6 +86,8 @@ class EPaperDisplay:
         self._width = 0
         self._height = 0
         self._initialized = False
+        self._a2_refresh_count = 0
+        self._a2_refresh_limit = a2_refresh_limit
 
     def init(self) -> tuple[int, int]:
         """Initialize the display.
@@ -113,12 +118,24 @@ class EPaperDisplay:
         """Clear the display to a solid color.
 
         Args:
-            color: Grayscale color value (0=black, 255=white).
+            color: Grayscale color value (0=black, DisplayConstants.GRAYSCALE_MAX=white).
         """
         self._ensure_initialized()
 
         buffer_size = self._width * self._height
-        data = bytes([color] * buffer_size)
+
+        # Check for potential memory allocation issues
+        max_buffer_size = DisplayConstants.MAX_WIDTH * DisplayConstants.MAX_HEIGHT
+        if buffer_size > max_buffer_size:
+            raise IT8951MemoryError(
+                f"Buffer size ({buffer_size} bytes) exceeds maximum "
+                f"({max_buffer_size} bytes) for display {self._width}x{self._height}"
+            )
+
+        try:
+            data = bytes([color] * buffer_size)
+        except MemoryError as e:
+            raise IT8951MemoryError(f"Failed to allocate display buffer: {e}") from e
 
         info = LoadImageInfo(
             source_buffer=data,
@@ -139,6 +156,9 @@ class EPaperDisplay:
         )
 
         self._controller.display_area(area, wait=True)
+
+        # Reset A2 counter after clearing
+        self._a2_refresh_count = 0
 
     def display_image(  # noqa: PLR0913
         self,
@@ -164,6 +184,13 @@ class EPaperDisplay:
 
         img = self._load_image(image)
         img = self._prepare_image(img, rotation)
+
+        # Check image size limits
+        if img.width > DisplayConstants.MAX_WIDTH or img.height > DisplayConstants.MAX_HEIGHT:
+            raise IT8951MemoryError(
+                f"Image dimensions ({img.width}x{img.height}) exceed maximum "
+                f"({DisplayConstants.MAX_WIDTH}x{DisplayConstants.MAX_HEIGHT})"
+            )
 
         if x + img.width > self._width:
             raise InvalidParameterError("Image exceeds display width")
@@ -212,6 +239,26 @@ class EPaperDisplay:
 
         self._controller.display_area(display_area, wait=True)
 
+        # Track A2 refreshes and auto-clear if needed
+        if mode == DisplayMode.A2 and self._a2_refresh_limit > 0:
+            self._a2_refresh_count += 1
+
+            # Warn when approaching limit
+            if self._a2_refresh_count == self._a2_refresh_limit - 1:
+                import warnings
+
+                warnings.warn(
+                    f"A2 refresh count ({self._a2_refresh_count}) approaching limit "
+                    f"({self._a2_refresh_limit}). Next A2 refresh will trigger auto-clear.",
+                    UserWarning,
+                    stacklevel=2,
+                )
+
+            # Auto-clear when limit reached
+            elif self._a2_refresh_count >= self._a2_refresh_limit:
+                self.clear()
+                self._a2_refresh_count = 0
+
     def display_partial(
         self,
         image: Image.Image | NumpyArray,
@@ -231,7 +278,7 @@ class EPaperDisplay:
 
         if isinstance(image, np.ndarray):
             if image.dtype != np.uint8:
-                image = (image * 255).astype(np.uint8)
+                image = (image * DisplayConstants.GRAYSCALE_MAX).astype(np.uint8)
             image = Image.fromarray(image, mode="L")
 
         self.display_image(image, x, y, mode)
@@ -370,3 +417,21 @@ class EPaperDisplay:
         """
         self._ensure_initialized()
         return (self._width, self._height)
+
+    @property
+    def a2_refresh_count(self) -> int:
+        """Get current A2 refresh count.
+
+        Returns:
+            int: Number of A2 refreshes since last clear.
+        """
+        return self._a2_refresh_count
+
+    @property
+    def a2_refresh_limit(self) -> int:
+        """Get A2 refresh limit before auto-clear.
+
+        Returns:
+            int: Number of A2 refreshes before auto-clear (0 = disabled).
+        """
+        return self._a2_refresh_limit

@@ -6,6 +6,7 @@ features for SPI speed configuration based on Raspberry Pi version.
 """
 
 from IT8951_ePaper_Py import EPaperDisplay
+from IT8951_ePaper_Py.constants import DisplayConstants
 from IT8951_ePaper_Py.spi_interface import detect_raspberry_pi_version, get_spi_speed_for_pi
 
 
@@ -30,7 +31,7 @@ def main() -> None:
     # Example 2: Manual speed override for testing
     print("\nExample 2: Manual speed override")
     custom_speed = 10_000_000  # 10 MHz
-    display = EPaperDisplay(vcom=-2.0, spi_speed_hz=custom_speed)
+    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM, spi_speed_hz=custom_speed)
     print(f"Display initialized with custom SPI speed: {custom_speed:,} Hz")
     display.close()  # Clean up
 

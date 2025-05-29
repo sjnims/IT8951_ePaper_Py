@@ -11,10 +11,11 @@ from IT8951_ePaper_Py.constants import (
     UserCommand,
 )
 from IT8951_ePaper_Py.exceptions import (
-    CommunicationError,
     DeviceError,
     InitializationError,
     InvalidParameterError,
+    IT8951MemoryError,
+    IT8951TimeoutError,
 )
 from IT8951_ePaper_Py.models import (
     AreaImageInfo,
@@ -102,7 +103,7 @@ class IT8951:
     def _enable_packed_write(self) -> None:
         """Enable packed write mode for better performance."""
         reg_value = self._read_register(Register.REG_0204)
-        reg_value |= 0x0001
+        reg_value |= ProtocolConstants.PACKED_WRITE_BIT
         self._write_register(Register.REG_0204, reg_value)
 
     def _read_register(self, register: int) -> int:
@@ -175,8 +176,16 @@ class IT8951:
 
         Args:
             address: Target memory address.
+
+        Raises:
+            IT8951MemoryError: If address is invalid.
         """
         self._ensure_initialized()
+
+        # Validate memory address
+        if address < 0 or address > ProtocolConstants.MAX_ADDRESS:
+            raise IT8951MemoryError(f"Invalid memory address: 0x{address:08X}")
+
         self._write_register(Register.LISAR, address & ProtocolConstants.ADDRESS_MASK)
         self._write_register(
             Register.LISAR + ProtocolConstants.LISAR_HIGH_OFFSET,
@@ -370,7 +379,7 @@ class IT8951:
             timeout_ms: Timeout in milliseconds.
 
         Raises:
-            CommunicationError: If timeout occurs.
+            IT8951TimeoutError: If timeout occurs.
         """
         start_time = time.time()
         while time.time() - start_time < timeout_ms / 1000:
@@ -381,7 +390,7 @@ class IT8951:
                 return
             time.sleep(TimingConstants.DISPLAY_POLL_S)
 
-        raise CommunicationError(f"Display operation timeout after {timeout_ms}ms")
+        raise IT8951TimeoutError(f"Display operation timed out after {timeout_ms}ms")
 
     def _ensure_initialized(self) -> None:
         """Ensure the driver is initialized.

@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from pytest_mock import MockerFixture
 
-from IT8951_ePaper_Py.constants import PixelFormat
+from IT8951_ePaper_Py.constants import MemoryConstants, PixelFormat
 from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.spi_interface import MockSPI
@@ -20,7 +20,10 @@ class TestPerformance:
         """Create a display instance with mock SPI."""
         mock_spi = MockSPI()
         # Data for _get_device_info (20 values)
-        mock_spi.set_read_data([1872, 1404, 0x36E0, 0x12] + [0] * 16)
+        mock_spi.set_read_data(
+            [1872, 1404, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
         # Data for _enable_packed_write register read
         mock_spi.set_read_data([0x0000])
 

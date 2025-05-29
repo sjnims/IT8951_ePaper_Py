@@ -7,7 +7,7 @@ import pytest
 from pytest_mock import MockerFixture
 
 from IT8951_ePaper_Py.constants import GPIOPin, SPIConstants
-from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
+from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError, IT8951TimeoutError
 from IT8951_ePaper_Py.spi_interface import (
     MockSPI,
     RaspberryPiSPI,
@@ -69,7 +69,7 @@ class TestMockSPI:
         """Test command writing."""
         spi = MockSPI()
 
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_command(0x1234)
 
         spi.init()
@@ -123,25 +123,25 @@ class TestMockSPI:
     def test_write_data_without_init(self) -> None:
         """Test write_data fails without initialization."""
         spi = MockSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_data(0x1234)
 
     def test_write_data_bulk_without_init(self) -> None:
         """Test write_data_bulk fails without initialization."""
         spi = MockSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_data_bulk([0x1234])
 
     def test_read_data_without_init(self) -> None:
         """Test read_data fails without initialization."""
         spi = MockSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.read_data()
 
     def test_read_data_bulk_without_init(self) -> None:
         """Test read_data_bulk fails without initialization."""
         spi = MockSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.read_data_bulk(5)
 
 
@@ -179,7 +179,7 @@ class TestRaspberryPiSPI:
         with pytest.raises(InitializationError):
             spi.wait_busy()
 
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_command(0x1234)
 
     def test_mock_gpio_operations(self, mocker: MockerFixture) -> None:
@@ -333,7 +333,7 @@ class TestRaspberryPiSPI:
         spi = RaspberryPiSPI()
         spi.init()
 
-        with pytest.raises(CommunicationError) as exc_info:
+        with pytest.raises(IT8951TimeoutError) as exc_info:
             spi.wait_busy(timeout_ms=100)
 
         assert "Device busy timeout after 100ms" in str(exc_info.value)
@@ -563,25 +563,25 @@ class TestRaspberryPiSPI:
     def test_write_data_without_init(self) -> None:
         """Test write_data fails without initialization."""
         spi = RaspberryPiSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_data(0x1234)
 
     def test_write_data_bulk_without_init(self) -> None:
         """Test write_data_bulk fails without initialization."""
         spi = RaspberryPiSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.write_data_bulk([0x1234])
 
     def test_read_data_without_init(self) -> None:
         """Test read_data fails without initialization."""
         spi = RaspberryPiSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.read_data()
 
     def test_read_data_bulk_without_init(self) -> None:
         """Test read_data_bulk fails without initialization."""
         spi = RaspberryPiSPI()
-        with pytest.raises(InitializationError):
+        with pytest.raises(CommunicationError):
             spi.read_data_bulk(5)
 
     def test_close_partial_init(self, mocker: MockerFixture) -> None:

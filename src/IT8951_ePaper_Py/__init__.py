@@ -26,15 +26,23 @@ from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.exceptions import (
     CommunicationError,
     DeviceError,
+    DisplayError,
     InitializationError,
+    InvalidParameterError,
     IT8951Error,
+    IT8951MemoryError,
+    IT8951TimeoutError,
 )
 
 __version__ = "0.1.0"
 __all__ = [
     "CommunicationError",
     "DeviceError",
+    "DisplayError",
     "EPaperDisplay",
     "IT8951Error",
+    "IT8951MemoryError",
+    "IT8951TimeoutError",
     "InitializationError",
+    "InvalidParameterError",
 ]

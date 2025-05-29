@@ -10,12 +10,12 @@ from PIL import Image, ImageDraw
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayMode
+from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode
 
 
 def create_test_pattern(width: int, height: int) -> Image.Image:
     """Create a test pattern for VCOM calibration."""
-    img = Image.new("L", (width, height), color=255)
+    img = Image.new("L", (width, height), color=DisplayConstants.GRAYSCALE_MAX)
     draw = ImageDraw.Draw(img)
 
     for i in range(0, 256, 16):
@@ -38,7 +38,7 @@ def main() -> None:  # noqa: PLR0912, PLR0915, C901
     print("The VCOM voltage affects image quality and ghosting.")
     print()
 
-    current_vcom = -2.0
+    current_vcom = DisplayConstants.DEFAULT_VCOM
 
     if len(sys.argv) > 1:
         try:
@@ -82,26 +82,26 @@ def main() -> None:  # noqa: PLR0912, PLR0915, C901
                 break
             if cmd == "+":
                 new_vcom = current_vcom + 0.1
-                if new_vcom > -0.2:
-                    print("VCOM cannot exceed -0.2V")
+                if new_vcom > DisplayConstants.MAX_VCOM:
+                    print(f"VCOM cannot exceed {DisplayConstants.MAX_VCOM}V")
                     continue
                 current_vcom = new_vcom
             elif cmd == "-":
                 new_vcom = current_vcom - 0.1
-                if new_vcom < -5.0:
-                    print("VCOM cannot go below -5.0V")
+                if new_vcom < DisplayConstants.MIN_VCOM:
+                    print(f"VCOM cannot go below {DisplayConstants.MIN_VCOM}V")
                     continue
                 current_vcom = new_vcom
             elif cmd == "f":
                 new_vcom = current_vcom + 0.01
-                if new_vcom > -0.2:
-                    print("VCOM cannot exceed -0.2V")
+                if new_vcom > DisplayConstants.MAX_VCOM:
+                    print(f"VCOM cannot exceed {DisplayConstants.MAX_VCOM}V")
                     continue
                 current_vcom = new_vcom
             elif cmd == "F":
                 new_vcom = current_vcom - 0.01
-                if new_vcom < -5.0:
-                    print("VCOM cannot go below -5.0V")
+                if new_vcom < DisplayConstants.MIN_VCOM:
+                    print(f"VCOM cannot go below {DisplayConstants.MIN_VCOM}V")
                     continue
                 current_vcom = new_vcom
             elif cmd == "r":

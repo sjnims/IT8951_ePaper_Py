@@ -97,7 +97,14 @@ class TestConstants:
     def test_memory_constants(self) -> None:
         """Test memory constants."""
         assert MemoryConstants.IMAGE_BUFFER_ADDR == 0x001236E0
+        assert MemoryConstants.IMAGE_BUFFER_ADDR_L == 0x36E0
+        assert MemoryConstants.IMAGE_BUFFER_ADDR_H == 0x0012
         assert MemoryConstants.WAVEFORM_ADDR == 0x00886332
+        # Verify that the components combine to form the full address
+        assert (
+            MemoryConstants.IMAGE_BUFFER_ADDR
+            == (MemoryConstants.IMAGE_BUFFER_ADDR_H << 16) | MemoryConstants.IMAGE_BUFFER_ADDR_L
+        )
 
     def test_register_addresses(self) -> None:
         """Test register addresses."""
@@ -112,6 +119,7 @@ class TestConstants:
         assert ProtocolConstants.PACKED_WRITE_BIT == 0x0001
         assert ProtocolConstants.VCOM_FACTOR == 1000
         assert ProtocolConstants.ADDRESS_MASK == 0xFFFF
+        assert ProtocolConstants.MAX_ADDRESS == 0xFFFFFFFF
         assert ProtocolConstants.BYTE_SHIFT == 8
         assert ProtocolConstants.BYTE_MASK == 0xFF
         assert ProtocolConstants.LISAR_HIGH_OFFSET == 2

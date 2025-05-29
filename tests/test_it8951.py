@@ -11,10 +11,11 @@ from IT8951_ePaper_Py.constants import (
     UserCommand,
 )
 from IT8951_ePaper_Py.exceptions import (
-    CommunicationError,
     DeviceError,
     InitializationError,
     InvalidParameterError,
+    IT8951MemoryError,
+    IT8951TimeoutError,
 )
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import (
@@ -45,8 +46,8 @@ class TestIT8951:
             [
                 1024,  # panel_width
                 768,  # panel_height
-                0x36E0,  # memory_addr_l
-                0x0012,  # memory_addr_h
+                MemoryConstants.IMAGE_BUFFER_ADDR_L,  # memory_addr_l
+                MemoryConstants.IMAGE_BUFFER_ADDR_H,  # memory_addr_h
                 49,
                 46,
                 48,
@@ -71,7 +72,7 @@ class TestIT8951:
 
         assert info.panel_width == 1024
         assert info.panel_height == 768
-        assert info.memory_address == 0x001236E0
+        assert info.memory_address == MemoryConstants.IMAGE_BUFFER_ADDR
         assert info.fw_version == "1.0"
         assert info.lut_version == "2.0"
 
@@ -350,10 +351,10 @@ class TestIT8951:
         # Mock MISC register to always return busy (bit 7 = 1)
         mock_spi.set_read_data([0x80] * 10)  # LUT state = 1 (busy)
 
-        with pytest.raises(CommunicationError) as exc_info:
+        with pytest.raises(IT8951TimeoutError) as exc_info:
             driver._wait_display_ready(timeout_ms=100)  # type: ignore[reportPrivateUsage]
 
-        assert "Display operation timeout after 100ms" in str(exc_info.value)
+        assert "Display operation timed out after 100ms" in str(exc_info.value)
 
     def test_set_target_memory_addr(self, driver: IT8951, mock_spi: MockSPI) -> None:
         """Test setting target memory address."""
@@ -370,6 +371,22 @@ class TestIT8951:
         # Should write high 16 bits to LISAR + 2
         assert Register.LISAR + 2 in buffer
         assert 0x1234 in buffer
+
+    def test_set_target_memory_addr_invalid(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test setting invalid memory address."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Test negative address
+        with pytest.raises(IT8951MemoryError) as exc_info:
+            driver.set_target_memory_addr(-1)
+        assert "Invalid memory address" in str(exc_info.value)
+
+        # Test address > 32-bit
+        with pytest.raises(IT8951MemoryError) as exc_info:
+            driver.set_target_memory_addr(0x100000000)
+        assert "Invalid memory address" in str(exc_info.value)
 
     def test_default_spi_interface(self) -> None:
         """Test driver creation with default SPI interface."""

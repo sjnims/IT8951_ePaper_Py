@@ -9,21 +9,21 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayMode
+from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode
 
 
 def main() -> None:
     """Run basic display example."""
     print("Initializing e-paper display...")
 
-    display = EPaperDisplay(vcom=-2.0)
+    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
 
     try:
         width, height = display.init()
         print(f"Display initialized: {width}x{height} pixels")
 
         print("Clearing display to white...")
-        display.clear(color=0xFF)
+        display.clear(color=DisplayConstants.DEFAULT_CLEAR_COLOR)
 
         print("Drawing test pattern...")
         img = Image.new("L", (400, 300))
@@ -33,7 +33,7 @@ def main() -> None:
                 if (x // 50 + y // 50) % 2 == 0:
                     img.putpixel((x, y), 0)
                 else:
-                    img.putpixel((x, y), 255)
+                    img.putpixel((x, y), DisplayConstants.GRAYSCALE_MAX)
 
         print("Displaying checkerboard pattern...")
         # Use default 8bpp format

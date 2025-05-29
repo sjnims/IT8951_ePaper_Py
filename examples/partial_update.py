@@ -11,12 +11,12 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayMode
+from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode
 
 
 def create_clock_image(width: int, height: int, time_str: str) -> Image.Image:
     """Create an image with current time."""
-    img = Image.new("L", (width, height), color=255)
+    img = Image.new("L", (width, height), color=DisplayConstants.GRAYSCALE_MAX)
     draw = ImageDraw.Draw(img)
 
     try:
@@ -40,7 +40,7 @@ def main() -> None:
     """Demonstrate partial display updates."""
     print("Initializing e-paper display...")
 
-    display = EPaperDisplay(vcom=-2.0)
+    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
 
     try:
         width, height = display.init()
@@ -81,7 +81,7 @@ def main() -> None:
             shape_img = np.zeros((size, size), dtype=np.uint8)
 
             if i % 2 == 0:
-                shape_img[:] = 255
+                shape_img[:] = DisplayConstants.GRAYSCALE_MAX
                 shape_img[10:90, 10:90] = 0
             else:
                 for row in range(size):
@@ -89,7 +89,7 @@ def main() -> None:
                         if (row - 50) ** 2 + (col - 50) ** 2 < 40**2:
                             shape_img[row, col] = 0
                         else:
-                            shape_img[row, col] = 255
+                            shape_img[row, col] = DisplayConstants.GRAYSCALE_MAX
 
             display.display_partial(shape_img, x=x, y=y, mode=DisplayMode.A2)
             time.sleep(0.5)

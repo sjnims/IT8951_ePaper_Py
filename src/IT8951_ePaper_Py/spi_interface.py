@@ -31,7 +31,7 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 from IT8951_ePaper_Py.constants import GPIOPin, ProtocolConstants, SPIConstants, TimingConstants
-from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError
+from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError, IT8951TimeoutError
 
 
 def _get_pi_revision() -> str | None:
@@ -291,7 +291,7 @@ class SPIInterface(ABC):
             timeout_ms: Maximum wait time in milliseconds.
 
         Raises:
-            CommunicationError: If timeout occurs.
+            IT8951TimeoutError: If timeout occurs.
         """
         pass
 
@@ -437,12 +437,12 @@ class RaspberryPiSPI(SPIInterface):
                 return
             time.sleep(TimingConstants.BUSY_POLL_FAST_S)
 
-        raise CommunicationError(f"Device busy timeout after {timeout_ms}ms")
+        raise IT8951TimeoutError(f"Device busy timeout after {timeout_ms}ms")
 
     def write_command(self, command: int) -> None:
         """Write a command to the device."""
         if not self._spi:
-            raise InitializationError("SPI not initialized")
+            raise CommunicationError("SPI not initialized")
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_CMD
@@ -456,7 +456,7 @@ class RaspberryPiSPI(SPIInterface):
     def write_data(self, data: int) -> None:
         """Write data to the device."""
         if not self._spi:
-            raise InitializationError("SPI not initialized")
+            raise CommunicationError("SPI not initialized")
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_DATA
@@ -470,7 +470,7 @@ class RaspberryPiSPI(SPIInterface):
     def write_data_bulk(self, data: list[int]) -> None:
         """Write bulk data to the device."""
         if not self._spi:
-            raise InitializationError("SPI not initialized")
+            raise CommunicationError("SPI not initialized")
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_DATA
@@ -486,7 +486,7 @@ class RaspberryPiSPI(SPIInterface):
     def read_data(self) -> int:
         """Read data from the device."""
         if not self._spi:
-            raise InitializationError("SPI not initialized")
+            raise CommunicationError("SPI not initialized")
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_READ
@@ -505,7 +505,7 @@ class RaspberryPiSPI(SPIInterface):
     def read_data_bulk(self, length: int) -> list[int]:
         """Read bulk data from the device."""
         if not self._spi:
-            raise InitializationError("SPI not initialized")
+            raise CommunicationError("SPI not initialized")
 
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_READ
@@ -569,7 +569,7 @@ class MockSPI(SPIInterface):
     def write_command(self, command: int) -> None:
         """Simulate writing a command."""
         if not self._initialized:
-            raise InitializationError("Mock SPI not initialized")
+            raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
         self._last_command = command
@@ -578,7 +578,7 @@ class MockSPI(SPIInterface):
     def write_data(self, data: int) -> None:
         """Simulate writing data."""
         if not self._initialized:
-            raise InitializationError("Mock SPI not initialized")
+            raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
         self._data_buffer.append(data)
@@ -586,7 +586,7 @@ class MockSPI(SPIInterface):
     def write_data_bulk(self, data: list[int]) -> None:
         """Simulate writing bulk data."""
         if not self._initialized:
-            raise InitializationError("Mock SPI not initialized")
+            raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
         self._data_buffer.extend(data)
@@ -594,7 +594,7 @@ class MockSPI(SPIInterface):
     def read_data(self) -> int:
         """Simulate reading data."""
         if not self._initialized:
-            raise InitializationError("Mock SPI not initialized")
+            raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
         if self._read_data:
@@ -604,7 +604,7 @@ class MockSPI(SPIInterface):
     def read_data_bulk(self, length: int) -> list[int]:
         """Simulate reading bulk data."""
         if not self._initialized:
-            raise InitializationError("Mock SPI not initialized")
+            raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
         data: list[int] = []

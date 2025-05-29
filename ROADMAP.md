@@ -23,13 +23,21 @@ This roadmap outlines the phased implementation of missing features and improvem
 1.2.4 ✅ Add manual speed override option
 1.2.5 ✅ Document speed recommendations in README
 
-### 1.3 A2 Mode Auto-Clear Protection
+### 1.3 A2 Mode Auto-Clear Protection ✅
 
-1.3.1 Add A2 refresh counter to `EPaperDisplay` class
-1.3.2 Implement automatic INIT mode clearing after N refreshes
-1.3.3 Make threshold configurable (default: 10)
-1.3.4 Add warning when approaching clear threshold
-1.3.5 Create example demonstrating safe A2 usage
+1.3.1 ✅ Add A2 refresh counter to `EPaperDisplay` class
+1.3.2 ✅ Implement automatic INIT mode clearing after N refreshes
+1.3.3 ✅ Make threshold configurable (default: 10)
+1.3.4 ✅ Add warning when approaching clear threshold
+1.3.5 ✅ Create example demonstrating safe A2 usage
+
+### 1.4 Properly Implement Custom Exceptions ✅
+
+1.4.1 ✅ Replace CommunicationError with IT8951TimeoutError for timeout scenarios
+1.4.2 ✅ Implement IT8951MemoryError for memory allocation and buffer operations
+1.4.3 ✅ Add IT8951TimeoutError to other timeout-prone operations
+1.4.4 ✅ Update all exception messages to be descriptive and actionable
+1.4.5 ✅ Update tests to verify proper exception usage
 
 ## Phase 2: Display Quality Enhancements (v0.3.0)
 

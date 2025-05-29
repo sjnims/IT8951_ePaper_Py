@@ -150,6 +150,8 @@ class MemoryConstants:
     """Memory-related constants."""
 
     IMAGE_BUFFER_ADDR = 0x001236E0
+    IMAGE_BUFFER_ADDR_L = 0x36E0  # Lower 16 bits
+    IMAGE_BUFFER_ADDR_H = 0x0012  # Upper 16 bits
     WAVEFORM_ADDR = 0x00886332  # Waveform memory address (not yet used)
 
 
@@ -160,6 +162,7 @@ class ProtocolConstants:
     PACKED_WRITE_BIT = 0x0001
     VCOM_FACTOR = 1000
     ADDRESS_MASK = 0xFFFF
+    MAX_ADDRESS = 0xFFFFFFFF  # 32-bit address space
     BYTE_SHIFT = 8
     BYTE_MASK = 0xFF
     LISAR_HIGH_OFFSET = 2

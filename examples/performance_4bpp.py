@@ -9,7 +9,7 @@ import time
 
 from PIL import Image
 
-from IT8951_ePaper_Py.constants import DisplayMode, PixelFormat
+from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode, PixelFormat
 from IT8951_ePaper_Py.display import EPaperDisplay
 
 
@@ -33,7 +33,7 @@ def main() -> None:
     print("Example: EPaperDisplay(vcom=-1.45)")
 
     # Change this to your display's VCOM value
-    display = EPaperDisplay(vcom=-2.0)
+    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
 
     try:
         # Get display dimensions
@@ -51,7 +51,7 @@ def main() -> None:
             for x in range(img_width):
                 # Create 16 distinct gray levels
                 gray_level = int((x / img_width) * 16) * 16
-                image.putpixel((x, y), min(gray_level, 255))
+                image.putpixel((x, y), min(gray_level, DisplayConstants.GRAYSCALE_MAX))
 
         # Clear display first
         print("\nClearing display...")
