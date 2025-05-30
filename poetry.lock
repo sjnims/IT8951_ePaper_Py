@@ -660,5 +660,5 @@ rpi = ["RPi-GPIO"]
 
 [metadata]
 lock-version = "2.1"
-python-versions = ">=3.11.12,<3.12"
-content-hash = "b06c8fed3cf0c33f50fbfc01af6701e0639718c1160e89d7400b4464e45fd07f"
+python-versions = ">=3.11.12,<3.13"
+content-hash = "0ffe8e4df4a2e43e0d0a21aa60546b06919b08a07dc7ef607f5b2b3edf9a6f58"
