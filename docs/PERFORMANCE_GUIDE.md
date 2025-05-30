@@ -51,10 +51,27 @@ display.display_image(img, pixel_format=PixelFormat.BPP_1)
 
 ### When to Use Each Format
 
-- **1bpp**: Text documents, line art, QR codes
-- **2bpp**: Simple graphics with limited shading
-- **4bpp**: General purpose (best balance of speed/quality)
-- **8bpp**: Photographs, detailed grayscale images
+- **1bpp**:
+  - Text documents, e-readers
+  - QR codes and barcodes
+  - Line art and diagrams
+  - Real-time clocks/counters
+  - Binary UI elements
+- **2bpp**:
+  - Simple graphics with 4 gray levels
+  - Basic charts and graphs
+  - Icon displays
+  - Status indicators with shading
+- **4bpp** (Default):
+  - General purpose images
+  - Balanced quality/speed needs
+  - Most UI applications
+  - Grayscale photos with acceptable quality
+- **8bpp**:
+  - High-quality photographs
+  - Detailed grayscale artwork
+  - Medical/scientific imaging
+  - When quality is paramount
 
 ## Display Mode Comparison
 

@@ -105,20 +105,20 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Expand display capabilities for specialized use cases**
 
-### 4.1 Implement 1bpp Support (partially complete)
+### 4.1 Implement 1bpp Support ✅
 
 4.1.1 ✅ Add 1bpp pixel packing (8 pixels per byte) - completed in Phase 3.2.3
-4.1.2 Create `display_image_1bpp()` method
-4.1.3 Implement proper endian conversion
-4.1.4 Add specialized A2 mode support for 1bpp
-4.1.5 Create binary image examples
+4.1.2 ✅ Add 32-bit alignment support for 1bpp - completed in Phase 2.3
+4.1.3 ✅ Create binary image examples (text, QR codes, line art) - binary_1bpp_demo.py
+4.1.4 ✅ Add endian conversion support for 1bpp data - convert_endian_1bpp() method
+4.1.5 ✅ Optimize A2 mode for 1bpp (skip grayscale processing) - a2_1bpp_optimization.py
 
-### 4.2 Implement 2bpp Support (partially complete)
+### 4.2 Implement 2bpp Support ✅
 
-4.2.1 ✅ Add 2bpp pixel packing (4 pixels per byte) - already implemented in `pack_pixels()`
-4.2.2 Create `display_image_2bpp()` method
-4.2.3 Add 4-level grayscale conversion
-4.2.4 Create examples for simple graphics
+4.2.1 ✅ Add 2bpp pixel packing (4 pixels per byte) - implemented in `pack_pixels()`
+4.2.2 ✅ Create 2bpp examples demonstrating 4-level grayscale - grayscale_2bpp_demo.py
+4.2.3 ✅ Add optimized 4-level grayscale conversion utilities - integrated in pack_pixels()
+4.2.4 ✅ Document 2bpp use cases and performance benefits - BIT_DEPTH_SUPPORT.md
 
 ### 4.3 Safety and Memory Enhancements (from code review)
 
@@ -187,13 +187,21 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Improve development workflow efficiency as the project scales**
 
-### 8.1 Automated Test Selection (Codecov ATS)
+### 8.1 Test Performance Optimization
 
-8.1.1 Integrate Codecov CLI into CI workflow
-8.1.2 Configure ATS for pytest test filtering
-8.1.3 Set up test impact analysis
-8.1.4 Add fallback for full test runs when needed
-8.1.5 Monitor and tune ATS performance
+8.1.1 Fix test isolation issues for parallel execution (pytest-xdist installed)
+8.1.2 Implement shared fixtures to reduce setup/teardown time
+8.1.3 Mock hardware timing delays more aggressively
+8.1.4 Optimize test data sizes for faster execution
+8.1.5 Add test markers for better organization (@pytest.mark.slow)
+
+### 8.2 Automated Test Selection (Codecov ATS)
+
+8.2.1 Integrate Codecov CLI into CI workflow
+8.2.2 Configure ATS for pytest test filtering
+8.2.3 Set up test impact analysis
+8.2.4 Add fallback for full test runs when needed
+8.2.5 Monitor and tune ATS performance
 
 ## Implementation Notes
 

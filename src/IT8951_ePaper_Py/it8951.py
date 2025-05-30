@@ -365,6 +365,32 @@ class IT8951:
         self._spi.write_data_bulk(words)
 
     @staticmethod
+    def convert_endian_1bpp(data: bytes, reverse_bits: bool = False) -> bytes:
+        """Convert endianness for 1bpp data.
+
+        Args:
+            data: 1bpp packed data.
+            reverse_bits: If True, reverse bit order within each byte.
+                         This swaps between MSB-first and LSB-first bit ordering.
+
+        Returns:
+            Converted data.
+        """
+        if not reverse_bits:
+            return data
+
+        # Reverse bits in each byte
+        result: list[int] = []
+        for byte in data:
+            # Reverse bits: 0b10110010 -> 0b01001101
+            reversed_byte = 0
+            for i in range(8):
+                if byte & (1 << i):
+                    reversed_byte |= 1 << (7 - i)
+            result.append(reversed_byte)
+        return bytes(result)
+
+    @staticmethod
     def pack_pixels(pixels: bytes, pixel_format: PixelFormat) -> bytes:
         """Pack pixel data according to the specified format.
 

@@ -24,6 +24,7 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - 🔄 Image rotation support (0°, 90°, 180°, 270°)
 - ⚡ Partial display updates for fast refresh
 - 🎨 Automatic image conversion and alignment
+- 🎯 Multiple pixel formats: 1bpp, 2bpp, 4bpp (default), 8bpp
 
 ### New in v0.3.1
 
@@ -105,19 +106,30 @@ finally:
 
 ### Pixel Format
 
-The driver defaults to 4bpp (4 bits per pixel) format as recommended by Waveshare for optimal performance. This provides 16 grayscale levels while reducing data transfer by 50% compared to 8bpp:
+The driver supports multiple pixel formats for different use cases:
 
 ```python
-# Uses default 4bpp format (recommended)
+from IT8951_ePaper_Py.constants import PixelFormat
+
+# Default: 4bpp (recommended) - 16 grayscale levels, 50% data reduction
 display.display_image(img)
 
-# Explicitly use 8bpp for full 256 grayscale levels
-from IT8951_ePaper_Py.constants import PixelFormat
+# 8bpp - Full 256 grayscale levels
 display.display_image(img, pixel_format=PixelFormat.BPP_8)
 
-# Use 2bpp for even faster updates (4 grayscale levels)
+# 2bpp - 4 grayscale levels, good for simple graphics
 display.display_image(img, pixel_format=PixelFormat.BPP_2)
+
+# 1bpp - Binary (black/white), fastest updates for text/QR codes
+display.display_image(img, pixel_format=PixelFormat.BPP_1)
 ```
+
+**Performance comparison:**
+
+- **1bpp**: 1/8 data of 8bpp - ideal for text, QR codes, line art
+- **2bpp**: 1/4 data of 8bpp - good for simple graphics with 4 gray levels
+- **4bpp**: 1/2 data of 8bpp - best balance of quality and speed (default)
+- **8bpp**: Full quality - use when maximum grayscale fidelity is needed
 
 ### SPI Speed Configuration
 

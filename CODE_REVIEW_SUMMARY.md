@@ -35,13 +35,17 @@ The IT8951 e-paper Python driver is a well-structured, modern Python implementat
 
 ## ⚠️ Areas Needing Attention
 
-### 1. **Missing Lower Bit Depth Support (Phase 3)**
+### 1. **Lower Bit Depth Support Completed ✅**
 
-- Currently supports 4bpp and 8bpp only
-- 1bpp and 2bpp would enable:
-  - Ultra-fast updates for simple graphics
-  - Lower power consumption
-  - Binary image display (text, QR codes)
+- All bit depths now supported: 1bpp, 2bpp, 4bpp, 8bpp
+- 1bpp features:
+  - Ultra-fast updates for text/QR codes
+  - Endian conversion support
+  - 32-bit alignment handling
+  - Examples for binary content
+- 2bpp features:
+  - 4-level grayscale support
+  - Good for simple graphics/icons
 
 ### 2. **Extended Display Modes Not Tested (Phase 5.1)**
 
@@ -91,30 +95,33 @@ The code handles memory limits well, but extreme cases could benefit from:
 - ✅ Core functionality matches C driver
 - ✅ Added safety features (A2 auto-clear)
 - ✅ Better error handling with context
-- ⚠️ Missing: 1bpp/2bpp full implementation
-- ⚠️ Missing: Some extended display modes
+- ✅ Complete: 1bpp/2bpp full implementation with examples
+- ⚠️ Missing: Some extended display modes (GLR16, GLD16, DU4)
 
 ### vs. ROADMAP.md Progress
 
 - ✅ Phase 1 (Performance): 100% complete
 - ✅ Phase 2 (Quality): 100% complete
-- ⏳ Phase 3 (Bit Depths): 0% complete
-- ⏳ Phase 4 (Power Mgmt): Basic standby/sleep added
-- ⏳ Phase 5-7: Not started
+- ✅ Phase 3 (Immediate Improvements): 100% complete
+- ✅ Phase 4.1 (1bpp Support): 100% complete
+- ⏳ Phase 4.2 (2bpp Examples): Packing complete, examples needed
+- ⏳ Phase 4.3 (Safety): Not started
+- ⏳ Phase 5 (Power Mgmt): Basic standby/sleep/wake added
+- ⏳ Phase 6-8: Not started
 
 ## 🎬 Recommended Action Plan
 
 ### Immediate Priorities (Next Sprint)
 
-1. **Complete Phase 3: Additional Bit Depth Support**
-   - Implement 1bpp for binary images (high impact for text/QR)
-   - Add 2bpp for simple graphics
-   - Create conversion utilities
+1. **Complete Phase 4.2 and 4.3**
+   - Create 2bpp example demonstrating 4-level grayscale
+   - Add optimized grayscale conversion for 2bpp
+   - Implement safety features (VCOM required, memory warnings)
 
-2. **Enhance Documentation**
-   - Add performance comparison table (1bpp vs 2bpp vs 4bpp vs 8bpp)
-   - Create troubleshooting guide
-   - Document mode selection criteria
+2. **Documentation Updates**
+   - Update README to highlight new 1bpp/2bpp support
+   - Add bit depth selection guide to main docs
+   - Create migration guide for users upgrading
 
 3. **Add Safety Features**
    - Consider making VCOM a required parameter (no default)

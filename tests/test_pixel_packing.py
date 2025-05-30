@@ -128,3 +128,34 @@ class TestPixelPacking:
         for i, (original, restored) in enumerate(zip(pixels_4bit, unpacked, strict=True)):
             expected = (original // 16) * 16
             assert restored == expected, f"Pixel {i}: {original} -> {restored}, expected {expected}"
+
+    def test_convert_endian_1bpp_no_change(self) -> None:
+        """Test endian conversion with no bit reversal."""
+        data = bytes([0b10110010, 0b01001101, 0b11110000])
+        result = IT8951.convert_endian_1bpp(data, reverse_bits=False)
+        assert result == data
+
+    def test_convert_endian_1bpp_reverse_bits(self) -> None:
+        """Test endian conversion with bit reversal."""
+        # Test single byte
+        data = bytes([0b10110010])  # MSB first
+        expected = bytes([0b01001101])  # LSB first
+        result = IT8951.convert_endian_1bpp(data, reverse_bits=True)
+        assert result == expected
+
+        # Test multiple bytes
+        data = bytes([0b11110000, 0b10101010, 0b00001111])
+        expected = bytes([0b00001111, 0b01010101, 0b11110000])
+        result = IT8951.convert_endian_1bpp(data, reverse_bits=True)
+        assert result == expected
+
+        # Test edge cases
+        assert IT8951.convert_endian_1bpp(bytes([0xFF]), reverse_bits=True) == bytes([0xFF])
+        assert IT8951.convert_endian_1bpp(bytes([0x00]), reverse_bits=True) == bytes([0x00])
+        assert IT8951.convert_endian_1bpp(bytes([0x80]), reverse_bits=True) == bytes([0x01])
+        assert IT8951.convert_endian_1bpp(bytes([0x01]), reverse_bits=True) == bytes([0x80])
+
+    def test_convert_endian_1bpp_empty(self) -> None:
+        """Test endian conversion with empty data."""
+        assert IT8951.convert_endian_1bpp(b"", reverse_bits=False) == b""
+        assert IT8951.convert_endian_1bpp(b"", reverse_bits=True) == b""
