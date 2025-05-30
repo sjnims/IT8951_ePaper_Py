@@ -27,10 +27,7 @@ class SystemCommand(IntEnum):
     SLEEP = 0x0003
     REG_RD = 0x0010
     REG_WR = 0x0011
-    MEM_BST_RD_T = 0x0012  # Memory burst read type T (not yet implemented)
-    MEM_BST_RD_S = 0x0013  # Memory burst read type S (not yet implemented)
     MEM_BST_WR = 0x0014
-    MEM_BST_END = 0x0015  # Memory burst end (not yet implemented)
     LD_IMG = 0x0020
     LD_IMG_AREA = 0x0021
     LD_IMG_END = 0x0022
@@ -58,10 +55,6 @@ class Register(IntEnum):
 
     LISAR = 0x0200  # Load Image Start Address Register (16-bit low)
     REG_0204 = 0x0204  # Configuration register (bit 0: packed write enable)
-    REG_0208 = 0x0208  # Reserved for future use
-    REG_020A = 0x020A  # Reserved for future use
-    REG_020C = 0x020C  # Reserved for future use
-    REG_020E = 0x020E  # Reserved for future use
     ENHANCE_DRIVING = 0x0038  # Enhanced driving capability register (0x0602 for blur fix)
     MISC = 0x1E50  # Miscellaneous register (bit 7: LUT busy)
     PWR = 0x1E54  # Power register (for power management features)
@@ -76,9 +69,9 @@ class DisplayMode(IntEnum):
     GC16 = 2
     GL16 = 3
     A2 = 4
-    GLR16 = 5  # Ghost reduction 16-level (not yet implemented)
-    GLD16 = 6  # Ghost level detection 16 (not yet implemented)
-    DU4 = 7  # Direct update 4-level (not yet implemented)
+    GLR16 = 5  # Ghost reduction 16-level (scheduled for v0.6.0)
+    GLD16 = 6  # Ghost level detection 16 (scheduled for v0.6.0)
+    DU4 = 7  # Direct update 4-level (scheduled for v0.6.0)
 
 
 class PixelFormat(IntEnum):
@@ -111,18 +104,15 @@ class EndianType(IntEnum):
     """Endian type for image loading."""
 
     LITTLE = 0
-    BIG = 1  # Big endian (not used in current implementation)
 
 
 class SPIConstants:
     """SPI communication constants."""
 
-    PREAMBLE_WRITE = 0x0000  # Same as PREAMBLE_DATA, kept for clarity
     PREAMBLE_READ = 0x1000
     PREAMBLE_CMD = 0x6000
     PREAMBLE_DATA = 0x0000
     DUMMY_DATA = 0x0000
-    SPI_SPEED_HZ = 12000000  # Default speed (12MHz)
     # Pi-specific speeds based on core clock dividers (Waveshare recommendations)
     # Pi 3: 400MHz core / 16 = 25MHz (but we use conservative 15.625MHz based on 250MHz/16)
     # Pi 4: More conservative divider for stability
@@ -149,7 +139,6 @@ class DisplayConstants:
     MAX_VCOM = -0.2
     MAX_WIDTH = 2048
     MAX_HEIGHT = 2048
-    TIMEOUT_MS = 30000  # 30 second timeout
     DEFAULT_CLEAR_COLOR = 0xFF  # White
     GRAYSCALE_MAX = 255
     PIXEL_ALIGNMENT = 4  # Default alignment for most modes

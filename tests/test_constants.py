@@ -64,7 +64,6 @@ class TestConstants:
     def test_endian_types(self) -> None:
         """Test endian type values."""
         assert EndianType.LITTLE == 0
-        assert EndianType.BIG == 1
 
     def test_gpio_pins(self) -> None:
         """Test GPIO pin assignments."""
@@ -77,7 +76,6 @@ class TestConstants:
         assert SPIConstants.PREAMBLE_CMD == 0x6000
         assert SPIConstants.PREAMBLE_DATA == 0x0000
         assert SPIConstants.PREAMBLE_READ == 0x1000
-        assert SPIConstants.SPI_SPEED_HZ == 12000000
         assert SPIConstants.SPI_MODE == 0
         assert SPIConstants.READ_DUMMY_BYTES == [0x00, 0x00]
         assert SPIConstants.MOCK_DEFAULT_VALUE == 0xFFFF
@@ -89,7 +87,6 @@ class TestConstants:
         assert DisplayConstants.MAX_VCOM == -0.2
         assert DisplayConstants.MAX_WIDTH == 2048
         assert DisplayConstants.MAX_HEIGHT == 2048
-        assert DisplayConstants.TIMEOUT_MS == 30000
         assert DisplayConstants.DEFAULT_CLEAR_COLOR == 0xFF
         assert DisplayConstants.GRAYSCALE_MAX == 255
         assert DisplayConstants.PIXEL_ALIGNMENT == 4

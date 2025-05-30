@@ -32,9 +32,10 @@ from IT8951_ePaper_Py.exceptions import (
     IT8951Error,
     IT8951MemoryError,
     IT8951TimeoutError,
+    VCOMError,
 )
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 __all__ = [
     "CommunicationError",
     "DeviceError",
@@ -45,4 +46,5 @@ __all__ = [
     "IT8951TimeoutError",
     "InitializationError",
     "InvalidParameterError",
+    "VCOMError",
 ]

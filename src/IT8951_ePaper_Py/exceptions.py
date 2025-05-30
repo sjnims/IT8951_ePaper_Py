@@ -12,7 +12,8 @@ Exception Hierarchy:
     ├── DisplayError - Display operation failures
     ├── IT8951MemoryError - Memory access errors
     ├── InvalidParameterError - Invalid function arguments
-    └── IT8951TimeoutError - Operation timeouts
+    ├── IT8951TimeoutError - Operation timeouts
+    └── VCOMError - VCOM voltage configuration errors
 
 Examples:
     Catching specific errors::
@@ -77,5 +78,15 @@ class InvalidParameterError(IT8951Error):
 
 class IT8951TimeoutError(IT8951Error):
     """Raised when operations timeout."""
+
+    pass
+
+
+class VCOMError(IT8951Error):
+    """Raised when VCOM voltage configuration or validation fails.
+
+    VCOM (Common Voltage) must be set correctly for each display
+    to ensure proper image quality and prevent display damage.
+    """
 
     pass

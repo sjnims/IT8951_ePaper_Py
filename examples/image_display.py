@@ -16,7 +16,9 @@ def main() -> None:
     """Display various images on e-paper."""
     if len(sys.argv) < 2:
         print("Usage: python image_display.py <image_path> [vcom_voltage]")
-        print("Example: python image_display.py test.jpg -2.0")
+        print("Example: python image_display.py test.jpg -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
         sys.exit(1)
 
     image_path = Path(sys.argv[1])
@@ -28,6 +30,12 @@ def main() -> None:
 
     print(f"Loading image: {image_path}")
     print(f"Using VCOM voltage: {vcom}V")
+
+    # VCOM Warning
+    if len(sys.argv) <= 2:
+        print("\n⚠️  WARNING: Using default VCOM voltage of -2.0V")
+        print("   You should specify the VCOM value from your display's FPC cable!")
+        print("   Example: python image_display.py test.jpg -1.45\n")
 
     display = EPaperDisplay(vcom=vcom)
 

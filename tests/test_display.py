@@ -1,6 +1,7 @@
 """Tests for high-level display interface."""
 
 import io
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -40,6 +41,9 @@ class TestEPaperDisplay:
         # Data for _enable_packed_write register read
         mock_spi.set_read_data([0x0000])
 
+        # Data for get_vcom() call in init() - return 2000 (2.0V)
+        mock_spi.set_read_data([2000])
+
         # Mock clear to avoid complex setup
         mocker.patch.object(display, "clear")
 
@@ -59,6 +63,9 @@ class TestEPaperDisplay:
         # Data for _enable_packed_write register read
         mock_spi.set_read_data([0x0000])
 
+        # Data for get_vcom() call in init() - return 2000 (2.0V)
+        mock_spi.set_read_data([2000])
+
         # Mock clear to avoid complex setup
         mocker.patch.object(display, "clear")
 
@@ -74,6 +81,9 @@ class TestEPaperDisplay:
         )
         # Data for _enable_packed_write register read
         mock_spi.set_read_data([0x0000])
+
+        # Data for get_vcom() call in init() - return 2000 (2.0V)
+        mock_spi.set_read_data([2000])
 
         # Mock clear to avoid complex setup
         mocker.patch.object(display, "clear")
@@ -183,6 +193,8 @@ class TestEPaperDisplay:
 
     def test_vcom_operations(self, initialized_display: EPaperDisplay, mock_spi: MockSPI) -> None:
         """Test VCOM operations."""
+        # Add read data for get_vcom() call after set_vcom()
+        mock_spi.set_read_data([3000])
         initialized_display.set_vcom(-3.0)
 
         mock_spi.set_read_data([3000])
@@ -478,6 +490,350 @@ class TestEPaperDisplay:
         assert registers == mock_registers
         assert registers["ENHANCE_DRIVING"] == 0x0602
 
+    def test_vcom_calibration_helper(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test the find_optimal_vcom() method."""
+        # Mock user inputs for the calibration process
+        mock_input = mocker.patch("builtins.input")
+        mock_input.side_effect = ["", "", "select"]  # Two nexts, then select
+
+        # Mock time.sleep to speed up tests
+        mocker.patch("time.sleep")
+
+        # Mock the display operations
+        mock_clear = mocker.patch.object(initialized_display, "clear")
+        mock_display_image = mocker.patch.object(initialized_display, "display_image")
+        mock_set_vcom = mocker.patch.object(initialized_display, "set_vcom")
+
+        # Run calibration
+        result = initialized_display.find_optimal_vcom(
+            start_voltage=-2.5, end_voltage=-1.5, step=0.5
+        )
+
+        # Should have selected -1.5V (after two steps)
+        assert result == -1.5
+
+        # Verify operations were called
+        assert mock_clear.call_count == 3  # Once for each voltage tested
+        assert mock_display_image.call_count == 3
+        assert mock_set_vcom.call_count == 3
+
+    def test_vcom_calibration_quit(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test quitting the VCOM calibration."""
+        mocker.patch("builtins.input", return_value="quit")
+        mocker.patch("time.sleep")
+        mocker.patch.object(initialized_display, "clear")
+        mocker.patch.object(initialized_display, "display_image")
+        mocker.patch.object(initialized_display, "set_vcom")
+
+        result = initialized_display.find_optimal_vcom()
+
+        # Should return the current VCOM when quit
+        assert result == initialized_display._vcom
+
+    def test_vcom_calibration_back(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test going back in VCOM calibration."""
+        mock_input = mocker.patch("builtins.input")
+        mock_input.side_effect = ["", "back", "select"]  # Next, back, select
+
+        mocker.patch("time.sleep")
+        mocker.patch.object(initialized_display, "clear")
+        mocker.patch.object(initialized_display, "display_image")
+        mock_set_vcom = mocker.patch.object(initialized_display, "set_vcom")
+
+        result = initialized_display.find_optimal_vcom(
+            start_voltage=-3.0, end_voltage=-1.0, step=1.0
+        )
+
+        # Should select -3.0V (went to -2.0, then back to -3.0)
+        assert result == -3.0
+
+        # Check VCOM was set in correct order
+        vcom_calls = [call[0][0] for call in mock_set_vcom.call_args_list]
+        assert vcom_calls == [-3.0, -2.0, -3.0]  # Initial, next, back
+
+    def test_vcom_calibration_invalid_range(self, initialized_display: EPaperDisplay) -> None:
+        """Test VCOM calibration with invalid voltage range."""
+        from IT8951_ePaper_Py.exceptions import VCOMError
+
+        # Test with voltage out of range
+        with pytest.raises(VCOMError, match="Voltage range must be between"):
+            initialized_display.find_optimal_vcom(
+                start_voltage=-6.0,  # Below minimum
+                end_voltage=-1.0,
+            )
+
+    def test_vcom_calibration_swapped_range(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test VCOM calibration with swapped start/end voltages."""
+        mocker.patch("builtins.input", return_value="select")
+        mocker.patch("time.sleep")
+        mocker.patch.object(initialized_display, "clear")
+        mocker.patch.object(initialized_display, "display_image")
+        mocker.patch.object(initialized_display, "set_vcom")
+
+        # Swap start and end - should still work
+        result = initialized_display.find_optimal_vcom(
+            start_voltage=-1.0,  # Higher than end
+            end_voltage=-3.0,  # Lower than start
+            step=0.5,
+        )
+
+        assert result == -3.0  # Should start from the lower voltage
+
+    def test_vcom_calibration_custom_pattern(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test VCOM calibration with custom test pattern."""
+        mocker.patch("builtins.input", return_value="select")
+        mocker.patch("time.sleep")
+        mocker.patch.object(initialized_display, "clear")
+        mock_display_image = mocker.patch.object(initialized_display, "display_image")
+        mocker.patch.object(initialized_display, "set_vcom")
+
+        # Create custom pattern
+        custom_pattern = Image.new("L", (200, 200), color=128)
+
+        initialized_display.find_optimal_vcom(test_pattern=custom_pattern)
+
+        # Verify custom pattern was used
+        call_args = mock_display_image.call_args[0][0]
+        assert call_args is custom_pattern
+
+    def test_vcom_calibration_end_of_range(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test VCOM calibration reaching end of range."""
+        mock_input = mocker.patch("builtins.input")
+        # Keep pressing enter until end of range, then select
+        mock_input.side_effect = ["", "", "", "", "select"]
+
+        mock_print = mocker.patch("builtins.print")
+        mocker.patch("time.sleep")
+        mocker.patch.object(initialized_display, "clear")
+        mocker.patch.object(initialized_display, "display_image")
+        mocker.patch.object(initialized_display, "set_vcom")
+
+        result = initialized_display.find_optimal_vcom(
+            start_voltage=-2.0, end_voltage=-1.0, step=0.5
+        )
+
+        # Should stay at -1.0 after reaching end
+        assert result == -1.0
+
+        # Check that end of range message was printed
+        print_calls = [str(call[0][0]) for call in mock_print.call_args_list]
+        assert any("Reached end of range" in msg for msg in print_calls)
+
+    def test_create_vcom_test_pattern(self, display: EPaperDisplay) -> None:
+        """Test the VCOM test pattern creation."""
+        pattern = display._create_vcom_test_pattern(256, 128)
+
+        assert isinstance(pattern, Image.Image)
+        assert pattern.size == (256, 128)
+        assert pattern.mode == "L"
+
+        # Check that it has gradients (different pixel values)
+        pixels = list(pattern.getdata())
+        unique_values = set(pixels)
+        assert len(unique_values) > 1  # Should have multiple gray levels
+
+    def test_vcom_mismatch_warning(
+        self, initialized_display: EPaperDisplay, mock_spi: MockSPI, mocker: MockerFixture
+    ) -> None:
+        """Test VCOM mismatch detection in set_vcom."""
+        # Mock get_vcom to return a different value than what was set
+        mock_spi.set_read_data([2100])  # Returns -2.1V
+
+        mock_warn = mocker.patch("warnings.warn")
+
+        # Set VCOM to -2.0V but device returns -2.1V
+        initialized_display.set_vcom(-2.0)
+
+        # Should have warned about mismatch
+        mock_warn.assert_called_once()
+        warning_msg = mock_warn.call_args[0][0]
+        assert "VCOM mismatch after setting" in warning_msg
+        assert "Requested: -2.0V" in warning_msg
+        assert "Actual: -2.1V" in warning_msg
+
+        # Internal VCOM should be updated to actual value
+        assert initialized_display._vcom == -2.1
+
+    def test_vcom_no_mismatch(
+        self, initialized_display: EPaperDisplay, mock_spi: MockSPI, mocker: MockerFixture
+    ) -> None:
+        """Test VCOM setting without mismatch."""
+        # Mock get_vcom to return the same value
+        mock_spi.set_read_data([2000])  # Returns -2.0V
+
+        mock_warn = mocker.patch("warnings.warn")
+
+        # Set VCOM to -2.0V and device returns -2.0V
+        initialized_display.set_vcom(-2.0)
+
+        # Should not warn
+        assert mock_warn.call_count == 0
+
+        # Internal VCOM should be the requested value
+        assert initialized_display._vcom == -2.0
+
+    def test_close_with_controller(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test that close() properly cleans up the controller."""
+        # Mock the controller's close method
+        mock_controller_close = mocker.patch.object(initialized_display._controller, "close")
+
+        # Close the display
+        initialized_display.close()
+
+        # Verify controller was closed
+        mock_controller_close.assert_called_once()
+
+        # Verify initialized flag is cleared
+        assert not initialized_display._initialized
+
+    def test_clear_memory_allocation_edge_case(self, mocker: MockerFixture) -> None:
+        """Test clear() with display size at maximum."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(spi_interface=mock_spi)
+
+        # Mock initialization with maximum allowed display size
+        mock_spi.set_read_data(
+            [2048, 2048, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display._controller, "_wait_display_ready")
+
+        # Patch the clear method to simulate behavior
+        # Since we're testing the check in clear(), we need to mock the display
+        # to have oversized dimensions
+        display.init()
+
+        # Manually set width/height to exceed maximum after initialization
+        display._width = 3000
+        display._height = 3000
+
+        # Attempting to clear should raise memory error
+        with pytest.raises(IT8951MemoryError, match="exceeds maximum"):
+            display.clear()
+
+    def test_prepare_image_all_rotations(self, display: EPaperDisplay) -> None:
+        """Test all rotation cases in _prepare_image."""
+        # Create a non-square image to verify rotation
+        img = Image.new("L", (100, 200), color=128)
+
+        # Test 0 degrees (no rotation)
+        rotated = display._prepare_image(img, Rotation.ROTATE_0)
+        assert rotated.size == (100, 200)
+
+        # Test 90 degrees
+        rotated = display._prepare_image(img, Rotation.ROTATE_90)
+        assert rotated.size == (200, 100)  # Width and height swapped
+
+        # Test 180 degrees
+        rotated = display._prepare_image(img, Rotation.ROTATE_180)
+        assert rotated.size == (100, 200)  # Same size
+
+        # Test 270 degrees
+        rotated = display._prepare_image(img, Rotation.ROTATE_270)
+        assert rotated.size == (200, 100)  # Width and height swapped
+
+    def test_is_enhanced_driving_enabled(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test the is_enhanced_driving_enabled method."""
+        # Mock the controller's method
+        mock_is_enabled = mocker.patch.object(
+            initialized_display._controller, "is_enhanced_driving_enabled", return_value=True
+        )
+
+        result = initialized_display.is_enhanced_driving_enabled()
+
+        assert result is True
+        mock_is_enabled.assert_called_once()
+
+    def test_display_image_with_different_pixel_formats(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test display_image with various pixel formats."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        img = Image.new("L", (64, 64), color=128)
+
+        # Mock the controller methods
+        mocker.patch.object(
+            initialized_display._controller, "pack_pixels", return_value=b"\x00" * 1000
+        )
+        mocker.patch.object(initialized_display._controller, "load_image_area_start")
+        mocker.patch.object(initialized_display._controller, "load_image_write")
+        mocker.patch.object(initialized_display._controller, "load_image_end")
+        mocker.patch.object(initialized_display._controller, "display_area")
+
+        # Test with different pixel formats
+        for pixel_format in [
+            PixelFormat.BPP_1,
+            PixelFormat.BPP_2,
+            PixelFormat.BPP_4,
+            PixelFormat.BPP_8,
+        ]:
+            initialized_display.display_image(img, pixel_format=pixel_format)
+
+    def test_vcom_error_propagation(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test that VCOMError from controller is properly propagated."""
+        from IT8951_ePaper_Py.exceptions import VCOMError
+
+        # Mock set_vcom to raise VCOMError
+        mocker.patch.object(
+            initialized_display._controller, "set_vcom", side_effect=VCOMError("Invalid VCOM")
+        )
+
+        with pytest.raises(VCOMError, match="Invalid VCOM"):
+            initialized_display.set_vcom(-6.0)
+
+    def test_load_image_from_path_string(
+        self, initialized_display: EPaperDisplay, tmp_path: Path
+    ) -> None:
+        """Test _load_image with string path."""
+        img = Image.new("L", (100, 100), color=255)
+        img_path = tmp_path / "test.png"
+        img.save(img_path)
+
+        # Test with string path
+        loaded_img = initialized_display._load_image(str(img_path))
+        assert isinstance(loaded_img, Image.Image)
+        assert loaded_img.mode == "L"
+        assert loaded_img.size == (100, 100)
+
+    def test_create_display_without_spi_interface(self, mocker: MockerFixture) -> None:
+        """Test creating EPaperDisplay without providing spi_interface."""
+        # Mock the create_spi_interface function
+        mock_spi = MockSPI()
+        mock_create_spi = mocker.patch(
+            "IT8951_ePaper_Py.display.create_spi_interface", return_value=mock_spi
+        )
+
+        # Create display without spi_interface
+        display = EPaperDisplay(vcom=-2.0, spi_speed_hz=10000000)
+
+        # Verify create_spi_interface was called with the speed
+        mock_create_spi.assert_called_once_with(spi_speed_hz=10000000)
+
+        # Verify the display was created with the mocked SPI
+        assert display._controller._spi == mock_spi
+
 
 class TestA2ModeAutoClearing:
     """Test A2 mode auto-clear protection functionality."""
@@ -616,6 +972,50 @@ class TestA2ModeAutoClearing:
 
         # Clear should not have been called
         mock_clear.assert_called_once()  # Only during init
+
+    def test_a2_warning_and_auto_clear_edge_case(self, mocker: MockerFixture) -> None:
+        """Test A2 warning at limit-1 and auto-clear at limit with edge cases."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(spi_interface=mock_spi, a2_refresh_limit=2)  # Very low limit
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        # Mock _wait_display_ready and controller methods
+        mocker.patch.object(display._controller, "_wait_display_ready")
+        mocker.patch.object(display._controller, "pack_pixels", return_value=b"\x00" * 100)
+        mocker.patch.object(display._controller, "load_image_area_start")
+        mocker.patch.object(display._controller, "load_image_write")
+        mocker.patch.object(display._controller, "load_image_end")
+        mocker.patch.object(display._controller, "display_area")
+
+        # Mock clear for init
+        mock_clear = mocker.patch.object(display, "clear")
+
+        display.init()
+        mock_clear.reset_mock()
+
+        img = Image.new("L", (100, 100), color=128)
+
+        # First A2 refresh (count becomes 1, which equals limit-1, so warning triggers)
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            display.display_image(img, mode=DisplayMode.A2)
+            assert len(w) == 1  # Warning should trigger at limit-1
+            assert "approaching limit" in str(w[0].message)
+            assert display.a2_refresh_count == 1
+
+        # Second A2 refresh (count becomes 2, should trigger auto-clear)
+        display.display_image(img, mode=DisplayMode.A2)
+
+        # Should have auto-cleared
+        mock_clear.assert_called_once()
+        assert display.a2_refresh_count == 0
 
     def test_properties(self) -> None:
         """Test A2 refresh properties."""

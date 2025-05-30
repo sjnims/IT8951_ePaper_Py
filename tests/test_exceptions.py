@@ -11,6 +11,7 @@ from IT8951_ePaper_Py.exceptions import (
     IT8951Error,
     IT8951MemoryError,
     IT8951TimeoutError,
+    VCOMError,
 )
 
 
@@ -71,3 +72,9 @@ class TestExceptions:
             raise CommunicationError("SPI error") from original
         assert exc_info.value.__cause__ is original
         assert str(exc_info.value) == "SPI error"
+
+    def test_vcom_error(self) -> None:
+        """Test VCOMError inherits from IT8951Error."""
+        error = VCOMError("VCOM voltage out of range")
+        assert isinstance(error, IT8951Error)
+        assert str(error) == "VCOM voltage out of range"

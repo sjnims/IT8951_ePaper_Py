@@ -12,6 +12,11 @@ from IT8951_ePaper_Py.spi_interface import detect_raspberry_pi_version, get_spi_
 
 def main() -> None:
     """Demonstrate SPI speed configuration options."""
+    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
+    print("⚠️  WARNING: This demo uses default VCOM of -2.0V")
+    print("   You should set VCOM to match your display's FPC cable!")
+    print("   Example: EPaperDisplay(vcom=-1.45)\n")
+
     # Detect Pi version (will return 4 on non-Pi systems)
     pi_version = detect_raspberry_pi_version()
     print(f"Detected Raspberry Pi version: {pi_version}")

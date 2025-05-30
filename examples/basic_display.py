@@ -16,6 +16,15 @@ def main() -> None:
     """Run basic display example."""
     print("Initializing e-paper display...")
 
+    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
+    # You MUST set the VCOM voltage to match your display's specification!
+    # Check the FPC cable of your display for the correct VCOM value.
+    # Using the wrong VCOM can result in poor image quality or display damage.
+    # Example: If your display shows VCOM = -1.45V, use vcom=-1.45
+    print("\n⚠️  WARNING: Set VCOM to match your display's FPC cable!")
+    print("   Example: EPaperDisplay(vcom=-1.45)")
+    print("   Using default VCOM: -2.0V\n")
+
     display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
 
     try:

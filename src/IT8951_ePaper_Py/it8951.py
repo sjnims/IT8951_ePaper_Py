@@ -3,6 +3,7 @@
 import time
 
 from IT8951_ePaper_Py.constants import (
+    DisplayConstants,
     PixelFormat,
     ProtocolConstants,
     Register,
@@ -16,6 +17,7 @@ from IT8951_ePaper_Py.exceptions import (
     InvalidParameterError,
     IT8951MemoryError,
     IT8951TimeoutError,
+    VCOMError,
 )
 from IT8951_ePaper_Py.models import (
     AreaImageInfo,
@@ -246,13 +248,18 @@ class IT8951:
             voltage: VCOM voltage in volts (must be negative).
 
         Raises:
-            InvalidParameterError: If voltage is out of range.
+            VCOMError: If voltage is out of range or configuration fails.
         """
         self._ensure_initialized()
         try:
             config = VCOMConfig(voltage=voltage)
         except Exception as e:
-            raise InvalidParameterError(f"Invalid VCOM voltage: {e}") from e
+            raise VCOMError(
+                f"Invalid VCOM voltage: {voltage}V. "
+                f"VCOM must be between {DisplayConstants.MIN_VCOM}V and "
+                f"{DisplayConstants.MAX_VCOM}V. "
+                f"Check the VCOM value on your display's FPC cable. Error: {e}"
+            ) from e
         vcom_raw = int(-config.voltage * ProtocolConstants.VCOM_FACTOR)
         self._spi.write_command(UserCommand.VCOM)
         self._spi.write_data(1)

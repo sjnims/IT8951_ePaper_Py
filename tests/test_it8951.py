@@ -144,7 +144,9 @@ class TestIT8951:
         buffer = mock_spi.get_data_buffer()
         assert 3000 in buffer
 
-        with pytest.raises(InvalidParameterError):
+        from IT8951_ePaper_Py.exceptions import VCOMError
+
+        with pytest.raises(VCOMError):
             driver.set_vcom(-6.0)
 
     def test_load_image(self, driver: IT8951, mock_spi: MockSPI) -> None:

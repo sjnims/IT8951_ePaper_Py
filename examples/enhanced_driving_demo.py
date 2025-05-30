@@ -15,6 +15,12 @@ def show_intro() -> None:
     """Show introduction and explanation."""
     print("Enhanced Driving Capability Demo")
     print("================================")
+
+    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
+    print("\n⚠️  WARNING: This demo uses default VCOM of -2.0V")
+    print("   You MUST set VCOM to match your display's FPC cable!")
+    print("   Example: EPaperDisplay(vcom=-1.45)")
+
     print("\nEnhanced driving improves signal quality and can help with:")
     print("- Blurry or unclear display output")
     print("- Long FPC cable connections")

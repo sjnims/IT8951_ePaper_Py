@@ -40,6 +40,13 @@ def main() -> None:
     """Demonstrate partial display updates."""
     print("Initializing e-paper display...")
 
+    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
+    # Set the VCOM voltage to match your display's specification.
+    # Check the FPC cable of your display for the correct VCOM value.
+    print("\n⚠️  WARNING: Using default VCOM of -2.0V")
+    print("   Set VCOM to match your display's FPC cable!")
+    print("   Example: EPaperDisplay(vcom=-1.45)\n")
+
     display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
 
     try:

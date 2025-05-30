@@ -43,7 +43,12 @@ from IT8951_ePaper_Py.constants import (
     Rotation,
     RotationAngle,
 )
-from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
+from IT8951_ePaper_Py.exceptions import (
+    DisplayError,
+    InvalidParameterError,
+    IT8951MemoryError,
+    VCOMError,
+)
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import AreaImageInfo, DeviceInfo, DisplayArea, LoadImageInfo
 from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
@@ -109,6 +114,19 @@ class EPaperDisplay:
         self._initialized = True
 
         self._controller.set_vcom(self._vcom)
+
+        # Verify VCOM was set correctly
+        actual_vcom = self._controller.get_vcom()
+        if abs(actual_vcom - self._vcom) > 0.05:  # Allow 0.05V tolerance
+            import warnings
+
+            warnings.warn(
+                f"VCOM mismatch detected! Requested: {self._vcom}V, Actual: {actual_vcom}V. "
+                f"This may indicate a hardware issue or that the device rounded the value. "
+                f"Consider using {actual_vcom}V in your configuration.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
 
         # Apply enhanced driving if requested
         if self._enhance_driving:
@@ -310,10 +328,31 @@ class EPaperDisplay:
 
         Args:
             voltage: VCOM voltage (negative value).
+
+        Raises:
+            VCOMError: If voltage is out of range.
+
+        Note:
+            The method will verify the VCOM was set correctly and warn
+            if there's a mismatch between requested and actual values.
         """
         self._ensure_initialized()
         self._controller.set_vcom(voltage)
-        self._vcom = voltage
+
+        # Verify VCOM was set correctly
+        actual_vcom = self._controller.get_vcom()
+        if abs(actual_vcom - voltage) > 0.05:  # Allow 0.05V tolerance
+            import warnings
+
+            warnings.warn(
+                f"VCOM mismatch after setting! Requested: {voltage}V, Actual: {actual_vcom}V. "
+                f"The device may have rounded the value or there may be a hardware limitation.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self._vcom = actual_vcom  # Use actual value
+        else:
+            self._vcom = voltage
 
     def get_vcom(self) -> float:
         """Get current VCOM voltage.
@@ -323,6 +362,135 @@ class EPaperDisplay:
         """
         self._ensure_initialized()
         return self._controller.get_vcom()
+
+    def _create_vcom_test_pattern(self, width: int, height: int) -> Image.Image:
+        """Create a test pattern for VCOM calibration.
+
+        Args:
+            width: Pattern width in pixels.
+            height: Pattern height in pixels.
+
+        Returns:
+            Test pattern image with grayscale gradient.
+        """
+        from PIL import ImageDraw
+
+        test_pattern = Image.new("L", (width, height))
+        draw = ImageDraw.Draw(test_pattern)
+
+        # Create grayscale gradient bars
+        num_bars = 16
+        bar_width = width // num_bars
+        for i in range(num_bars):
+            gray_value = int(i * 255 / (num_bars - 1))
+            x = i * bar_width
+            draw.rectangle([x, 0, x + bar_width, height], fill=gray_value)
+
+        # Add crosshairs for alignment
+        draw.line([(0, height // 2), (width, height // 2)], fill=0, width=2)
+        draw.line([(width // 2, 0), (width // 2, height)], fill=0, width=2)
+
+        return test_pattern
+
+    def find_optimal_vcom(
+        self,
+        start_voltage: float = -3.0,
+        end_voltage: float = -1.0,
+        step: float = 0.1,
+        test_pattern: Image.Image | None = None,
+    ) -> float:
+        """Interactive VCOM calibration helper.
+
+        This method helps find the optimal VCOM voltage for your display
+        by allowing you to test different voltages and observe the results.
+
+        Args:
+            start_voltage: Starting VCOM voltage (default: -3.0V).
+            end_voltage: Ending VCOM voltage (default: -1.0V).
+            step: Voltage step size (default: 0.1V).
+            test_pattern: Optional custom test pattern image.
+                         If None, uses a grayscale gradient pattern.
+
+        Returns:
+            The selected optimal VCOM voltage.
+
+        Raises:
+            VCOMError: If voltage range is invalid.
+
+        Example:
+            >>> display = EPaperDisplay()
+            >>> display.init()
+            >>> optimal_vcom = display.find_optimal_vcom()
+            >>> print(f"Optimal VCOM: {optimal_vcom}V")
+        """
+        import time
+
+        self._ensure_initialized()
+
+        # Validate voltage range
+        if start_voltage > end_voltage:
+            start_voltage, end_voltage = end_voltage, start_voltage
+
+        if start_voltage < DisplayConstants.MIN_VCOM or end_voltage > DisplayConstants.MAX_VCOM:
+            raise VCOMError(
+                f"Voltage range must be between {DisplayConstants.MIN_VCOM}V "
+                f"and {DisplayConstants.MAX_VCOM}V"
+            )
+
+        # Create default test pattern if not provided
+        if test_pattern is None:
+            pattern_width = min(800, self._width)
+            pattern_height = min(600, self._height)
+            test_pattern = self._create_vcom_test_pattern(pattern_width, pattern_height)
+
+        print("\nVCOM Calibration Helper")
+        print("======================")
+        print(f"Testing VCOM range: {start_voltage}V to {end_voltage}V (step: {step}V)")
+        print("\nInstructions:")
+        print("1. Observe the display quality at each voltage")
+        print("2. Look for optimal contrast without artifacts")
+        print("3. Press Enter to try next voltage")
+        print("4. Type 'select' when you find the best voltage")
+        print("5. Type 'back' to go to previous voltage")
+        print("6. Type 'quit' to cancel\n")
+
+        current_voltage = start_voltage
+        previous_voltage = None
+
+        while True:
+            # Set and display current VCOM
+            print(f"\nTesting VCOM: {current_voltage:.2f}V")
+            self.set_vcom(current_voltage)
+            time.sleep(0.1)  # Allow voltage to settle
+
+            # Clear and display test pattern
+            self.clear()
+            x = (self._width - test_pattern.width) // 2
+            y = (self._height - test_pattern.height) // 2
+            self.display_image(test_pattern, x=x, y=y, mode=DisplayMode.GC16)
+
+            # Get user input
+            user_input = input("Action (Enter/select/back/quit): ").strip().lower()
+
+            if user_input == "select":
+                print(f"\nSelected optimal VCOM: {current_voltage:.2f}V")
+                print(f"Add to your code: EPaperDisplay(vcom={current_voltage:.2f})")
+                return current_voltage
+
+            if user_input == "back" and previous_voltage is not None:
+                current_voltage, previous_voltage = previous_voltage, current_voltage
+
+            elif user_input == "quit":
+                print("\nCalibration cancelled")
+                return self._vcom
+
+            else:  # Enter or empty - go to next voltage
+                previous_voltage = current_voltage
+                current_voltage += step
+
+                if current_voltage > end_voltage:
+                    print("\nReached end of range. Please select a voltage or quit.")
+                    current_voltage = previous_voltage
 
     def sleep(self) -> None:
         """Put display into sleep mode."""
