@@ -73,98 +73,128 @@ This roadmap outlines the phased implementation of missing features and improvem
 2.4.4 ✅ Implement VCOM calibration helper
 2.4.5 ✅ Add VCOM mismatch detection
 
-## Phase 3: Additional Bit Depth Support (v0.4.0)
+## Phase 3: Immediate Improvements (v0.3.1)
+
+**High-priority fixes and enhancements identified in code review**
+
+### 3.1 Critical Fixes
+
+3.1.1 Update Python version constraint from `>=3.11.12,<3.12` to `>=3.11.12,<3.13`
+3.1.2 Sync version in pyproject.toml with `__init__.py` (0.3.0)
+3.1.3 Update documentation references from 8bpp to 4bpp default
+3.1.4 Create missing `.pre-commit-config.yaml` file
+3.1.5 Remove black reference from CLAUDE.md (replaced by ruff format)
+
+### 3.2 Code Quality Improvements
+
+3.2.1 Extract magic numbers in `it8951.py` (e.g., 0x80 for LUT busy)
+3.2.2 Refactor repeated command pattern in `it8951.py` to helper method
+3.2.3 Complete 1bpp implementation in `pack_pixels()` method
+3.2.4 Add `wake()` method to complement standby/sleep
+3.2.5 Add performance timing decorators for critical paths
+
+### 3.3 Documentation Enhancements
+
+3.3.1 Add performance comparison guide (4bpp vs 8bpp, mode comparisons)
+3.3.2 Create troubleshooting section in README
+3.3.3 Document extended display modes (GLR16, GLD16, DU4)
+3.3.4 Update README to mention Phase 2 completion
+3.3.5 Add SECURITY.md with security policy
+
+## Phase 4: Additional Bit Depth Support (v0.4.0)
 
 **Expand display capabilities for specialized use cases**
 
-### 3.1 Implement 1bpp Support
+### 4.1 Implement 1bpp Support
 
-3.1.1 Add 1bpp pixel packing (8 pixels per byte)
-3.1.2 Create `display_image_1bpp()` method
-3.1.3 Implement proper endian conversion
-3.1.4 Add specialized A2 mode support for 1bpp
-3.1.5 Create binary image examples
+4.1.1 Add 1bpp pixel packing (8 pixels per byte)
+4.1.2 Create `display_image_1bpp()` method
+4.1.3 Implement proper endian conversion
+4.1.4 Add specialized A2 mode support for 1bpp
+4.1.5 Create binary image examples
 
-### 3.2 Implement 2bpp Support
+### 4.2 Implement 2bpp Support
 
-3.2.1 Add 2bpp pixel packing (4 pixels per byte)
-3.2.2 Create `display_image_2bpp()` method
-3.2.3 Add 4-level grayscale conversion
-3.2.4 Create examples for simple graphics
+4.2.1 Add 2bpp pixel packing (4 pixels per byte)
+4.2.2 Create `display_image_2bpp()` method
+4.2.3 Add 4-level grayscale conversion
+4.2.4 Create examples for simple graphics
 
-## Phase 4: Power Management (v0.5.0)
+## Phase 5: Power Management (v0.5.0)
 
 **Essential for battery-powered and embedded applications**
 
-### 4.1 Basic Power Management Commands
+### 5.1 Basic Power Management Commands
 
-4.1.1 Implement `standby()` method in `IT8951`
-4.1.2 Implement `sleep()` method in `IT8951`
-4.1.3 Add `wake()` method for recovery
-4.1.4 Create power state tracking
-4.1.5 Add auto-sleep timeout option
+5.1.1 Implement `standby()` method in `IT8951`
+5.1.2 Implement `sleep()` method in `IT8951`
+5.1.3 Add `wake()` method for recovery
+5.1.4 Create power state tracking
+5.1.5 Add auto-sleep timeout option
 
-### 4.2 Power Management Integration
+### 5.2 Power Management Integration
 
-4.2.1 Add context manager support for auto-sleep
-4.2.2 Create power usage examples
-4.2.3 Document power consumption differences
-4.2.4 Add power state to device info
+5.2.1 Add context manager support for auto-sleep
+5.2.2 Create power usage examples
+5.2.3 Document power consumption differences
+5.2.4 Add power state to device info
 
-## Phase 5: Debugging and Diagnostics (v0.6.0)
+## Phase 6: Debugging and Diagnostics (v0.6.0)
 
 **Tools for troubleshooting and verification**
 
-### 5.1 Extended Display Modes Testing
+### 6.1 Extended Display Modes Testing
 
-5.1.1 Test and document GLR16 mode
-5.1.2 Test and document GLD16 mode
-5.1.3 Test and document DU4 mode
-5.1.4 Create mode comparison examples
-5.1.5 Add mode selection guide
+6.1.1 Test and document GLR16 mode
+6.1.2 Test and document GLD16 mode
+6.1.3 Test and document DU4 mode
+6.1.4 Create mode comparison examples
+6.1.5 Add mode selection guide
 
-## Phase 6: Developer Experience (v0.7.0)
+## Phase 7: Developer Experience (v0.7.0)
 
 **Improvements to make the library easier to use**
 
-### 6.1 Enhanced Examples
+### 7.1 Enhanced Examples
 
-6.1.1 Create performance optimization example
-6.1.2 Add battery-powered device example
-6.1.3 Create mode selection guide example
-6.1.4 Add troubleshooting example
+7.1.1 Create performance optimization example
+7.1.2 Add battery-powered device example
+7.1.3 Create mode selection guide example
+7.1.4 Add troubleshooting example
 
-### 6.2 Comprehensive Testing
+### 7.2 Comprehensive Testing
 
-6.2.1 Add performance benchmarks
-6.2.2 Create bit depth conversion tests
-6.2.3 Add power management tests
-6.2.4 Create alignment edge case tests
+7.2.1 Add performance benchmarks
+7.2.2 Create bit depth conversion tests
+7.2.3 Add power management tests
+7.2.4 Create alignment edge case tests
 
-### 6.3 Documentation Updates
+### 7.3 Documentation Updates
 
-6.3.1 Update README with new features
-6.3.2 Create performance tuning guide
-6.3.3 Add troubleshooting section
-6.3.4 Document all new APIs
+7.3.1 Update README with new features
+7.3.2 Create performance tuning guide
+7.3.3 Add troubleshooting section
+7.3.4 Document all new APIs
 
-## Phase 7: CI/CD Optimizations (v0.8.0)
+## Phase 8: CI/CD Optimizations (v0.8.0)
 
 **Improve development workflow efficiency as the project scales**
 
-### 7.1 Automated Test Selection (Codecov ATS)
+### 8.1 Automated Test Selection (Codecov ATS)
 
-7.1.1 Integrate Codecov CLI into CI workflow
-7.1.2 Configure ATS for pytest test filtering
-7.1.3 Set up test impact analysis
-7.1.4 Add fallback for full test runs when needed
-7.1.5 Monitor and tune ATS performance
+8.1.1 Integrate Codecov CLI into CI workflow
+8.1.2 Configure ATS for pytest test filtering
+8.1.3 Set up test impact analysis
+8.1.4 Add fallback for full test runs when needed
+8.1.5 Monitor and tune ATS performance
 
 ## Implementation Notes
 
 - Each phase builds upon previous phases
 - Phase 1-2 provide the most immediate user value
-- Phase 3-4 enable new use cases
-- Phase 5-6 improve maintainability and developer experience
+- Phase 3 addresses critical improvements and fixes
+- Phase 4-5 enable new use cases
+- Phase 6-7 improve maintainability and developer experience
+- Phase 8 optimizes development workflow
 - All features should maintain backward compatibility
 - Type hints and proper error handling required throughout
