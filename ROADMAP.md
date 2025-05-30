@@ -113,12 +113,19 @@ This roadmap outlines the phased implementation of missing features and improvem
 4.1.4 Add specialized A2 mode support for 1bpp
 4.1.5 Create binary image examples
 
-### 4.2 Implement 2bpp Support
+### 4.2 Implement 2bpp Support (partially complete)
 
-4.2.1 Add 2bpp pixel packing (4 pixels per byte)
+4.2.1 ✅ Add 2bpp pixel packing (4 pixels per byte) - already implemented in `pack_pixels()`
 4.2.2 Create `display_image_2bpp()` method
 4.2.3 Add 4-level grayscale conversion
 4.2.4 Create examples for simple graphics
+
+### 4.3 Safety and Memory Enhancements (from code review)
+
+4.3.1 Make VCOM a required parameter (remove default -2.0V)
+4.3.2 Add memory usage estimation before operations
+4.3.3 Implement progressive loading for very large images
+4.3.4 Add warnings for operations exceeding memory thresholds
 
 ## Phase 5: Power Management (v0.5.0)
 
@@ -143,13 +150,13 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Tools for troubleshooting and verification**
 
-### 6.1 Extended Display Modes Testing
+### 6.1 Extended Display Modes Testing (partially complete)
 
 6.1.1 Test and document GLR16 mode
 6.1.2 Test and document GLD16 mode
 6.1.3 Test and document DU4 mode
 6.1.4 Create mode comparison examples
-6.1.5 Add mode selection guide
+6.1.5 ✅ Add mode selection guide - completed in Phase 3.3.3 (documented in DISPLAY_MODES.md)
 
 ## Phase 7: Developer Experience (v0.7.0)
 
@@ -169,11 +176,11 @@ This roadmap outlines the phased implementation of missing features and improvem
 7.2.3 Add power management tests
 7.2.4 Create alignment edge case tests
 
-### 7.3 Documentation Updates
+### 7.3 Documentation Updates (partially complete)
 
 7.3.1 Update README with new features
-7.3.2 Create performance tuning guide
-7.3.3 Add troubleshooting section
+7.3.2 ✅ Create performance tuning guide - completed in Phase 3.3.1
+7.3.3 ✅ Add troubleshooting section - completed in Phase 3.3.2
 7.3.4 Document all new APIs
 
 ## Phase 8: CI/CD Optimizations (v0.8.0)
