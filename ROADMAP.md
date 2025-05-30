@@ -73,41 +73,41 @@ This roadmap outlines the phased implementation of missing features and improvem
 2.4.4 ✅ Implement VCOM calibration helper
 2.4.5 ✅ Add VCOM mismatch detection
 
-## Phase 3: Immediate Improvements (v0.3.1)
+## Phase 3: Immediate Improvements (v0.3.1) ✅
 
 **High-priority fixes and enhancements identified in code review**
 
-### 3.1 Critical Fixes
+### 3.1 Critical Fixes ✅
 
-3.1.1 Update Python version constraint from `>=3.11.12,<3.12` to `>=3.11.12,<3.13`
-3.1.2 Sync version in pyproject.toml with `__init__.py` (0.3.0)
-3.1.3 Update documentation references from 8bpp to 4bpp default
-3.1.4 Create missing `.pre-commit-config.yaml` file
-3.1.5 Remove black reference from CLAUDE.md (replaced by ruff format)
+3.1.1 ✅ Update Python version constraint from `>=3.11.12,<3.12` to `>=3.11.12,<3.13`
+3.1.2 ✅ Sync version in pyproject.toml with `__init__.py` (0.3.0)
+3.1.3 ✅ Update documentation references from 8bpp to 4bpp default
+3.1.4 ✅ Create missing `.pre-commit-config.yaml` file
+3.1.5 ✅ Remove black reference from CLAUDE.md (replaced by ruff format)
 
-### 3.2 Code Quality Improvements
+### 3.2 Code Quality Improvements ✅
 
-3.2.1 Extract magic numbers in `it8951.py` (e.g., 0x80 for LUT busy)
-3.2.2 Refactor repeated command pattern in `it8951.py` to helper method
-3.2.3 Complete 1bpp implementation in `pack_pixels()` method
-3.2.4 Add `wake()` method to complement standby/sleep
-3.2.5 Add performance timing decorators for critical paths
+3.2.1 ✅ Extract magic numbers in `it8951.py` (e.g., 0x80 for LUT busy)
+3.2.2 ✅ Refactor repeated command pattern in `it8951.py` to helper method
+3.2.3 ✅ Complete 1bpp implementation in `pack_pixels()` method
+3.2.4 ✅ Add `wake()` method to complement standby/sleep
+3.2.5 ✅ Add performance timing decorators for critical paths
 
-### 3.3 Documentation Enhancements
+### 3.3 Documentation Enhancements ✅
 
-3.3.1 Add performance comparison guide (4bpp vs 8bpp, mode comparisons)
-3.3.2 Create troubleshooting section in README
-3.3.3 Document extended display modes (GLR16, GLD16, DU4)
-3.3.4 Update README to mention Phase 2 completion
-3.3.5 Add SECURITY.md with security policy
+3.3.1 ✅ Add performance comparison guide (4bpp vs 8bpp, mode comparisons)
+3.3.2 ✅ Create troubleshooting section in README
+3.3.3 ✅ Document extended display modes (GLR16, GLD16, DU4)
+3.3.4 ✅ Update README to mention Phase 2 completion
+3.3.5 ✅ Add SECURITY.md with security policy
 
 ## Phase 4: Additional Bit Depth Support (v0.4.0)
 
 **Expand display capabilities for specialized use cases**
 
-### 4.1 Implement 1bpp Support
+### 4.1 Implement 1bpp Support (partially complete)
 
-4.1.1 Add 1bpp pixel packing (8 pixels per byte)
+4.1.1 ✅ Add 1bpp pixel packing (8 pixels per byte) - completed in Phase 3.2.3
 4.1.2 Create `display_image_1bpp()` method
 4.1.3 Implement proper endian conversion
 4.1.4 Add specialized A2 mode support for 1bpp
@@ -124,11 +124,11 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Essential for battery-powered and embedded applications**
 
-### 5.1 Basic Power Management Commands
+### 5.1 Basic Power Management Commands (partially complete)
 
-5.1.1 Implement `standby()` method in `IT8951`
-5.1.2 Implement `sleep()` method in `IT8951`
-5.1.3 Add `wake()` method for recovery
+5.1.1 ✅ Implement `standby()` method in `IT8951` - completed in v0.2.0
+5.1.2 ✅ Implement `sleep()` method in `IT8951` - completed in v0.2.0
+5.1.3 ✅ Add `wake()` method for recovery - completed in Phase 3.2.4
 5.1.4 Create power state tracking
 5.1.5 Add auto-sleep timeout option
 

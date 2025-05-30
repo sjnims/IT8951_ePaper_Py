@@ -64,13 +64,39 @@ class TestPixelPacking:
         packed = IT8951.pack_pixels(pixels, PixelFormat.BPP_2)
         assert packed == expected
 
-    def test_pack_pixels_unsupported_format(self) -> None:
-        """Test unsupported pixel format raises error."""
+    def test_pack_pixels_1bpp(self) -> None:
+        """Test 1bpp pixel packing (8 pixels per byte)."""
+        # Test threshold: pixels < 128 -> 0, pixels >= 128 -> 1
+        pixels = bytes([0, 255, 100, 200, 50, 150, 0, 255])  # 0,1,0,1,0,1,0,1
+        expected = bytes([0b01010101])  # MSB first
+        packed = IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+        # Test partial byte
+        pixels = bytes([0, 255, 128])  # 0,1,1 -> 0b01100000
+        expected = bytes([0b01100000])
+        packed = IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+        # Test all black (0)
+        pixels = bytes([0, 50, 100, 127, 0, 0, 0, 0])  # All < 128 -> 0
+        expected = bytes([0b00000000])
+        packed = IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+        # Test all white (1)
+        pixels = bytes([128, 255, 200, 150, 255, 255, 255, 255])  # All >= 128 -> 1
+        expected = bytes([0b11111111])
+        packed = IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+    def test_pack_pixels_invalid_format(self) -> None:
+        """Test invalid pixel format raises error."""
         pixels = bytes([0, 255])
 
-        # BPP_1 is defined but not implemented
+        # Test with an invalid format value
         with pytest.raises(InvalidParameterError, match="not yet implemented"):
-            IT8951.pack_pixels(pixels, PixelFormat.BPP_1)
+            IT8951.pack_pixels(pixels, 99)  # type: ignore[arg-type]
 
     def test_pack_pixels_empty(self) -> None:
         """Test packing empty pixel data."""
@@ -80,6 +106,7 @@ class TestPixelPacking:
         assert IT8951.pack_pixels(pixels, PixelFormat.BPP_8) == b""
         assert IT8951.pack_pixels(pixels, PixelFormat.BPP_4) == b""
         assert IT8951.pack_pixels(pixels, PixelFormat.BPP_2) == b""
+        assert IT8951.pack_pixels(pixels, PixelFormat.BPP_1) == b""
 
     def test_pack_pixels_preserves_grayscale_levels(self) -> None:
         """Test that packing preserves appropriate grayscale levels."""

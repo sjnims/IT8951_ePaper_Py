@@ -182,6 +182,7 @@ IWCONFIG_PATH = "/sbin/iwconfig"  # Path to iwconfig utility
 ## Real Project Examples
 
 ### From time_utils.py
+
 ```python
 def is_quiet_hours(quiet_hours_start: str, quiet_hours_end: str) -> bool:
     """Check if current time is within quiet hours.
@@ -196,6 +197,7 @@ def is_quiet_hours(quiet_hours_start: str, quiet_hours_end: str) -> bool:
 ```
 
 ### From config.py
+
 ```python
 class LoggingConfig(BaseModel):
     """Logging configuration.

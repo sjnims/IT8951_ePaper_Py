@@ -9,20 +9,39 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
+**Version 0.3.1**: Completed Phase 3 - Immediate Improvements! This release includes Python 3.12 support, code quality improvements, comprehensive documentation, and security policy.
+
 ## Features
+
+### Core Features
 
 - ✨ Pure Python implementation (no C dependencies)
 - 🚀 Hardware abstraction layer for easy testing and development
 - 📦 Type-safe with full type hints and Pydantic models
-- 🧪 Comprehensive test coverage with pytest
+- 🧪 Comprehensive test coverage (98%+)
 - 🔧 Mock SPI interface for development on non-Pi systems
 - 🖼️ Support for multiple display modes (INIT, DU, GC16, GL16, A2)
 - 🔄 Image rotation support (0°, 90°, 180°, 270°)
 - ⚡ Partial display updates for fast refresh
 - 🎨 Automatic image conversion and alignment
+
+### New in v0.3.1
+
+- 🐍 Python 3.12 support added
+- 🔧 Code quality improvements (extracted magic numbers, refactored patterns)
+- 📝 Complete 1bpp pixel packing implementation
+- ⏰ Performance timing decorators for optimization
+- 📚 Comprehensive documentation (performance guide, display modes, troubleshooting)
+- 🔒 Security policy with GitHub private vulnerability reporting
+- ✨ Pre-commit hooks configuration
+
+### Development Features
+
 - 🔒 Security scanning with GitHub CodeQL
 - 📊 Code quality metrics with radon
 - 🚦 Comprehensive CI/CD pipeline
+- 🔧 Pre-commit hooks for code quality
+- 📚 Detailed API documentation
 
 ## Requirements
 
@@ -301,21 +320,168 @@ PRs must pass all checks before merging.
 
 ## Troubleshooting
 
-### SPI Not Working
+### Common Issues
 
-```bash
-# Enable SPI on Raspberry Pi
-sudo raspi-config
-# Navigate to Interface Options > SPI > Enable
+#### Display Not Initializing
+
+1. **Check VCOM voltage**
+
+   ```python
+   # VCOM must match your display's specification (check FPC cable sticker)
+   display = EPaperDisplay(vcom=-2.0)  # Replace with your display's value
+   ```
+
+2. **Verify SPI is enabled**
+
+   ```bash
+   # Enable SPI on Raspberry Pi
+   sudo raspi-config
+   # Navigate to Interface Options > SPI > Enable
+
+   # Verify SPI devices exist
+   ls /dev/spi*
+   # Should show: /dev/spidev0.0  /dev/spidev0.1
+   ```
+
+3. **Check connections**
+   - Ensure HAT is properly seated on GPIO pins
+   - Verify FPC cable is fully inserted and locked
+
+#### Blurry or Unclear Display
+
+Enable enhanced driving mode for long cables or display quality issues:
+
+```python
+display = EPaperDisplay(vcom=-2.0, enhance_driving=True)
 ```
 
-### Permission Errors
+#### Ghosting Issues
+
+1. **With A2 mode (fast updates)**
+
+   ```python
+   # Enable auto-clear to prevent ghosting
+   display = EPaperDisplay(vcom=-2.0, a2_refresh_limit=10)
+   ```
+
+2. **General ghosting**
+
+   ```python
+   # Perform full clear
+   display.clear()
+   ```
+
+#### Permission Errors
 
 ```bash
 # Add user to spi and gpio groups
 sudo usermod -a -G spi,gpio $USER
-# Logout and login again
+# Logout and login again for changes to take effect
+
+# Alternative: run with sudo (not recommended for production)
+sudo python your_script.py
 ```
+
+#### Image Alignment Warnings
+
+The IT8951 requires specific pixel alignment:
+
+```python
+# For 1bpp mode, use 32-pixel alignment
+x = (x // 32) * 32
+width = ((width + 31) // 32) * 32
+
+# For other modes, use 4-pixel alignment (handled automatically)
+```
+
+#### Memory Errors
+
+For large images or limited memory:
+
+```python
+# Use lower bit depth
+display.display_image(img, pixel_format=PixelFormat.BPP_4)  # Default
+
+# Use partial updates
+display.display_partial(img, x=100, y=100, width=200, height=200)
+```
+
+#### Slow Performance
+
+1. **Use appropriate pixel format**
+
+   ```python
+   # 4bpp is 2x faster than 8bpp with minimal quality loss
+   display.display_image(img)  # Uses 4bpp by default
+   ```
+
+2. **Choose the right display mode**
+
+   ```python
+   # Fast updates
+   display.display_image(img, mode=DisplayMode.DU)    # ~260ms
+   display.display_image(img, mode=DisplayMode.A2)    # ~120ms
+
+   # Quality updates
+   display.display_image(img, mode=DisplayMode.GC16)  # ~450ms
+   ```
+
+#### Mock Mode Issues
+
+When developing on non-Raspberry Pi systems:
+
+```python
+# The driver automatically uses MockSPI
+display = EPaperDisplay(vcom=-2.0)  # Works on any platform
+
+# To explicitly use mock mode
+from IT8951_ePaper_Py.spi_interface import MockSPI
+mock_spi = MockSPI()
+display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+```
+
+### Debugging Tips
+
+1. **Enable debug logging**
+
+   ```python
+   import logging
+   logging.basicConfig(level=logging.DEBUG)
+
+   # Now you'll see timing information:
+   # DEBUG: init completed in 523.45ms
+   # DEBUG: display_image completed in 467.23ms
+   ```
+
+2. **Check device info**
+
+   ```python
+   display = EPaperDisplay(vcom=-2.0)
+   width, height = display.init()
+   print(f"Display size: {width}x{height}")
+   print(f"VCOM: {display.get_vcom()}V")
+   ```
+
+3. **Verify register values**
+
+   ```python
+   # Dump important registers
+   regs = display.dump_registers()
+   for name, value in regs.items():
+       print(f"{name}: 0x{value:04X}")
+   ```
+
+### Getting Help
+
+1. Check the [examples](examples/) directory for working code
+2. Read the [performance guide](docs/PERFORMANCE_GUIDE.md)
+3. Search [existing issues](https://github.com/sjnims/IT8951_ePaper_Py/issues)
+4. Create a new issue with:
+   - Python version (`python --version`)
+   - Raspberry Pi model (`cat /proc/cpuinfo | grep Model`)
+   - Display model and VCOM voltage
+   - Minimal code to reproduce
+   - Debug log output
 
 ## Acknowledgements
 

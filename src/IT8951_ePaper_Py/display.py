@@ -52,6 +52,7 @@ from IT8951_ePaper_Py.exceptions import (
 from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import AreaImageInfo, DeviceInfo, DisplayArea, LoadImageInfo
 from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
+from IT8951_ePaper_Py.utils import timed_operation
 
 
 class EPaperDisplay:
@@ -98,6 +99,7 @@ class EPaperDisplay:
         self._enhance_driving = enhance_driving
         self._device_info: DeviceInfo | None = None
 
+    @timed_operation("init")
     def init(self) -> tuple[int, int]:
         """Initialize the display.
 
@@ -125,7 +127,7 @@ class EPaperDisplay:
                 f"This may indicate a hardware issue or that the device rounded the value. "
                 f"Consider using {actual_vcom}V in your configuration.",
                 RuntimeWarning,
-                stacklevel=2,
+                stacklevel=3,
             )
 
         # Apply enhanced driving if requested
@@ -142,6 +144,7 @@ class EPaperDisplay:
             self._controller.close()
         self._initialized = False
 
+    @timed_operation("clear")
     def clear(self, color: int = DisplayConstants.DEFAULT_CLEAR_COLOR) -> None:
         """Clear the display to a solid color.
 
@@ -192,6 +195,7 @@ class EPaperDisplay:
         # Reset A2 counter after clearing
         self._a2_refresh_count = 0
 
+    @timed_operation("display_image")
     def display_image(  # noqa: PLR0913
         self,
         image: Image.Image | str | Path | BinaryIO,
@@ -235,7 +239,7 @@ class EPaperDisplay:
             import warnings as warn_module
 
             for warning in warnings:
-                warn_module.warn(warning, UserWarning, stacklevel=2)
+                warn_module.warn(warning, UserWarning, stacklevel=3)
 
         x = self._align_coordinate(x, pixel_format)
         y = self._align_coordinate(y, pixel_format)
@@ -291,7 +295,7 @@ class EPaperDisplay:
                     f"A2 refresh count ({self._a2_refresh_count}) approaching limit "
                     f"({self._a2_refresh_limit}). Next A2 refresh will trigger auto-clear.",
                     UserWarning,
-                    stacklevel=2,
+                    stacklevel=3,
                 )
 
             # Auto-clear when limit reached
@@ -299,6 +303,7 @@ class EPaperDisplay:
                 self.clear()
                 self._a2_refresh_count = 0
 
+    @timed_operation("display_partial")
     def display_partial(
         self,
         image: Image.Image | NumpyArray,
@@ -501,6 +506,11 @@ class EPaperDisplay:
         """Put display into standby mode."""
         self._ensure_initialized()
         self._controller.standby()
+
+    def wake(self) -> None:
+        """Wake display from sleep or standby mode."""
+        self._ensure_initialized()
+        self._controller.wake()
 
     def _load_image(self, image: Image.Image | str | Path | BinaryIO) -> Image.Image:
         """Load image from various sources.

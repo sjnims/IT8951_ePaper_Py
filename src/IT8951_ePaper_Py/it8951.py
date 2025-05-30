@@ -132,6 +132,17 @@ class IT8951:
         self._spi.write_data(register)
         self._spi.write_data(value)
 
+    def _write_command_with_args(self, command: int, args: list[int]) -> None:
+        """Write a command followed by multiple data arguments.
+
+        Args:
+            command: Command to send.
+            args: List of data arguments to send after the command.
+        """
+        self._spi.write_command(command)
+        for arg in args:
+            self._spi.write_data(arg)
+
     def dump_registers(self) -> dict[str, int]:
         """Dump common register values for debugging.
 
@@ -169,7 +180,7 @@ class IT8951:
         self._ensure_initialized()
         misc_value = self._read_register(Register.MISC)
         # Bit 7 indicates LUT busy state
-        return (misc_value & 0x80) != 0
+        return (misc_value & ProtocolConstants.LUT_BUSY_BIT) != 0
 
     def verify_packed_write_enabled(self) -> bool:
         """Verify that packed write mode is enabled.
@@ -203,6 +214,16 @@ class IT8951:
         """Put device into sleep mode."""
         self._ensure_initialized()
         self._spi.write_command(SystemCommand.SLEEP)
+
+    def wake(self) -> None:
+        """Wake device from sleep or standby mode.
+
+        After waking, the device returns to normal operation mode.
+        This is typically called after sleep() or standby() to resume display operations.
+        """
+        self._ensure_initialized()
+        # Wake is typically done by sending any command, so we use system run
+        self._system_run()
 
     def enhance_driving_capability(self) -> None:
         """Enhance driving capability for long cables or blurry displays.
@@ -303,9 +324,7 @@ class IT8951:
             0,
         ]
 
-        self._spi.write_command(SystemCommand.LD_IMG)
-        for arg in args:
-            self._spi.write_data(arg)
+        self._write_command_with_args(SystemCommand.LD_IMG, args)
 
     def load_image_area_start(self, info: LoadImageInfo, area: AreaImageInfo) -> None:
         """Start loading an image area to controller memory.
@@ -327,9 +346,7 @@ class IT8951:
             area.height,
         ]
 
-        self._spi.write_command(SystemCommand.LD_IMG_AREA)
-        for arg in args:
-            self._spi.write_data(arg)
+        self._write_command_with_args(SystemCommand.LD_IMG_AREA, args)
 
     def load_image_write(self, data: bytes) -> None:
         """Write image data to controller.
@@ -388,6 +405,19 @@ class IT8951:
                 packed_byte = (pixel1 << 6) | (pixel2 << 4) | (pixel3 << 2) | pixel4
                 packed.append(packed_byte)
             return bytes(packed)
+        if pixel_format == PixelFormat.BPP_1:
+            # Pack 8 pixels per byte (1 bit each)
+            packed: list[int] = []
+            for i in range(0, len(pixels), 8):
+                packed_byte = 0
+                for j in range(8):
+                    if i + j < len(pixels):
+                        # Convert to 1-bit (0 or 1) - threshold at 128
+                        bit = 1 if pixels[i + j] >= 128 else 0
+                        # Pack bit into byte (MSB first)
+                        packed_byte |= bit << (7 - j)
+                packed.append(packed_byte)
+            return bytes(packed)
         raise InvalidParameterError(f"Pixel format {pixel_format} not yet implemented")
 
     def load_image_end(self) -> None:
@@ -431,9 +461,7 @@ class IT8951:
             area.mode,
         ]
 
-        self._spi.write_command(UserCommand.DPY_AREA)
-        for arg in args:
-            self._spi.write_data(arg)
+        self._write_command_with_args(UserCommand.DPY_AREA, args)
 
         if wait:
             self._wait_display_ready()
@@ -459,9 +487,7 @@ class IT8951:
             (address >> (ProtocolConstants.BYTE_SHIFT * 2)) & ProtocolConstants.ADDRESS_MASK,
         ]
 
-        self._spi.write_command(UserCommand.DPY_BUF_AREA)
-        for arg in args:
-            self._spi.write_data(arg)
+        self._write_command_with_args(UserCommand.DPY_BUF_AREA, args)
 
         if wait:
             self._wait_display_ready()

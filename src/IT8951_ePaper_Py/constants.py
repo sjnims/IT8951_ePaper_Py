@@ -166,6 +166,7 @@ class ProtocolConstants:
     BYTE_MASK = 0xFF
     LISAR_HIGH_OFFSET = 2
     LUT_STATE_BIT_POSITION = 7
+    LUT_BUSY_BIT = 0x80  # Bit 7 mask for LUT busy state in MISC register
     ENHANCED_DRIVING_VALUE = 0x0602  # Value for ENHANCE_DRIVING register to fix blur
 
 

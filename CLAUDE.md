@@ -35,7 +35,7 @@ poetry run pyright
 
 # Linting and formatting
 poetry run ruff check .
-poetry run black .
+poetry run ruff format .
 
 ```
 
@@ -92,7 +92,7 @@ When pyright complains about external libraries:
 - **Default VCOM**: -2.0V (configurable per device)
 - **Max Display Size**: 2048x2048 pixels (validated in models)
 - **Endianness**: Little-endian by default
-- **Pixel Format**: 8bpp grayscale default
+- **Pixel Format**: 4bpp grayscale default
 - **Memory**: Images loaded to controller's internal memory before display
 
 ## Code Style Enforcement
