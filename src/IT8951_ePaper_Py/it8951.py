@@ -404,47 +404,67 @@ class IT8951:
         Raises:
             InvalidParameterError: If pixel format is not supported.
         """
-        if pixel_format == PixelFormat.BPP_8:
-            # No packing needed for 8bpp
-            return pixels
-        if pixel_format == PixelFormat.BPP_4:
-            # Pack 2 pixels per byte (4 bits each)
-            packed: list[int] = []
-            for i in range(0, len(pixels), 2):
-                # Each pixel is reduced to 4 bits (0-15 range)
-                pixel1 = (pixels[i] >> 4) if i < len(pixels) else 0
-                pixel2 = (pixels[i + 1] >> 4) if i + 1 < len(pixels) else 0
-                # Pack two pixels into one byte (pixel1 in high nibble, pixel2 in low nibble)
-                packed_byte = (pixel1 << 4) | pixel2
-                packed.append(packed_byte)
-            return bytes(packed)
-        if pixel_format == PixelFormat.BPP_2:
-            # Pack 4 pixels per byte (2 bits each)
-            packed: list[int] = []
-            for i in range(0, len(pixels), 4):
-                # Each pixel is reduced to 2 bits (0-3 range)
-                pixel1 = (pixels[i] >> 6) if i < len(pixels) else 0
-                pixel2 = (pixels[i + 1] >> 6) if i + 1 < len(pixels) else 0
-                pixel3 = (pixels[i + 2] >> 6) if i + 2 < len(pixels) else 0
-                pixel4 = (pixels[i + 3] >> 6) if i + 3 < len(pixels) else 0
-                # Pack four pixels into one byte
-                packed_byte = (pixel1 << 6) | (pixel2 << 4) | (pixel3 << 2) | pixel4
-                packed.append(packed_byte)
-            return bytes(packed)
-        if pixel_format == PixelFormat.BPP_1:
-            # Pack 8 pixels per byte (1 bit each)
-            packed: list[int] = []
-            for i in range(0, len(pixels), 8):
-                packed_byte = 0
-                for j in range(8):
-                    if i + j < len(pixels):
-                        # Convert to 1-bit (0 or 1) - threshold at 128
-                        bit = 1 if pixels[i + j] >= 128 else 0
-                        # Pack bit into byte (MSB first)
-                        packed_byte |= bit << (7 - j)
-                packed.append(packed_byte)
-            return bytes(packed)
-        raise InvalidParameterError(f"Pixel format {pixel_format} not yet implemented")
+        # Use dictionary dispatch for cleaner code and lower complexity
+        packers = {
+            PixelFormat.BPP_8: IT8951._pack_8bpp,
+            PixelFormat.BPP_4: IT8951._pack_4bpp,
+            PixelFormat.BPP_2: IT8951._pack_2bpp,
+            PixelFormat.BPP_1: IT8951._pack_1bpp,
+        }
+
+        packer = packers.get(pixel_format)
+        if not packer:
+            raise InvalidParameterError(f"Pixel format {pixel_format} not yet implemented")
+
+        return packer(pixels)
+
+    @staticmethod
+    def _pack_8bpp(pixels: bytes) -> bytes:
+        """No packing needed for 8bpp."""
+        return pixels
+
+    @staticmethod
+    def _pack_4bpp(pixels: bytes) -> bytes:
+        """Pack 2 pixels per byte (4 bits each)."""
+        packed: list[int] = []
+        for i in range(0, len(pixels), 2):
+            # Each pixel is reduced to 4 bits (0-15 range)
+            pixel1 = (pixels[i] >> 4) if i < len(pixels) else 0
+            pixel2 = (pixels[i + 1] >> 4) if i + 1 < len(pixels) else 0
+            # Pack two pixels into one byte (pixel1 in high nibble, pixel2 in low nibble)
+            packed_byte = (pixel1 << 4) | pixel2
+            packed.append(packed_byte)
+        return bytes(packed)
+
+    @staticmethod
+    def _pack_2bpp(pixels: bytes) -> bytes:
+        """Pack 4 pixels per byte (2 bits each)."""
+        packed: list[int] = []
+        for i in range(0, len(pixels), 4):
+            # Each pixel is reduced to 2 bits (0-3 range)
+            pixel1 = (pixels[i] >> 6) if i < len(pixels) else 0
+            pixel2 = (pixels[i + 1] >> 6) if i + 1 < len(pixels) else 0
+            pixel3 = (pixels[i + 2] >> 6) if i + 2 < len(pixels) else 0
+            pixel4 = (pixels[i + 3] >> 6) if i + 3 < len(pixels) else 0
+            # Pack four pixels into one byte
+            packed_byte = (pixel1 << 6) | (pixel2 << 4) | (pixel3 << 2) | pixel4
+            packed.append(packed_byte)
+        return bytes(packed)
+
+    @staticmethod
+    def _pack_1bpp(pixels: bytes) -> bytes:
+        """Pack 8 pixels per byte (1 bit each)."""
+        packed: list[int] = []
+        for i in range(0, len(pixels), 8):
+            packed_byte = 0
+            for j in range(8):
+                if i + j < len(pixels):
+                    # Convert to 1-bit (0 or 1) - threshold at 128
+                    bit = 1 if pixels[i + j] >= 128 else 0
+                    # Pack bit into byte (MSB first)
+                    packed_byte |= bit << (7 - j)
+            packed.append(packed_byte)
+        return bytes(packed)
 
     def load_image_end(self) -> None:
         """End image loading operation."""

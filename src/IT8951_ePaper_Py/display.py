@@ -22,6 +22,7 @@ Examples:
         display.close()
 """
 
+from enum import Enum
 from pathlib import Path
 from typing import TYPE_CHECKING, BinaryIO
 
@@ -53,6 +54,15 @@ from IT8951_ePaper_Py.it8951 import IT8951
 from IT8951_ePaper_Py.models import AreaImageInfo, DeviceInfo, DisplayArea, LoadImageInfo
 from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
 from IT8951_ePaper_Py.utils import timed_operation
+
+
+class VCOMCalibrationState(Enum):
+    """States for VCOM calibration state machine."""
+
+    TESTING = "testing"
+    SELECTED = "selected"
+    CANCELLED = "cancelled"
+    BACK = "back"
 
 
 class EPaperDisplay:
@@ -195,6 +205,87 @@ class EPaperDisplay:
         # Reset A2 counter after clearing
         self._a2_refresh_count = 0
 
+    def _validate_image_params(
+        self,
+        img: Image.Image,
+        x: int,
+        y: int,
+        pixel_format: PixelFormat,
+    ) -> tuple[int, int, int, int, Image.Image]:
+        """Validate image parameters and return aligned values.
+
+        Args:
+            img: PIL Image to validate.
+            x: X coordinate.
+            y: Y coordinate.
+            pixel_format: Pixel format for alignment.
+
+        Returns:
+            Tuple of (aligned_x, aligned_y, aligned_width, aligned_height, adjusted_image).
+
+        Raises:
+            IT8951MemoryError: If image dimensions exceed maximum.
+            InvalidParameterError: If image exceeds display bounds.
+        """
+        # Check image size limits
+        if img.width > DisplayConstants.MAX_WIDTH or img.height > DisplayConstants.MAX_HEIGHT:
+            raise IT8951MemoryError(
+                f"Image dimensions ({img.width}x{img.height}) exceed maximum "
+                f"({DisplayConstants.MAX_WIDTH}x{DisplayConstants.MAX_HEIGHT})"
+            )
+
+        if x + img.width > self._width:
+            raise InvalidParameterError("Image exceeds display width")
+        if y + img.height > self._height:
+            raise InvalidParameterError("Image exceeds display height")
+
+        # Validate and warn about alignment issues
+        _, warnings = self.validate_alignment(x, y, img.width, img.height, pixel_format)
+        if warnings:
+            import warnings as warn_module
+
+            for warning in warnings:
+                warn_module.warn(warning, UserWarning, stacklevel=4)
+
+        # Apply alignment
+        aligned_x = self._align_coordinate(x, pixel_format)
+        aligned_y = self._align_coordinate(y, pixel_format)
+        aligned_width = self._align_dimension(img.width, pixel_format)
+        aligned_height = self._align_dimension(img.height, pixel_format)
+
+        # Resize image if needed for alignment
+        if aligned_width != img.width or aligned_height != img.height:
+            img = img.resize((aligned_width, aligned_height), Image.Resampling.LANCZOS)
+
+        return aligned_x, aligned_y, aligned_width, aligned_height, img
+
+    def _track_a2_refresh(self, mode: DisplayMode) -> None:
+        """Track A2 mode refreshes and handle auto-clearing.
+
+        Args:
+            mode: Display mode being used.
+        """
+        if mode != DisplayMode.A2 or self._a2_refresh_limit <= 0:
+            return
+
+        self._a2_refresh_count += 1
+
+        # Warn when approaching limit
+        if self._a2_refresh_count == self._a2_refresh_limit - 1:
+            import warnings
+
+            warnings.warn(
+                f"A2 refresh count ({self._a2_refresh_count}) approaching limit "
+                f"({self._a2_refresh_limit}). Next A2 refresh will trigger auto-clear.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+        # Auto-clear when limit reached
+        elif self._a2_refresh_count >= self._a2_refresh_limit:
+            self.clear()
+            self._a2_refresh_count = 0
+
     @timed_operation("display_image")
     def display_image(  # noqa: PLR0913
         self,
@@ -218,43 +309,18 @@ class EPaperDisplay:
         """
         self._ensure_initialized()
 
+        # Load and prepare image
         img = self._load_image(image)
         img = self._prepare_image(img, rotation)
 
-        # Check image size limits
-        if img.width > DisplayConstants.MAX_WIDTH or img.height > DisplayConstants.MAX_HEIGHT:
-            raise IT8951MemoryError(
-                f"Image dimensions ({img.width}x{img.height}) exceed maximum "
-                f"({DisplayConstants.MAX_WIDTH}x{DisplayConstants.MAX_HEIGHT})"
-            )
+        # Validate and align parameters
+        x, y, width, height, img = self._validate_image_params(img, x, y, pixel_format)
 
-        if x + img.width > self._width:
-            raise InvalidParameterError("Image exceeds display width")
-        if y + img.height > self._height:
-            raise InvalidParameterError("Image exceeds display height")
-
-        # Validate and warn about alignment issues
-        _, warnings = self.validate_alignment(x, y, img.width, img.height, pixel_format)
-        if warnings:
-            import warnings as warn_module
-
-            for warning in warnings:
-                warn_module.warn(warning, UserWarning, stacklevel=3)
-
-        x = self._align_coordinate(x, pixel_format)
-        y = self._align_coordinate(y, pixel_format)
-        width = self._align_dimension(img.width, pixel_format)
-        height = self._align_dimension(img.height, pixel_format)
-
-        if width != img.width or height != img.height:
-            img = img.resize((width, height), Image.Resampling.LANCZOS)
-
-        # Get 8-bit pixel data
+        # Get 8-bit pixel data and pack according to format
         data_8bpp = img.tobytes()
-
-        # Pack pixels according to the requested format
         packed_data = self._controller.pack_pixels(data_8bpp, pixel_format)
 
+        # Load image to controller memory
         info = LoadImageInfo(
             source_buffer=packed_data,
             target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
@@ -273,6 +339,7 @@ class EPaperDisplay:
         self._controller.load_image_write(packed_data)
         self._controller.load_image_end()
 
+        # Display the image
         display_area = DisplayArea(
             x=x,
             y=y,
@@ -283,25 +350,8 @@ class EPaperDisplay:
 
         self._controller.display_area(display_area, wait=True)
 
-        # Track A2 refreshes and auto-clear if needed
-        if mode == DisplayMode.A2 and self._a2_refresh_limit > 0:
-            self._a2_refresh_count += 1
-
-            # Warn when approaching limit
-            if self._a2_refresh_count == self._a2_refresh_limit - 1:
-                import warnings
-
-                warnings.warn(
-                    f"A2 refresh count ({self._a2_refresh_count}) approaching limit "
-                    f"({self._a2_refresh_limit}). Next A2 refresh will trigger auto-clear.",
-                    UserWarning,
-                    stacklevel=3,
-                )
-
-            # Auto-clear when limit reached
-            elif self._a2_refresh_count >= self._a2_refresh_limit:
-                self.clear()
-                self._a2_refresh_count = 0
+        # Track A2 refreshes
+        self._track_a2_refresh(mode)
 
     @timed_operation("display_partial")
     def display_partial(
@@ -397,6 +447,66 @@ class EPaperDisplay:
 
         return test_pattern
 
+    def _vcom_calibration_state_machine(  # noqa: PLR0913
+        self,
+        action: str,
+        current_voltage: float,
+        previous_voltage: float | None,
+        start_voltage: float,
+        end_voltage: float,
+        step: float,
+    ) -> tuple[VCOMCalibrationState, float, float | None]:
+        """State machine for VCOM calibration.
+
+        Args:
+            action: User action input.
+            current_voltage: Current VCOM voltage.
+            previous_voltage: Previous VCOM voltage.
+            start_voltage: Start of voltage range.
+            end_voltage: End of voltage range.
+            step: Voltage step size.
+
+        Returns:
+            Tuple of (state, new_current_voltage, new_previous_voltage).
+        """
+        if action == "select":
+            return VCOMCalibrationState.SELECTED, current_voltage, previous_voltage
+
+        if action == "quit":
+            return VCOMCalibrationState.CANCELLED, current_voltage, previous_voltage
+
+        if action == "back" and previous_voltage is not None:
+            return VCOMCalibrationState.TESTING, previous_voltage, current_voltage
+
+        # Default: go to next voltage
+        new_previous = current_voltage
+        new_current = current_voltage + step
+
+        if new_current > end_voltage:
+            print("\nReached end of range. Please select a voltage or quit.")
+            return VCOMCalibrationState.TESTING, current_voltage, previous_voltage
+
+        return VCOMCalibrationState.TESTING, new_current, new_previous
+
+    def _display_vcom_test_pattern(self, voltage: float, test_pattern: Image.Image) -> None:
+        """Display test pattern at given VCOM voltage.
+
+        Args:
+            voltage: VCOM voltage to test.
+            test_pattern: Test pattern image.
+        """
+        import time
+
+        print(f"\nTesting VCOM: {voltage:.2f}V")
+        self.set_vcom(voltage)
+        time.sleep(0.1)  # Allow voltage to settle
+
+        # Clear and display test pattern
+        self.clear()
+        x = (self._width - test_pattern.width) // 2
+        y = (self._height - test_pattern.height) // 2
+        self.display_image(test_pattern, x=x, y=y, mode=DisplayMode.GC16)
+
     def find_optimal_vcom(
         self,
         start_voltage: float = -3.0,
@@ -428,8 +538,6 @@ class EPaperDisplay:
             >>> optimal_vcom = display.find_optimal_vcom()
             >>> print(f"Optimal VCOM: {optimal_vcom}V")
         """
-        import time
-
         self._ensure_initialized()
 
         # Validate voltage range
@@ -461,41 +569,28 @@ class EPaperDisplay:
 
         current_voltage = start_voltage
         previous_voltage = None
+        state = VCOMCalibrationState.TESTING
 
-        while True:
-            # Set and display current VCOM
-            print(f"\nTesting VCOM: {current_voltage:.2f}V")
-            self.set_vcom(current_voltage)
-            time.sleep(0.1)  # Allow voltage to settle
-
-            # Clear and display test pattern
-            self.clear()
-            x = (self._width - test_pattern.width) // 2
-            y = (self._height - test_pattern.height) // 2
-            self.display_image(test_pattern, x=x, y=y, mode=DisplayMode.GC16)
+        while state == VCOMCalibrationState.TESTING:
+            # Display test pattern at current voltage
+            self._display_vcom_test_pattern(current_voltage, test_pattern)
 
             # Get user input
             user_input = input("Action (Enter/select/back/quit): ").strip().lower()
 
-            if user_input == "select":
-                print(f"\nSelected optimal VCOM: {current_voltage:.2f}V")
-                print(f"Add to your code: EPaperDisplay(vcom={current_voltage:.2f})")
-                return current_voltage
+            # Process input through state machine
+            state, current_voltage, previous_voltage = self._vcom_calibration_state_machine(
+                user_input, current_voltage, previous_voltage, start_voltage, end_voltage, step
+            )
 
-            if user_input == "back" and previous_voltage is not None:
-                current_voltage, previous_voltage = previous_voltage, current_voltage
-
-            elif user_input == "quit":
-                print("\nCalibration cancelled")
-                return self._vcom
-
-            else:  # Enter or empty - go to next voltage
-                previous_voltage = current_voltage
-                current_voltage += step
-
-                if current_voltage > end_voltage:
-                    print("\nReached end of range. Please select a voltage or quit.")
-                    current_voltage = previous_voltage
+        # Handle final state
+        if state == VCOMCalibrationState.SELECTED:
+            print(f"\nSelected optimal VCOM: {current_voltage:.2f}V")
+            print(f"Add to your code: EPaperDisplay(vcom={current_voltage:.2f})")
+            return current_voltage
+        # CANCELLED
+        print("\nCalibration cancelled")
+        return self._vcom
 
     def sleep(self) -> None:
         """Put display into sleep mode."""
@@ -641,31 +736,21 @@ class EPaperDisplay:
             alignment = DisplayConstants.PIXEL_ALIGNMENT
             alignment_desc = "4-pixel"
 
-        # Check coordinate alignment
-        if x % alignment != 0:
-            warnings.append(
-                f"X coordinate {x} not aligned to {alignment_desc} boundary. "
-                f"Will be adjusted to {self._align_coordinate(x, pixel_format)}"
-            )
+        # Check all parameters using a structured approach
+        params = [
+            ("X coordinate", x, self._align_coordinate),
+            ("Y coordinate", y, self._align_coordinate),
+            ("Width", width, self._align_dimension),
+            ("Height", height, self._align_dimension),
+        ]
 
-        if y % alignment != 0:
-            warnings.append(
-                f"Y coordinate {y} not aligned to {alignment_desc} boundary. "
-                f"Will be adjusted to {self._align_coordinate(y, pixel_format)}"
-            )
-
-        # Check dimension alignment
-        if width % alignment != 0:
-            warnings.append(
-                f"Width {width} not aligned to {alignment_desc} boundary. "
-                f"Will be adjusted to {self._align_dimension(width, pixel_format)}"
-            )
-
-        if height % alignment != 0:
-            warnings.append(
-                f"Height {height} not aligned to {alignment_desc} boundary. "
-                f"Will be adjusted to {self._align_dimension(height, pixel_format)}"
-            )
+        for param_name, value, align_func in params:
+            if value % alignment != 0:
+                aligned_value = align_func(value, pixel_format)
+                warnings.append(
+                    f"{param_name} {value} not aligned to {alignment_desc} boundary. "
+                    f"Will be adjusted to {aligned_value}"
+                )
 
         # Special warning for 1bpp
         if pixel_format == PixelFormat.BPP_1 and warnings:

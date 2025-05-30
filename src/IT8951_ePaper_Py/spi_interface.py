@@ -74,26 +74,15 @@ def _detect_from_new_revision(revision: str) -> int | None:
         return None
 
 
-def detect_raspberry_pi_version() -> int:
-    """Detect Raspberry Pi version from /proc/cpuinfo.
+def _detect_from_old_revision(revision: str) -> int | None:
+    """Detect Pi version from old-style revision codes.
+
+    Args:
+        revision: Revision string.
 
     Returns:
-        int: Pi version (1, 2, 3, 4, or 5), or 4 if unknown/not a Pi.
-
-    Note:
-        This function reads /proc/cpuinfo to determine the Pi model.
-        Falls back to 4 (conservative speed) if detection fails.
+        int | None: Pi version or None if not detected.
     """
-    revision = _get_pi_revision()
-    if not revision:
-        return 4  # Conservative default
-
-    # Try new-style revision codes first
-    version = _detect_from_new_revision(revision)
-    if version is not None:
-        return version
-
-    # Fall back to old-style revision codes
     old_style_map = {
         # Pi 1
         (
@@ -124,12 +113,56 @@ def detect_raspberry_pi_version() -> int:
     for revisions, version in old_style_map.items():
         if revision in revisions:
             return version
+    return None
 
-    # Check prefixes for Pi 4 and 5
-    if any(revision.startswith(prefix) for prefix in ["a03", "b03", "c03", "d03"]):
-        return 4
-    if any(revision.startswith(prefix) for prefix in ["c04", "d04"]):
-        return 5
+
+def _detect_from_prefix(revision: str) -> int | None:
+    """Detect Pi version from revision prefix.
+
+    Args:
+        revision: Revision string.
+
+    Returns:
+        int | None: Pi version or None if not detected.
+    """
+    prefix_map = {
+        # Pi 4 prefixes
+        ("a03", "b03", "c03", "d03"): 4,
+        # Pi 5 prefixes
+        ("c04", "d04"): 5,
+    }
+
+    for prefixes, version in prefix_map.items():
+        if any(revision.startswith(prefix) for prefix in prefixes):
+            return version
+    return None
+
+
+def detect_raspberry_pi_version() -> int:
+    """Detect Raspberry Pi version from /proc/cpuinfo.
+
+    Returns:
+        int: Pi version (1, 2, 3, 4, or 5), or 4 if unknown/not a Pi.
+
+    Note:
+        This function reads /proc/cpuinfo to determine the Pi model.
+        Falls back to 4 (conservative speed) if detection fails.
+    """
+    revision = _get_pi_revision()
+    if not revision:
+        return 4  # Conservative default
+
+    # Chain of detection strategies
+    strategies = [
+        _detect_from_new_revision,
+        _detect_from_old_revision,
+        _detect_from_prefix,
+    ]
+
+    for strategy in strategies:
+        version = strategy(revision)
+        if version is not None:
+            return version
 
     return 4  # Conservative default
 
