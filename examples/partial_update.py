@@ -36,18 +36,19 @@ def create_clock_image(width: int, height: int, time_str: str) -> Image.Image:
     return img
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0915
     """Demonstrate partial display updates."""
-    print("Initializing e-paper display...")
+    if len(sys.argv) < 2:
+        print("Usage: python partial_update.py <vcom_voltage>")
+        print("Example: python partial_update.py -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
+        sys.exit(1)
 
-    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
-    # Set the VCOM voltage to match your display's specification.
-    # Check the FPC cable of your display for the correct VCOM value.
-    print("\n⚠️  WARNING: Using default VCOM of -2.0V")
-    print("   Set VCOM to match your display's FPC cable!")
-    print("   Example: EPaperDisplay(vcom=-1.45)\n")
+    vcom = float(sys.argv[1])
+    print(f"Initializing e-paper display with VCOM: {vcom}V...")
 
-    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
+    display = EPaperDisplay(vcom=vcom)
 
     try:
         width, height = display.init()

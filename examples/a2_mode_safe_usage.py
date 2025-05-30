@@ -5,6 +5,7 @@ This example shows how the driver automatically protects against ghosting
 by clearing the display after a certain number of A2 refreshes.
 """
 
+import sys
 import time
 
 from PIL import Image, ImageDraw, ImageFont
@@ -44,17 +45,26 @@ def create_text_image(text: str, width: int = 400, height: int = 200) -> Image.I
     return img
 
 
-def main() -> None:
+def main() -> None:  # noqa: PLR0915
     """Demonstrate safe A2 mode usage."""
+    if len(sys.argv) < 2:
+        print("Usage: python a2_mode_safe_usage.py <vcom_voltage>")
+        print("Example: python a2_mode_safe_usage.py -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
+        sys.exit(1)
+
+    vcom = float(sys.argv[1])
     print("A2 Mode Safe Usage Demo")
     print("=======================")
     print()
     print("This demo shows automatic protection against A2 mode ghosting.")
     print("The display will auto-clear after 10 A2 refreshes (default).")
+    print(f"Using VCOM voltage: {vcom}V")
     print()
 
     # Initialize display with default A2 limit (10)
-    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
+    display = EPaperDisplay(vcom=vcom)
     width, height = display.init()
     print(f"Display size: {width}x{height}")
     print(f"A2 refresh limit: {display.a2_refresh_limit}")
@@ -91,7 +101,7 @@ def main() -> None:
 
     # Demonstrate custom limit
     print("Creating display with custom A2 limit of 5...")
-    display2 = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM, a2_refresh_limit=5)
+    display2 = EPaperDisplay(vcom=vcom, a2_refresh_limit=5)
     display2.init()
     display2.clear()
 

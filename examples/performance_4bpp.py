@@ -5,6 +5,7 @@ This example shows how to use 4bpp mode for faster display updates
 while maintaining 16 grayscale levels, as recommended by Waveshare.
 """
 
+import sys
 import time
 
 from PIL import Image
@@ -27,13 +28,17 @@ def measure_display_time(
 
 def main() -> None:
     """Run 4bpp performance demonstration."""
-    # Initialize display with your VCOM value
-    print("Initializing e-paper display...")
-    print("WARNING: Set VCOM to match your display's FPC cable!")
-    print("Example: EPaperDisplay(vcom=-1.45)")
+    if len(sys.argv) < 2:
+        print("Usage: python performance_4bpp.py <vcom_voltage>")
+        print("Example: python performance_4bpp.py -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
+        sys.exit(1)
 
-    # Change this to your display's VCOM value
-    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
+    vcom = float(sys.argv[1])
+    print(f"Initializing e-paper display with VCOM: {vcom}V...")
+
+    display = EPaperDisplay(vcom=vcom)
 
     try:
         # Get display dimensions

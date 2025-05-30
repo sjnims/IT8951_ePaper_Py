@@ -82,7 +82,7 @@ class TestConstants:
 
     def test_display_constants(self) -> None:
         """Test display constants."""
-        assert DisplayConstants.DEFAULT_VCOM == -2.0
+        # DEFAULT_VCOM removed - VCOM is now a required parameter
         assert DisplayConstants.MIN_VCOM == -5.0
         assert DisplayConstants.MAX_VCOM == -0.2
         assert DisplayConstants.MAX_WIDTH == 2048
@@ -90,6 +90,7 @@ class TestConstants:
         assert DisplayConstants.DEFAULT_CLEAR_COLOR == 0xFF
         assert DisplayConstants.GRAYSCALE_MAX == 255
         assert DisplayConstants.PIXEL_ALIGNMENT == 4
+        assert DisplayConstants.PIXEL_ALIGNMENT_1BPP == 32
 
     def test_memory_constants(self) -> None:
         """Test memory constants."""

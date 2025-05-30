@@ -9,7 +9,7 @@ from PIL import Image
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode, Rotation
+from IT8951_ePaper_Py.constants import DisplayMode, Rotation
 
 
 def main() -> None:
@@ -22,7 +22,9 @@ def main() -> None:
         sys.exit(1)
 
     image_path = Path(sys.argv[1])
-    vcom = float(sys.argv[2]) if len(sys.argv) > 2 else DisplayConstants.DEFAULT_VCOM
+    vcom = (
+        float(sys.argv[2]) if len(sys.argv) > 2 else -2.0
+    )  # Default VCOM, check your display's FPC cable
 
     if not image_path.exists():
         print(f"Error: Image file '{image_path}' not found")

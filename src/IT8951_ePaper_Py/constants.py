@@ -134,7 +134,7 @@ class GPIOPin:
 class DisplayConstants:
     """Display-related constants."""
 
-    DEFAULT_VCOM = -2.0
+    # DEFAULT_VCOM removed - VCOM must be provided by user
     MIN_VCOM = -5.0
     MAX_VCOM = -0.2
     MAX_WIDTH = 2048
@@ -152,6 +152,12 @@ class MemoryConstants:
     IMAGE_BUFFER_ADDR_L = 0x36E0  # Lower 16 bits
     IMAGE_BUFFER_ADDR_H = 0x0012  # Upper 16 bits
     WAVEFORM_ADDR = 0x00886332  # Waveform memory address (not yet used)
+
+    # Memory limits (IT8951 typically has 64MB SDRAM)
+    TOTAL_MEMORY_BYTES = 64 * 1024 * 1024  # 64MB
+    # Safe threshold: leave room for waveforms and system use
+    SAFE_IMAGE_MEMORY_BYTES = 32 * 1024 * 1024  # 32MB for images
+    WARNING_THRESHOLD_BYTES = 16 * 1024 * 1024  # Warn at 16MB
 
 
 class ProtocolConstants:

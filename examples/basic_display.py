@@ -14,18 +14,18 @@ from IT8951_ePaper_Py.constants import DisplayConstants, DisplayMode
 
 def main() -> None:
     """Run basic display example."""
-    print("Initializing e-paper display...")
+    if len(sys.argv) < 2:
+        print("Usage: python basic_display.py <vcom_voltage>")
+        print("Example: python basic_display.py -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
+        print("   Using the wrong VCOM can result in poor image quality or display damage.")
+        sys.exit(1)
 
-    # ⚠️ IMPORTANT: VCOM Configuration ⚠️
-    # You MUST set the VCOM voltage to match your display's specification!
-    # Check the FPC cable of your display for the correct VCOM value.
-    # Using the wrong VCOM can result in poor image quality or display damage.
-    # Example: If your display shows VCOM = -1.45V, use vcom=-1.45
-    print("\n⚠️  WARNING: Set VCOM to match your display's FPC cable!")
-    print("   Example: EPaperDisplay(vcom=-1.45)")
-    print("   Using default VCOM: -2.0V\n")
+    vcom = float(sys.argv[1])
+    print(f"Initializing e-paper display with VCOM: {vcom}V...")
 
-    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
+    display = EPaperDisplay(vcom=vcom)
 
     try:
         width, height = display.init()

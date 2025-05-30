@@ -5,21 +5,20 @@ This example demonstrates when and how to use the enhanced driving
 feature to improve display quality with long cables or blurry displays.
 """
 
+import sys
 import time
 
 from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayConstants
 
 
-def show_intro() -> None:
+def show_intro(vcom: float) -> None:
     """Show introduction and explanation."""
     print("Enhanced Driving Capability Demo")
     print("================================")
 
     # ⚠️ IMPORTANT: VCOM Configuration ⚠️
-    print("\n⚠️  WARNING: This demo uses default VCOM of -2.0V")
-    print("   You MUST set VCOM to match your display's FPC cable!")
-    print("   Example: EPaperDisplay(vcom=-1.45)")
+    print(f"\nUsing VCOM voltage: {vcom}V")
+    print("   Make sure this matches your display's FPC cable!")
 
     print("\nEnhanced driving improves signal quality and can help with:")
     print("- Blurry or unclear display output")
@@ -27,23 +26,23 @@ def show_intro() -> None:
     print("- Display instability issues\n")
 
 
-def demo_standard_init() -> None:
+def demo_standard_init(vcom: float) -> None:
     """Demonstrate standard initialization."""
     print("Example 1: Standard initialization")
     print("-" * 40)
-    display = EPaperDisplay(vcom=DisplayConstants.DEFAULT_VCOM)
+    display = EPaperDisplay(vcom=vcom)
     width, height = display.init()
     print(f"Display initialized: {width}x{height}")
     display.close()
     print()
 
 
-def demo_enhanced_init() -> EPaperDisplay:
+def demo_enhanced_init(vcom: float) -> EPaperDisplay:
     """Demonstrate initialization with enhanced driving."""
     print("Example 2: Initialization with enhanced driving")
     print("-" * 40)
     display = EPaperDisplay(
-        vcom=DisplayConstants.DEFAULT_VCOM,
+        vcom=vcom,
         enhance_driving=True,  # Enable enhanced driving
     )
     width, height = display.init()
@@ -89,16 +88,24 @@ def show_diagnostics(display: EPaperDisplay) -> None:
 
 def main() -> None:
     """Demonstrate enhanced driving capability."""
-    show_intro()
+    if len(sys.argv) < 2:
+        print("Usage: python enhanced_driving_demo.py <vcom_voltage>")
+        print("Example: python enhanced_driving_demo.py -1.45")
+        print("\n⚠️  IMPORTANT: The VCOM voltage MUST match your display's specification!")
+        print("   Check the FPC cable on your display for the correct VCOM value.")
+        sys.exit(1)
+
+    vcom = float(sys.argv[1])
+    show_intro(vcom)
 
     # Example 1: Standard initialization
-    demo_standard_init()
+    demo_standard_init(vcom)
 
     # Wait between initializations
     time.sleep(1)
 
     # Example 2: Enhanced initialization
-    display_enhanced = demo_enhanced_init()
+    display_enhanced = demo_enhanced_init(vcom)
 
     # Show usage guide
     show_usage_guide()

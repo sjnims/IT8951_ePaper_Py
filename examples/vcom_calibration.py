@@ -38,7 +38,8 @@ def main() -> None:  # noqa: PLR0912, PLR0915, C901
     print("The VCOM voltage affects image quality and ghosting.")
     print()
 
-    current_vcom = DisplayConstants.DEFAULT_VCOM
+    # Default VCOM value - check your display's FPC cable
+    current_vcom = -2.0
 
     if len(sys.argv) > 1:
         try:
@@ -46,6 +47,11 @@ def main() -> None:  # noqa: PLR0912, PLR0915, C901
         except ValueError:
             print(f"Invalid VCOM value: {sys.argv[1]}")
             sys.exit(1)
+    else:
+        print("Usage: python vcom_calibration.py [initial_vcom]")
+        print("Example: python vcom_calibration.py -1.45")
+        print(f"\nStarting with default VCOM: {current_vcom}V")
+        print("(Check your display's FPC cable for the recommended starting value)\n")
 
     display = EPaperDisplay(vcom=current_vcom)
 

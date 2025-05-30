@@ -26,6 +26,19 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - 🎨 Automatic image conversion and alignment
 - 🎯 Multiple pixel formats: 1bpp, 2bpp, 4bpp (default), 8bpp
 
+### Breaking Changes in v0.4.0 (Upcoming)
+
+- ⚠️ **VCOM is now a required parameter** - no default value
+  - Previously: `EPaperDisplay()` defaulted to VCOM=-2.0V
+  - Now: `EPaperDisplay(vcom=-2.0)` - you MUST specify your display's VCOM
+  - Check your display's FPC cable sticker for the correct VCOM value
+
+### New in v0.4.0 (Upcoming)
+
+- 🚀 Progressive image loading for very large images
+- 📊 Memory usage estimation and warnings
+- 🔒 Enhanced memory safety features
+
 ### New in v0.3.1
 
 - 🐍 Python 3.12 support added
@@ -416,7 +429,20 @@ display.display_image(img, pixel_format=PixelFormat.BPP_4)  # Default
 
 # Use partial updates
 display.display_partial(img, x=100, y=100, width=200, height=200)
+
+# Use progressive loading for very large images (v0.4.0+)
+display.display_image_progressive(
+    large_image,
+    chunk_height=256,  # Process in 256-pixel chunks
+    pixel_format=PixelFormat.BPP_4
+)
 ```
+
+The progressive loading feature processes images in chunks to reduce memory usage:
+
+- Ideal for images larger than 16MB
+- Automatically handles alignment requirements
+- Configurable chunk size for memory/performance tradeoff
 
 #### Slow Performance
 

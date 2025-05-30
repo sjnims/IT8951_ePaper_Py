@@ -79,7 +79,7 @@ class EPaperDisplay:
 
     def __init__(
         self,
-        vcom: float = DisplayConstants.DEFAULT_VCOM,
+        vcom: float,
         spi_interface: SPIInterface | None = None,
         spi_speed_hz: int | None = None,
         a2_refresh_limit: int = 10,
@@ -88,14 +88,15 @@ class EPaperDisplay:
         """Initialize e-paper display.
 
         Args:
-            vcom: VCOM voltage setting (negative value).
+            vcom: VCOM voltage setting (negative value). This MUST match your
+                  display's calibrated VCOM value for optimal image quality.
             spi_interface: Optional SPI interface for testing. If provided,
                           spi_speed_hz is ignored.
             spi_speed_hz: Manual SPI speed override in Hz. If None, auto-detects
                          based on Pi version. Only used when spi_interface is None.
             a2_refresh_limit: Number of A2 refreshes before automatic INIT clear.
+                             Set to 0 to disable auto-clearing.
             enhance_driving: Enable enhanced driving for long cables or blurry displays.
-                            Set to 0 to disable auto-clearing.
         """
         if spi_interface is None:
             spi_interface = create_spi_interface(spi_speed_hz=spi_speed_hz)
@@ -234,6 +235,28 @@ class EPaperDisplay:
                 f"({DisplayConstants.MAX_WIDTH}x{DisplayConstants.MAX_HEIGHT})"
             )
 
+        # Estimate and check memory usage
+        memory_usage = self._estimate_memory_usage(img.width, img.height, pixel_format)
+
+        if memory_usage > MemoryConstants.SAFE_IMAGE_MEMORY_BYTES:
+            raise IT8951MemoryError(
+                f"Image memory usage ({memory_usage:,} bytes) exceeds safe limit "
+                f"({MemoryConstants.SAFE_IMAGE_MEMORY_BYTES:,} bytes). "
+                f"Consider using a lower resolution or different pixel format."
+            )
+
+        if memory_usage > MemoryConstants.WARNING_THRESHOLD_BYTES:
+            import warnings
+
+            warnings.warn(
+                f"Large image memory usage: {memory_usage:,} bytes "
+                f"({memory_usage / (1024 * 1024):.1f} MB). "
+                f"Consider using a more efficient pixel format (4bpp, 2bpp, or 1bpp) "
+                f"to improve performance and reduce memory usage.",
+                UserWarning,
+                stacklevel=5,
+            )
+
         if x + img.width > self._width:
             raise InvalidParameterError("Image exceeds display width")
         if y + img.height > self._height:
@@ -258,6 +281,30 @@ class EPaperDisplay:
             img = img.resize((aligned_width, aligned_height), Image.Resampling.LANCZOS)
 
         return aligned_x, aligned_y, aligned_width, aligned_height, img
+
+    def _estimate_memory_usage(self, width: int, height: int, pixel_format: PixelFormat) -> int:
+        """Estimate memory usage for an image operation.
+
+        Args:
+            width: Image width in pixels.
+            height: Image height in pixels.
+            pixel_format: Pixel format for the operation.
+
+        Returns:
+            Estimated memory usage in bytes.
+        """
+        pixels = width * height
+
+        # Calculate bytes based on pixel format
+        if pixel_format == PixelFormat.BPP_8:
+            return pixels  # 1 byte per pixel
+        if pixel_format == PixelFormat.BPP_4:
+            return (pixels + 1) // 2  # 2 pixels per byte
+        if pixel_format == PixelFormat.BPP_2:
+            return (pixels + 3) // 4  # 4 pixels per byte
+        if pixel_format == PixelFormat.BPP_1:
+            return (pixels + 7) // 8  # 8 pixels per byte
+        return pixels  # Default to worst case
 
     def _track_a2_refresh(self, mode: DisplayMode) -> None:
         """Track A2 mode refreshes and handle auto-clearing.
@@ -351,6 +398,130 @@ class EPaperDisplay:
         self._controller.display_area(display_area, wait=True)
 
         # Track A2 refreshes
+        self._track_a2_refresh(mode)
+
+    @timed_operation("display_image_progressive")
+    def display_image_progressive(  # noqa: PLR0913
+        self,
+        image: Image.Image | str | Path | BinaryIO,
+        x: int = 0,
+        y: int = 0,
+        mode: DisplayMode = DisplayMode.GC16,
+        rotation: Rotation = Rotation.ROTATE_0,
+        pixel_format: PixelFormat = PixelFormat.BPP_4,
+        chunk_height: int = 256,
+    ) -> None:
+        """Display a large image progressively in chunks to manage memory usage.
+
+        This method is useful for very large images that might exceed memory
+        limits if loaded all at once. It processes the image in horizontal strips.
+
+        Args:
+            image: PIL Image, file path, or file-like object.
+            x: X coordinate for image placement.
+            y: Y coordinate for image placement.
+            mode: Display update mode.
+            rotation: Image rotation.
+            pixel_format: Pixel format (defaults to BPP_4).
+            chunk_height: Height of each chunk in pixels. Smaller values use
+                         less memory but require more operations.
+
+        Note:
+            Chunk boundaries are automatically aligned based on pixel format
+            requirements. The actual chunk height may be adjusted to meet
+            alignment constraints.
+        """
+        self._ensure_initialized()
+
+        # Load and prepare image
+        img = self._load_image(image)
+        img = self._prepare_image(img, rotation)
+
+        # Validate overall image placement
+        if x + img.width > self._width:
+            raise InvalidParameterError("Image exceeds display width")
+        if y + img.height > self._height:
+            raise InvalidParameterError("Image exceeds display height")
+
+        # Align chunk height to pixel format requirements
+        if pixel_format == PixelFormat.BPP_1:
+            # 1bpp requires 32-pixel alignment
+            chunk_height = (chunk_height // 32) * 32
+            if chunk_height == 0:
+                chunk_height = 32
+        else:
+            # Other formats use 4-pixel alignment
+            chunk_height = (chunk_height // 4) * 4
+            if chunk_height == 0:
+                chunk_height = 4
+
+        # Process image in chunks
+        remaining_height = img.height
+        current_y = 0
+
+        while remaining_height > 0:
+            # Calculate chunk dimensions
+            this_chunk_height = min(chunk_height, remaining_height)
+
+            # Align chunk dimensions
+            aligned_chunk_height = self._align_dimension(this_chunk_height, pixel_format)
+
+            # Extract chunk from image
+            chunk_box = (0, current_y, img.width, current_y + this_chunk_height)
+            chunk = img.crop(chunk_box)
+
+            # Resize chunk if alignment required it
+            if aligned_chunk_height != this_chunk_height:
+                chunk = chunk.resize((img.width, aligned_chunk_height), Image.Resampling.LANCZOS)
+
+            # Display this chunk
+            chunk_x = x
+            chunk_y = y + current_y
+
+            # Validate and align chunk parameters
+            aligned_x = self._align_coordinate(chunk_x, pixel_format)
+            aligned_y = self._align_coordinate(chunk_y, pixel_format)
+            aligned_width = self._align_dimension(chunk.width, pixel_format)
+
+            # Get pixel data and pack
+            data_8bpp = chunk.tobytes()
+            packed_data = self._controller.pack_pixels(data_8bpp, pixel_format)
+
+            # Load chunk to controller memory
+            info = LoadImageInfo(
+                source_buffer=packed_data,
+                target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
+                pixel_format=pixel_format,
+                rotate=Rotation.ROTATE_0,  # Rotation already applied to full image
+            )
+
+            area_info = AreaImageInfo(
+                area_x=aligned_x,
+                area_y=aligned_y,
+                area_w=aligned_width,
+                area_h=aligned_chunk_height,
+            )
+
+            self._controller.load_image_area_start(info, area_info)
+            self._controller.load_image_write(packed_data)
+            self._controller.load_image_end()
+
+            # Display this chunk
+            display_area = DisplayArea(
+                x=aligned_x,
+                y=aligned_y,
+                width=aligned_width,
+                height=aligned_chunk_height,
+                mode=mode,
+            )
+
+            self._controller.display_area(display_area, wait=True)
+
+            # Move to next chunk
+            current_y += this_chunk_height
+            remaining_height -= this_chunk_height
+
+        # Track A2 refreshes (only once for the entire progressive operation)
         self._track_a2_refresh(mode)
 
     @timed_operation("display_partial")

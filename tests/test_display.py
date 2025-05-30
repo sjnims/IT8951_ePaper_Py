@@ -9,7 +9,7 @@ import pytest
 from PIL import Image
 from pytest_mock import MockerFixture
 
-from IT8951_ePaper_Py.constants import DisplayMode, MemoryConstants, Rotation
+from IT8951_ePaper_Py.constants import DisplayMode, MemoryConstants, PixelFormat, Rotation
 from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
 from IT8951_ePaper_Py.spi_interface import MockSPI
@@ -26,7 +26,7 @@ class TestEPaperDisplay:
     @pytest.fixture
     def display(self, mock_spi: MockSPI) -> EPaperDisplay:
         """Create EPaperDisplay with mock SPI."""
-        return EPaperDisplay(spi_interface=mock_spi)
+        return EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
 
     @pytest.fixture
     def initialized_display(
@@ -53,7 +53,7 @@ class TestEPaperDisplay:
     @pytest.fixture
     def enhanced_display(self, mock_spi: MockSPI, mocker: MockerFixture) -> EPaperDisplay:
         """Create EPaperDisplay with enhanced driving enabled."""
-        display = EPaperDisplay(spi_interface=mock_spi, enhance_driving=True)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi, enhance_driving=True)
 
         # Data for _get_device_info (20 values)
         mock_spi.set_read_data(
@@ -266,7 +266,7 @@ class TestEPaperDisplay:
     def test_memory_error_oversized_image(self, mocker: MockerFixture) -> None:
         """Test IT8951MemoryError for oversized images."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
 
         # Mock initialization
         mock_spi.set_read_data(
@@ -292,7 +292,7 @@ class TestEPaperDisplay:
     def test_memory_error_buffer_allocation(self, mocker: MockerFixture) -> None:
         """Test IT8951MemoryError when buffer allocation fails."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
 
         # Mock initialization with regular display size
         mock_spi.set_read_data(
@@ -313,6 +313,24 @@ class TestEPaperDisplay:
             display.clear()
 
         assert "Failed to allocate display buffer" in str(exc_info.value)
+
+    def test_memory_usage_warning(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test memory usage warning for large images."""
+        # Mock wait_display_ready to avoid timeout
+        mocker.patch.object(initialized_display._controller, "_wait_display_ready")
+
+        # Mock the WARNING_THRESHOLD_BYTES to a lower value for testing
+        # Display is 1024x768, so create max size image for this display
+        # 1024x768 at 8bpp = 786KB, need to lower threshold for test
+        mocker.patch.object(MemoryConstants, "WARNING_THRESHOLD_BYTES", 512 * 1024)
+
+        # Create 1024x768 image (786KB at 8bpp)
+        img = Image.new("L", (1024, 768))
+
+        with pytest.warns(UserWarning, match="Large image memory usage"):
+            initialized_display.display_image(img, pixel_format=PixelFormat.BPP_8)
 
     def test_enhanced_driving_init(
         self, enhanced_display: EPaperDisplay, mock_spi: MockSPI
@@ -465,7 +483,7 @@ class TestEPaperDisplay:
         assert initialized_display._requires_special_1bpp_alignment() is True
 
         # Test with no device info (before init)
-        display = EPaperDisplay(spi_interface=MockSPI())
+        display = EPaperDisplay(vcom=-2.0, spi_interface=MockSPI())
         assert display._requires_special_1bpp_alignment() is True
 
     def test_dump_registers(
@@ -703,7 +721,7 @@ class TestEPaperDisplay:
     def test_clear_memory_allocation_edge_case(self, mocker: MockerFixture) -> None:
         """Test clear() with display size at maximum."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
 
         # Mock initialization with maximum allowed display size
         mock_spi.set_read_data(
@@ -834,6 +852,78 @@ class TestEPaperDisplay:
         # Verify the display was created with the mocked SPI
         assert display._controller._spi == mock_spi
 
+    def test_display_image_progressive(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test progressive image display for large images."""
+        # Create a test image
+        img = Image.new("L", (512, 512), color=128)
+
+        # Mock the controller methods
+        mocker.patch.object(
+            initialized_display._controller, "pack_pixels", return_value=b"\x00" * 1000
+        )
+        mock_load_start = mocker.patch.object(
+            initialized_display._controller, "load_image_area_start"
+        )
+        mock_load_write = mocker.patch.object(initialized_display._controller, "load_image_write")
+        mock_load_end = mocker.patch.object(initialized_display._controller, "load_image_end")
+        mock_display_area = mocker.patch.object(initialized_display._controller, "display_area")
+
+        # Display image progressively with 128-pixel chunks
+        initialized_display.display_image_progressive(img, chunk_height=128)
+
+        # Should have been called 4 times (512 / 128 = 4 chunks)
+        assert mock_load_start.call_count == 4
+        assert mock_load_write.call_count == 4
+        assert mock_load_end.call_count == 4
+        assert mock_display_area.call_count == 4
+
+        # Check that chunks were displayed at correct Y positions
+        y_positions = [call[0][0].y for call in mock_display_area.call_args_list]
+        assert y_positions == [0, 128, 256, 384]
+
+    def test_display_image_progressive_with_1bpp_alignment(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test progressive display with 1bpp alignment requirements."""
+        from IT8951_ePaper_Py.constants import PixelFormat
+
+        # Create test image with size that doesn't align to 32 pixels
+        img = Image.new("L", (100, 100), color=255)
+
+        # Mock the controller methods
+        mocker.patch.object(
+            initialized_display._controller, "pack_pixels", return_value=b"\x00" * 1000
+        )
+        mock_load_start = mocker.patch.object(
+            initialized_display._controller, "load_image_area_start"
+        )
+        mocker.patch.object(initialized_display._controller, "load_image_write")
+        mocker.patch.object(initialized_display._controller, "load_image_end")
+        mocker.patch.object(initialized_display._controller, "display_area")
+
+        # Display with 1bpp and small chunk height (will be aligned to 32)
+        initialized_display.display_image_progressive(
+            img, pixel_format=PixelFormat.BPP_1, chunk_height=20
+        )
+
+        # Check that chunk height was aligned to 32 pixels
+        # 100 pixels / 32 pixels per chunk = 4 chunks (rounded up)
+        assert mock_load_start.call_count == 4
+
+    def test_display_image_progressive_validation(self, initialized_display: EPaperDisplay) -> None:
+        """Test progressive display validation."""
+        # Image too wide
+        img = Image.new("L", (2000, 100))
+        with pytest.raises(InvalidParameterError, match="exceeds display width"):
+            initialized_display.display_image_progressive(img)
+
+        # Image too tall
+        img = Image.new("L", (100, 1000))
+        with pytest.raises(InvalidParameterError, match="exceeds display height"):
+            initialized_display.display_image_progressive(img, y=100)
+
 
 class TestA2ModeAutoClearing:
     """Test A2 mode auto-clear protection functionality."""
@@ -842,7 +932,7 @@ class TestA2ModeAutoClearing:
     def display_with_a2_limit(self, mocker: MockerFixture) -> EPaperDisplay:
         """Create display with A2 refresh limit."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi, a2_refresh_limit=5)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi, a2_refresh_limit=5)
 
         # Mock initialization
         mock_spi.set_read_data(
@@ -921,7 +1011,7 @@ class TestA2ModeAutoClearing:
     def test_manual_clear_resets_counter(self, mocker: MockerFixture) -> None:
         """Test manual clear resets A2 counter."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi, a2_refresh_limit=10)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi, a2_refresh_limit=10)
 
         # Mock initialization
         mock_spi.set_read_data(
@@ -949,7 +1039,7 @@ class TestA2ModeAutoClearing:
     def test_disabled_auto_clear(self, mocker: MockerFixture) -> None:
         """Test auto-clear can be disabled."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi, a2_refresh_limit=0)
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi, a2_refresh_limit=0)
 
         # Mock initialization
         mock_spi.set_read_data(
@@ -976,7 +1066,9 @@ class TestA2ModeAutoClearing:
     def test_a2_warning_and_auto_clear_edge_case(self, mocker: MockerFixture) -> None:
         """Test A2 warning at limit-1 and auto-clear at limit with edge cases."""
         mock_spi = MockSPI()
-        display = EPaperDisplay(spi_interface=mock_spi, a2_refresh_limit=2)  # Very low limit
+        display = EPaperDisplay(
+            vcom=-2.0, spi_interface=mock_spi, a2_refresh_limit=2
+        )  # Very low limit
 
         # Mock initialization
         mock_spi.set_read_data(
@@ -1019,11 +1111,11 @@ class TestA2ModeAutoClearing:
 
     def test_properties(self) -> None:
         """Test A2 refresh properties."""
-        display = EPaperDisplay(a2_refresh_limit=7)
+        display = EPaperDisplay(vcom=-2.0, a2_refresh_limit=7)
 
         assert display.a2_refresh_count == 0
         assert display.a2_refresh_limit == 7
 
         # Test with disabled auto-clear
-        display2 = EPaperDisplay(a2_refresh_limit=0)
+        display2 = EPaperDisplay(vcom=-2.0, a2_refresh_limit=0)
         assert display2.a2_refresh_limit == 0
