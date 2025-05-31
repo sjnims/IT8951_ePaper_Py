@@ -146,62 +146,118 @@ This roadmap outlines the phased implementation of missing features and improvem
 5.2.3 ✅ Document power consumption differences - completed in v0.5.0 (POWER_MANAGEMENT.md)
 5.2.4 ✅ Add power state to device info - completed in v0.5.0 (get_device_status method)
 
-## Phase 6: Debugging and Diagnostics (v0.6.0)
+## Phase 6: Code Quality & Architecture Improvements (v0.6.0)
+
+**Address code quality issues identified in code review for better maintainability**
+
+### 6.1 Code Duplication and Refactoring
+
+6.1.1 Refactor duplicated alignment logic (~5% code duplication)
+6.1.2 Extract remaining magic numbers (LUT_BUSY_BIT, etc.)
+6.1.3 Simplify VCOM calibration state machine
+6.1.4 Create shared utilities for common patterns
+6.1.5 Reduce cyclomatic complexity in complex methods
+
+### 6.2 Performance and Type Safety
+
+6.2.1 Improve pixel packing performance with numpy optimizations
+6.2.2 Add thread safety documentation and considerations
+6.2.3 Complete type annotations for all internal methods
+6.2.4 Add performance benchmarks for critical paths
+6.2.5 Optimize memory allocations in hot paths
+
+### 6.3 Configuration and Documentation
+
+6.3.1 Fix configuration inconsistencies (numpy version, tool versions)
+6.3.2 Add missing CONTRIBUTING.md with contribution guidelines
+6.3.3 Create CHANGELOG.md for version history
+6.3.4 Update all docstrings to Google style format
+6.3.5 Add architecture decision records (ADRs)
+
+## Phase 7: Debugging and Diagnostics (v0.7.0)
 
 **Tools for troubleshooting and verification**
 
-### 6.1 Extended Display Modes Testing (partially complete)
+### 7.1 Extended Display Modes Testing (partially complete)
 
-6.1.1 Test and document GLR16 mode
-6.1.2 Test and document GLD16 mode
-6.1.3 Test and document DU4 mode
-6.1.4 Create mode comparison examples
-6.1.5 ✅ Add mode selection guide - completed in Phase 3.3.3 (documented in DISPLAY_MODES.md)
+7.1.1 Test and document GLR16 mode
+7.1.2 Test and document GLD16 mode
+7.1.3 Test and document DU4 mode
+7.1.4 Create mode comparison examples
+7.1.5 ✅ Add mode selection guide - completed in Phase 3.3.3 (documented in DISPLAY_MODES.md)
 
-## Phase 7: Developer Experience (v0.7.0)
+## Phase 8: Developer Experience (v0.8.0)
 
 **Improvements to make the library easier to use**
 
-### 7.1 Enhanced Examples
+### 8.1 Enhanced Examples
 
-7.1.1 Create performance optimization example
-7.1.2 Add battery-powered device example
-7.1.3 Create mode selection guide example
-7.1.4 Add troubleshooting example
+8.1.1 Create performance optimization example
+8.1.2 Add battery-powered device example
+8.1.3 Create mode selection guide example
+8.1.4 Add troubleshooting example
 
-### 7.2 Comprehensive Testing
+### 8.2 Comprehensive Testing
 
-7.2.1 Add performance benchmarks
-7.2.2 Create bit depth conversion tests
-7.2.3 Add power management tests
-7.2.4 Create alignment edge case tests
+8.2.1 Add performance benchmarks
+8.2.2 Create bit depth conversion tests
+8.2.3 Add power management tests
+8.2.4 Create alignment edge case tests
 
-### 7.3 Documentation Updates (partially complete)
+### 8.3 Documentation Updates (partially complete)
 
-7.3.1 Update README with new features
-7.3.2 ✅ Create performance tuning guide - completed in Phase 3.3.1
-7.3.3 ✅ Add troubleshooting section - completed in Phase 3.3.2
-7.3.4 Document all new APIs
+8.3.1 Update README with new features
+8.3.2 ✅ Create performance tuning guide - completed in Phase 3.3.1
+8.3.3 ✅ Add troubleshooting section - completed in Phase 3.3.2
+8.3.4 Document all new APIs
 
-## Phase 8: CI/CD Optimizations (v0.8.0)
+## Phase 9: CI/CD Optimizations (v0.9.0)
 
 **Improve development workflow efficiency as the project scales**
 
-### 8.1 Test Performance Optimization
+### 9.1 Test Performance Optimization
 
-8.1.1 Fix test isolation issues for parallel execution (pytest-xdist installed)
-8.1.2 Implement shared fixtures to reduce setup/teardown time
-8.1.3 Mock hardware timing delays more aggressively
-8.1.4 Optimize test data sizes for faster execution
-8.1.5 Add test markers for better organization (@pytest.mark.slow)
+9.1.1 Fix test isolation issues for parallel execution (pytest-xdist installed)
+9.1.2 Implement shared fixtures to reduce setup/teardown time
+9.1.3 Mock hardware timing delays more aggressively
+9.1.4 Optimize test data sizes for faster execution
+9.1.5 Add test markers for better organization (@pytest.mark.slow)
 
-### 8.2 Automated Test Selection (Codecov ATS)
+### 9.2 Automated Test Selection (Codecov ATS)
 
-8.2.1 Integrate Codecov CLI into CI workflow
-8.2.2 Configure ATS for pytest test filtering
-8.2.3 Set up test impact analysis
-8.2.4 Add fallback for full test runs when needed
-8.2.5 Monitor and tune ATS performance
+9.2.1 Integrate Codecov CLI into CI workflow
+9.2.2 Configure ATS for pytest test filtering
+9.2.3 Set up test impact analysis
+9.2.4 Add fallback for full test runs when needed
+9.2.5 Monitor and tune ATS performance
+
+## Phase 10: Long-term Enhancements (v1.0.0)
+
+**Design patterns and architectural improvements for long-term maintainability**
+
+### 10.1 Design Pattern Improvements
+
+10.1.1 Implement builder pattern for complex display configurations
+10.1.2 Create plugin architecture for custom display modes
+10.1.3 Add strategy pattern for pixel packing algorithms
+10.1.4 Implement observer pattern for display state changes
+10.1.5 Create factory pattern for SPI interface selection
+
+### 10.2 Advanced Performance Features
+
+10.2.1 Add async/await support for long operations
+10.2.2 Implement performance regression framework
+10.2.3 Create SPI bulk transfer optimizations
+10.2.4 Add memory pooling for buffer allocations
+10.2.5 Implement lazy loading for large image operations
+
+### 10.3 Enterprise Features
+
+10.3.1 Add comprehensive logging framework
+10.3.2 Implement metrics collection interface
+10.3.3 Create diagnostic dump utilities
+10.3.4 Add remote debugging capabilities
+10.3.5 Implement configuration management system
 
 ## Implementation Notes
 
@@ -209,7 +265,9 @@ This roadmap outlines the phased implementation of missing features and improvem
 - Phase 1-2 provide the most immediate user value
 - Phase 3 addresses critical improvements and fixes
 - Phase 4-5 enable new use cases
-- Phase 6-7 improve maintainability and developer experience
-- Phase 8 optimizes development workflow
+- Phase 6 provides immediate code quality improvements (NEW - high priority)
+- Phase 7-8 improve maintainability and developer experience
+- Phase 9 optimizes development workflow
+- Phase 10 prepares for v1.0.0 with long-term architectural improvements
 - All features should maintain backward compatibility
 - Type hints and proper error handling required throughout
