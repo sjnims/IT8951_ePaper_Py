@@ -476,12 +476,54 @@ class IT8951:
 
     @staticmethod
     def _pack_8bpp(pixels: bytes) -> bytes:
-        """No packing needed for 8bpp."""
+        r"""Pack pixels for 8-bit per pixel format.
+
+        In 8bpp mode, each pixel occupies a full byte (0-255 grayscale),
+        so no packing is needed. This is a pass-through function.
+
+        Args:
+            pixels: Raw pixel data where each byte represents one pixel
+                with values from 0 (black) to 255 (white).
+
+        Returns:
+            The same pixel data unchanged.
+
+        Example:
+            >>> pixels = bytes([0, 128, 255])  # Black, gray, white
+            >>> IT8951._pack_8bpp(pixels)
+            b'\x00\x80\xff'
+        """
         return pixels
 
     @staticmethod
     def _pack_4bpp(pixels: bytes) -> bytes:
-        """Pack 2 pixels per byte (4 bits each)."""
+        """Pack pixels for 4-bit per pixel format.
+
+        In 4bpp mode, each pixel uses 4 bits (16 grayscale levels),
+        allowing 2 pixels to be packed into each byte. The first pixel
+        goes in the high nibble, the second in the low nibble.
+
+        Args:
+            pixels: Raw pixel data where each byte represents one pixel.
+                Values are reduced from 8-bit (0-255) to 4-bit (0-15)
+                by right-shifting 4 bits.
+
+        Returns:
+            Packed data with 2 pixels per byte.
+
+        Example:
+            >>> # Two white pixels (0xFF each)
+            >>> pixels = bytes([0xFF, 0xFF])
+            >>> packed = IT8951._pack_4bpp(pixels)
+            >>> hex(packed[0])  # Both become 0xF (15)
+            '0xff'
+
+            >>> # Black (0x00) and mid-gray (0x80)
+            >>> pixels = bytes([0x00, 0x80])
+            >>> packed = IT8951._pack_4bpp(pixels)
+            >>> hex(packed[0])  # 0x0 and 0x8 packed
+            '0x8'
+        """
         packed: list[int] = []
         for i in range(0, len(pixels), ProtocolConstants.PIXELS_PER_BYTE_4BPP):
             # Each pixel is reduced to 4 bits (0-15 range)
@@ -496,7 +538,31 @@ class IT8951:
 
     @staticmethod
     def _pack_2bpp(pixels: bytes) -> bytes:
-        """Pack 4 pixels per byte (2 bits each)."""
+        """Pack pixels for 2-bit per pixel format.
+
+        In 2bpp mode, each pixel uses 2 bits (4 grayscale levels),
+        allowing 4 pixels to be packed into each byte. Pixels are
+        packed from MSB to LSB.
+
+        Args:
+            pixels: Raw pixel data where each byte represents one pixel.
+                Values are reduced from 8-bit (0-255) to 2-bit (0-3)
+                by taking the top 2 bits.
+
+        Returns:
+            Packed data with 4 pixels per byte.
+
+        Bit layout per byte:
+            [P0:2bits][P1:2bits][P2:2bits][P3:2bits]
+            MSB                                   LSB
+
+        Example:
+            >>> # Four pixels: black, dark gray, light gray, white
+            >>> pixels = bytes([0x00, 0x55, 0xAA, 0xFF])
+            >>> packed = IT8951._pack_2bpp(pixels)
+            >>> bin(packed[0])  # 00 01 10 11
+            '0b11011'
+        """
         packed: list[int] = []
         pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_2BPP
 
@@ -517,14 +583,62 @@ class IT8951:
 
     @staticmethod
     def _get_pixel_2bit(pixels: bytes, index: int) -> int:
-        """Get a pixel value reduced to 2 bits."""
+        """Get a pixel value reduced to 2 bits.
+
+        Helper function for 2bpp packing that safely extracts a pixel
+        value and reduces it from 8-bit to 2-bit precision.
+
+        Args:
+            pixels: Source pixel array.
+            index: Index of the pixel to extract.
+
+        Returns:
+            2-bit pixel value (0-3). Returns 0 for out-of-bounds indices.
+
+        Example:
+            >>> pixels = bytes([0xFF, 0x80, 0x40, 0x00])
+            >>> IT8951._get_pixel_2bit(pixels, 0)  # 0xFF >> 6 = 3
+            3
+            >>> IT8951._get_pixel_2bit(pixels, 1)  # 0x80 >> 6 = 2
+            2
+            >>> IT8951._get_pixel_2bit(pixels, 4)  # Out of bounds
+            0
+        """
         if index < len(pixels):
             return pixels[index] >> 6  # Reduce 8-bit to 2-bit
         return 0
 
     @staticmethod
     def _pack_1bpp(pixels: bytes) -> bytes:
-        """Pack 8 pixels per byte (1 bit each)."""
+        """Pack pixels for 1-bit per pixel format.
+
+        In 1bpp mode, each pixel is binary (black or white), allowing
+        8 pixels to be packed into each byte. Pixels with values >= 128
+        are considered white (1), others are black (0). Bits are packed
+        MSB-first.
+
+        Args:
+            pixels: Raw pixel data where each byte represents one pixel.
+                Values >= 128 become 1, values < 128 become 0.
+
+        Returns:
+            Packed data with 8 pixels per byte.
+
+        Bit layout per byte:
+            [P0][P1][P2][P3][P4][P5][P6][P7]
+            MSB                          LSB
+
+        Example:
+            >>> # 8 pixels: alternating black and white
+            >>> pixels = bytes([0, 255, 0, 255, 0, 255, 0, 255])
+            >>> packed = IT8951._pack_1bpp(pixels)
+            >>> bin(packed[0])
+            '0b01010101'
+
+        Note:
+            1bpp mode requires 32-pixel alignment on some IT8951 models
+            for proper display operation.
+        """
         packed: list[int] = []
         pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_1BPP
         threshold = ProtocolConstants.PIXEL_SHIFT_1BPP_THRESHOLD
@@ -537,7 +651,34 @@ class IT8951:
 
     @staticmethod
     def _pack_byte_1bpp(pixels: bytes, start_idx: int, pixels_per_byte: int, threshold: int) -> int:
-        """Pack up to 8 pixels into a single byte for 1bpp format."""
+        """Pack up to 8 pixels into a single byte for 1bpp format.
+
+        Helper function that packs a group of pixels into a single byte
+        for 1bpp format. Each pixel is converted to a single bit based
+        on a threshold value.
+
+        Args:
+            pixels: Source pixel array.
+            start_idx: Starting index in the pixel array.
+            pixels_per_byte: Number of pixels to pack (typically 8).
+            threshold: Threshold for black/white decision (typically 128).
+                Pixels >= threshold become 1 (white), others become 0 (black).
+
+        Returns:
+            Packed byte containing up to 8 pixels as bits.
+
+        Example:
+            >>> pixels = bytes([0, 255, 128, 127, 200, 50, 255, 0])
+            >>> IT8951._pack_byte_1bpp(pixels, 0, 8, 128)
+            0b01110100  # Binary: 01110100
+
+            Explanation:
+            - 0 < 128 -> 0
+            - 255 >= 128 -> 1
+            - 128 >= 128 -> 1
+            - 127 < 128 -> 0
+            - etc.
+        """
         packed_byte = 0
 
         for j in range(pixels_per_byte):

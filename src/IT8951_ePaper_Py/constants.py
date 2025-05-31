@@ -22,24 +22,24 @@ from typing import ClassVar
 class SystemCommand(IntEnum):
     """System control commands."""
 
-    SYS_RUN = 0x0001
-    STANDBY = 0x0002
-    SLEEP = 0x0003
-    REG_RD = 0x0010
-    REG_WR = 0x0011
-    MEM_BST_WR = 0x0014
-    LD_IMG = 0x0020
-    LD_IMG_AREA = 0x0021
-    LD_IMG_END = 0x0022
+    SYS_RUN = 0x0001  # Activate the system from standby/sleep
+    STANDBY = 0x0002  # Enter standby mode (quick wake, moderate power)
+    SLEEP = 0x0003  # Enter sleep mode (slow wake, lowest power)
+    REG_RD = 0x0010  # Read from a register
+    REG_WR = 0x0011  # Write to a register
+    MEM_BST_WR = 0x0014  # Memory burst write for fast data transfer
+    LD_IMG = 0x0020  # Load image to display buffer
+    LD_IMG_AREA = 0x0021  # Load image to specific area
+    LD_IMG_END = 0x0022  # End image loading operation
 
 
 class UserCommand(IntEnum):
     """User-defined commands."""
 
-    DPY_AREA = 0x0034
-    GET_DEV_INFO = 0x0302
-    DPY_BUF_AREA = 0x0037
-    VCOM = 0x0039
+    DPY_AREA = 0x0034  # Display an area with specified mode
+    GET_DEV_INFO = 0x0302  # Get device information (model, resolution, etc.)
+    DPY_BUF_AREA = 0x0037  # Display from specific buffer address
+    VCOM = 0x0039  # Set VCOM voltage
 
 
 class Register(IntEnum):
@@ -64,11 +64,11 @@ class Register(IntEnum):
 class DisplayMode(IntEnum):
     """Display update modes."""
 
-    INIT = 0
-    DU = 1
-    GC16 = 2
-    GL16 = 3
-    A2 = 4
+    INIT = 0  # Initialize display (full refresh, clears ghosting)
+    DU = 1  # Direct Update (fast, 2-level, may show artifacts)
+    GC16 = 2  # Grayscale Clear 16 (high quality, 16-level, slower)
+    GL16 = 3  # Grayscale Light 16 (faster than GC16, slight quality reduction)
+    A2 = 4  # Animation mode (very fast, 2-level, for rapid updates)
     GLR16 = 5  # Ghost reduction 16-level (scheduled for v0.6.0)
     GLD16 = 6  # Ghost level detection 16 (scheduled for v0.6.0)
     DU4 = 7  # Direct update 4-level (scheduled for v0.6.0)
@@ -117,10 +117,10 @@ class PowerState(IntEnum):
 class SPIConstants:
     """SPI communication constants."""
 
-    PREAMBLE_READ = 0x1000
-    PREAMBLE_CMD = 0x6000
-    PREAMBLE_DATA = 0x0000
-    DUMMY_DATA = 0x0000
+    PREAMBLE_READ = 0x1000  # Preamble for read operations
+    PREAMBLE_CMD = 0x6000  # Preamble for command operations
+    PREAMBLE_DATA = 0x0000  # Preamble for data operations
+    DUMMY_DATA = 0x0000  # Dummy data for read operations
     # Pi-specific speeds based on core clock dividers (Waveshare recommendations)
     # Pi 3: 400MHz core / 16 = 25MHz (but we use conservative 15.625MHz based on 250MHz/16)
     # Pi 4: More conservative divider for stability
@@ -134,8 +134,8 @@ class SPIConstants:
 class GPIOPin:
     """GPIO pin assignments for Raspberry Pi."""
 
-    RESET = 17
-    BUSY = 24
+    RESET = 17  # GPIO pin for hardware reset (BCM numbering)
+    BUSY = 24  # GPIO pin for busy signal (BCM numbering)
     CS = 8  # Chip select (handled by spidev, kept for reference)
 
 
@@ -143,12 +143,12 @@ class DisplayConstants:
     """Display-related constants."""
 
     # DEFAULT_VCOM removed - VCOM must be provided by user
-    MIN_VCOM = -5.0
-    MAX_VCOM = -0.2
-    MAX_WIDTH = 2048
-    MAX_HEIGHT = 2048
-    DEFAULT_CLEAR_COLOR = 0xFF  # White
-    GRAYSCALE_MAX = 255
+    MIN_VCOM = -5.0  # Minimum safe VCOM voltage
+    MAX_VCOM = -0.2  # Maximum safe VCOM voltage
+    MAX_WIDTH = 2048  # Maximum supported display width
+    MAX_HEIGHT = 2048  # Maximum supported display height
+    DEFAULT_CLEAR_COLOR = 0xFF  # White (for clear operations)
+    GRAYSCALE_MAX = 255  # Maximum grayscale value (8-bit)
     PIXEL_ALIGNMENT = 4  # Default alignment for most modes
     PIXEL_ALIGNMENT_1BPP = 32  # 32-bit alignment for 1bpp mode (per wiki)
 
@@ -156,9 +156,9 @@ class DisplayConstants:
 class MemoryConstants:
     """Memory-related constants."""
 
-    IMAGE_BUFFER_ADDR = 0x001236E0
-    IMAGE_BUFFER_ADDR_L = 0x36E0  # Lower 16 bits
-    IMAGE_BUFFER_ADDR_H = 0x0012  # Upper 16 bits
+    IMAGE_BUFFER_ADDR = 0x001236E0  # Default image buffer start address
+    IMAGE_BUFFER_ADDR_L = 0x36E0  # Lower 16 bits of buffer address
+    IMAGE_BUFFER_ADDR_H = 0x0012  # Upper 16 bits of buffer address
     WAVEFORM_ADDR = 0x00886332  # Waveform memory address (not yet used)
 
     # Memory limits (IT8951 typically has 64MB SDRAM)
@@ -171,37 +171,37 @@ class MemoryConstants:
 class ProtocolConstants:
     """Protocol and communication constants."""
 
-    DEVICE_INFO_SIZE = 20
-    PACKED_WRITE_BIT = 0x0001
-    VCOM_FACTOR = 1000
-    ADDRESS_MASK = 0xFFFF
-    MAX_ADDRESS = 0xFFFFFFFF  # 32-bit address space
-    BYTE_SHIFT = 8
-    BYTE_MASK = 0xFF
-    LISAR_HIGH_OFFSET = 2
-    LUT_STATE_BIT_POSITION = 7
-    LUT_BUSY_BIT = 0x80  # Bit 7 mask for LUT busy state in MISC register
-    ENHANCED_DRIVING_VALUE = 0x0602  # Value for ENHANCE_DRIVING register to fix blur
-    ADDRESS_SHIFT_16 = 16  # Shift for combining 16-bit address parts
+    DEVICE_INFO_SIZE = 20  # Size of device info structure in words
+    PACKED_WRITE_BIT = 0x0001  # Bit to enable packed write mode
+    VCOM_FACTOR = 1000  # Conversion factor for VCOM (V to mV)
+    ADDRESS_MASK = 0xFFFF  # Mask for 16-bit address parts
+    MAX_ADDRESS = 0xFFFFFFFF  # Maximum 32-bit address
+    BYTE_SHIFT = 8  # Bits to shift for byte operations
+    BYTE_MASK = 0xFF  # Mask for single byte
+    LISAR_HIGH_OFFSET = 2  # Offset to high address register
+    LUT_STATE_BIT_POSITION = 7  # Position of LUT busy bit
+    LUT_BUSY_BIT = 0x80  # Bit 7 mask for LUT busy state
+    ENHANCED_DRIVING_VALUE = 0x0602  # Value to fix blur issues
+    ADDRESS_SHIFT_16 = 16  # Shift for 16-bit address combination
 
     # Pixel packing bit shifts
-    PIXEL_SHIFT_4BPP = 4  # Shift for 4bpp packing
-    PIXEL_SHIFT_2BPP_1 = 6  # First pixel shift for 2bpp
-    PIXEL_SHIFT_2BPP_2 = 4  # Second pixel shift for 2bpp
-    PIXEL_SHIFT_2BPP_3 = 2  # Third pixel shift for 2bpp
-    PIXEL_SHIFT_1BPP_THRESHOLD = 128  # Threshold for 1bpp conversion
-    PIXEL_SHIFT_1BPP_BITS = 7  # Bit position calculation for 1bpp
-    BITS_PER_BYTE = 8  # Number of bits in a byte
-    PIXELS_PER_BYTE_1BPP = 8  # Number of pixels packed in one byte for 1bpp
-    PIXELS_PER_BYTE_2BPP = 4  # Number of pixels packed in one byte for 2bpp
-    PIXELS_PER_BYTE_4BPP = 2  # Number of pixels packed in one byte for 4bpp
+    PIXEL_SHIFT_4BPP = 4  # Right shift to reduce 8-bit to 4-bit
+    PIXEL_SHIFT_2BPP_1 = 6  # First pixel position in 2bpp byte
+    PIXEL_SHIFT_2BPP_2 = 4  # Second pixel position in 2bpp byte
+    PIXEL_SHIFT_2BPP_3 = 2  # Third pixel position in 2bpp byte
+    PIXEL_SHIFT_1BPP_THRESHOLD = 128  # Black/white threshold for 1bpp
+    PIXEL_SHIFT_1BPP_BITS = 7  # MSB position for 1bpp packing
+    BITS_PER_BYTE = 8  # Standard byte size
+    PIXELS_PER_BYTE_1BPP = 8  # 8 pixels per byte in 1bpp mode
+    PIXELS_PER_BYTE_2BPP = 4  # 4 pixels per byte in 2bpp mode
+    PIXELS_PER_BYTE_4BPP = 2  # 2 pixels per byte in 4bpp mode
 
 
 class TimingConstants:
     """Timing-related constants."""
 
-    RESET_DURATION_S = 0.1
-    BUSY_POLL_FAST_S = 0.001
-    BUSY_POLL_SLOW_S = 0.01
-    DISPLAY_TIMEOUT_MS = 30000
-    DISPLAY_POLL_S = 0.01
+    RESET_DURATION_S = 0.1  # Hardware reset pulse duration
+    BUSY_POLL_FAST_S = 0.001  # Fast polling interval for busy signal
+    BUSY_POLL_SLOW_S = 0.01  # Slow polling interval for busy signal
+    DISPLAY_TIMEOUT_MS = 30000  # Maximum wait time for display operations (30s)
+    DISPLAY_POLL_S = 0.01  # Polling interval for display completion
