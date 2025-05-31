@@ -9,79 +9,28 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
-**Version 0.5.0**: Completed Phase 5 - Power Management! This release adds comprehensive power management features including standby/sleep modes, auto-sleep timeout, and device status monitoring.
-
 ## Features
 
-### Core Features
+### What Sets This Driver Apart
 
-- ✨ Pure Python implementation (no C dependencies)
-- 🚀 Hardware abstraction layer for easy testing and development
-- 📦 Type-safe with full type hints and Pydantic models
-- 🧪 Comprehensive test coverage (98%+)
-- 🔧 Mock SPI interface for development on non-Pi systems
-- 🖼️ Support for multiple display modes (INIT, DU, GC16, GL16, A2)
-- 🔄 Image rotation support (0°, 90°, 180°, 270°)
-- ⚡ Partial display updates for fast refresh
-- 🎨 Automatic image conversion and alignment
-- 🎯 Multiple pixel formats: 1bpp, 2bpp, 4bpp (default), 8bpp
-- 🔋 Power management with standby/sleep modes
-- ⏱️ Auto-sleep timeout for battery optimization
-- 📊 Comprehensive device status monitoring
-
-### New in v0.5.0
-
-- ⚡ **Power Management Support**
-  - Standby mode for quick wake with low power consumption
-  - Sleep mode for extended idle periods with ultra-low power
-  - Auto-sleep timeout for battery-powered applications
-  - Context manager support with automatic sleep on exit
-- 📊 **Device Status Monitoring** with `get_device_status()` method
-- 📖 Comprehensive power management documentation
-
-### Breaking Changes in v0.4.0
-
-- ⚠️ **VCOM is now a required parameter** - no default value
-  - Previously: `EPaperDisplay()` defaulted to VCOM=-2.0V
-  - Now: `EPaperDisplay(vcom=-2.0)` - you MUST specify your display's VCOM
-  - Check your display's FPC cable sticker for the correct VCOM value
-
-### New in v0.4.0
-
-- 🚀 Progressive image loading for very large images
-- 📊 Memory usage estimation and warnings
-- 🔒 Enhanced memory safety features
-- 🖼️ Complete 1bpp and 2bpp support with optimizations
-
-### New in v0.3.1
-
-- 🐍 Python 3.12 support added
-- 🔧 Code quality improvements (extracted magic numbers, refactored patterns)
-- 📝 Complete 1bpp pixel packing implementation
-- ⏰ Performance timing decorators for optimization
-- 📚 Comprehensive documentation (performance guide, display modes, troubleshooting)
-- 🔒 Security policy with GitHub private vulnerability reporting
-- ✨ Pre-commit hooks configuration
-
-### Development Features
-
-- 🔒 Security scanning with GitHub CodeQL
-- 📊 Code quality metrics with radon
-- 🚦 Comprehensive CI/CD pipeline
-- 🔧 Pre-commit hooks for code quality
-- 📚 Detailed API documentation
+- **🐍 Pure Python** - No C dependencies, runs on any platform with mock mode
+- **🔋 Power Management** - Standby/sleep modes with auto-sleep timeout for battery-powered devices
+- **🎯 Smart Defaults** - 4bpp mode by default (50% less data, same quality as 8bpp)
+- **🛡️ Memory Safety** - Progressive loading for large images with automatic memory warnings
+- **🧪 Development-Friendly** - 98%+ test coverage, type hints, and mock SPI for testing without hardware
+- **⚡ Production-Ready** - Auto-alignment, VCOM calibration, A2 ghosting prevention, and comprehensive error handling
 
 ## Requirements
 
-- Python 3.11.12 (strictly)
+- Python 3.11.12 or later (supports 3.11 and 3.12)
 - Raspberry Pi with SPI enabled (for hardware usage)
 - Waveshare 10.3" e-paper HAT with IT8951 controller
 
 ### Python Dependencies
 
 - `pydantic` >= 2.5 - Data validation and models
-- `pillow` >= 11.2 - Image processing
-- `numpy` >= 2.2 - Numerical operations
+- `pillow` >= 10.1.0 - Image processing
+- `numpy` >= 1.24 - Numerical operations
 - `spidev` >= 3.6 - SPI communication (Raspberry Pi only)
 - `RPi.GPIO` >= 0.7.1 - GPIO control (optional, Raspberry Pi only)
 
@@ -112,8 +61,8 @@ pip install -e .
 from IT8951_ePaper_Py import EPaperDisplay
 from IT8951_ePaper_Py.constants import DisplayMode
 
-# Initialize display with VCOM voltage
-display = EPaperDisplay(vcom=-2.0)
+# Initialize display with VCOM voltage (check your display's FPC cable sticker)
+display = EPaperDisplay(vcom=-2.0)  # Replace with your display's VCOM value
 
 try:
     # Initialize and get display dimensions
@@ -140,14 +89,14 @@ Use the context manager for automatic power management:
 with EPaperDisplay(vcom=-2.0) as display:
     display.set_auto_sleep_timeout(30.0)
     width, height = display.init()
-    
+
     # Display your content
     display.display_image(img)
-    
+
     # Get device status including power state
     status = display.get_device_status()
     print(f"Power state: {status['power_state']}")
-    
+
 # Display automatically enters sleep mode on exit
 ```
 
@@ -227,7 +176,7 @@ python examples/partial_update.py
 python examples/vcom_calibration.py
 ```
 
-### Power Management
+### Power Management Demo
 
 ```python
 # Demonstrate power management features
@@ -368,20 +317,7 @@ IT8951_ePaper_Py/
 
 ## Roadmap
 
-See our [Development Roadmap](ROADMAP.md) for completed and planned features:
-
-**Completed (v0.2.0 - v0.5.0):**
-- ✅ 4bpp support with 50% data reduction
-- ✅ Complete 1bpp and 2bpp support
-- ✅ Power management (standby, sleep, auto-sleep)
-- ✅ Enhanced driving capability
-- ✅ Progressive image loading
-- ✅ Memory safety features
-
-**Upcoming:**
-- Extended display modes (GLR16, GLD16, DU4)
-- Performance benchmarking tools
-- Advanced debugging features
+See our [Development Roadmap](ROADMAP.md) for completed and planned features.
 
 ## Contributing
 
@@ -409,7 +345,7 @@ This project uses GitHub Actions for continuous integration:
 - **Testing**: pytest with coverage on Ubuntu and macOS
 - **Security**: CodeQL for comprehensive security analysis
 - **Complexity**: radon for maintainability metrics
-- **Python Version**: Strictly Python 3.11.12
+- **Python Version**: 3.11.12 or later (supports 3.11 and 3.12)
 
 PRs must pass all checks before merging.
 
