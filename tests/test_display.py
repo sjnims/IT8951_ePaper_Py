@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 from pytest_mock import MockerFixture
 
+from IT8951_ePaper_Py.alignment import align_coordinate, align_dimension, validate_alignment
 from IT8951_ePaper_Py.constants import DisplayMode, MemoryConstants, PixelFormat, Rotation
 from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
@@ -175,13 +176,13 @@ class TestEPaperDisplay:
         with pytest.raises(InvalidParameterError) as exc_info:
             initialized_display.display_image(img, x=0, y=0)
 
-        assert "exceeds display width" in str(exc_info.value)
+        assert "exceeds panel width" in str(exc_info.value)
 
         img = Image.new("L", (100, 1000))
         with pytest.raises(InvalidParameterError) as exc_info:
             initialized_display.display_image(img, x=0, y=700)
 
-        assert "exceeds display height" in str(exc_info.value)
+        assert "exceeds panel height" in str(exc_info.value)
 
     def test_display_image_rotation(
         self, initialized_display: EPaperDisplay, mock_spi: MockSPI
@@ -374,74 +375,74 @@ class TestEPaperDisplay:
     def test_align_coordinate_default(self, display: EPaperDisplay) -> None:
         """Test coordinate alignment with default pixel format."""
         # Test alignment to 4-pixel boundary (default)
-        assert display._align_coordinate(0) == 0
-        assert display._align_coordinate(1) == 0
-        assert display._align_coordinate(3) == 0
-        assert display._align_coordinate(4) == 4
-        assert display._align_coordinate(5) == 4
-        assert display._align_coordinate(7) == 4
-        assert display._align_coordinate(8) == 8
-        assert display._align_coordinate(100) == 100
-        assert display._align_coordinate(101) == 100
+        assert align_coordinate(0) == 0
+        assert align_coordinate(1) == 0
+        assert align_coordinate(3) == 0
+        assert align_coordinate(4) == 4
+        assert align_coordinate(5) == 4
+        assert align_coordinate(7) == 4
+        assert align_coordinate(8) == 8
+        assert align_coordinate(100) == 100
+        assert align_coordinate(101) == 100
 
     def test_align_coordinate_1bpp(self, display: EPaperDisplay) -> None:
         """Test coordinate alignment with 1bpp pixel format."""
         from IT8951_ePaper_Py.constants import PixelFormat
 
         # Test alignment to 32-pixel boundary for 1bpp
-        assert display._align_coordinate(0, PixelFormat.BPP_1) == 0
-        assert display._align_coordinate(1, PixelFormat.BPP_1) == 0
-        assert display._align_coordinate(31, PixelFormat.BPP_1) == 0
-        assert display._align_coordinate(32, PixelFormat.BPP_1) == 32
-        assert display._align_coordinate(33, PixelFormat.BPP_1) == 32
-        assert display._align_coordinate(63, PixelFormat.BPP_1) == 32
-        assert display._align_coordinate(64, PixelFormat.BPP_1) == 64
-        assert display._align_coordinate(100, PixelFormat.BPP_1) == 96
-        assert display._align_coordinate(128, PixelFormat.BPP_1) == 128
+        assert align_coordinate(0, PixelFormat.BPP_1) == 0
+        assert align_coordinate(1, PixelFormat.BPP_1) == 0
+        assert align_coordinate(31, PixelFormat.BPP_1) == 0
+        assert align_coordinate(32, PixelFormat.BPP_1) == 32
+        assert align_coordinate(33, PixelFormat.BPP_1) == 32
+        assert align_coordinate(63, PixelFormat.BPP_1) == 32
+        assert align_coordinate(64, PixelFormat.BPP_1) == 64
+        assert align_coordinate(100, PixelFormat.BPP_1) == 96
+        assert align_coordinate(128, PixelFormat.BPP_1) == 128
 
     def test_align_dimension_default(self, display: EPaperDisplay) -> None:
         """Test dimension alignment with default pixel format."""
         # Test alignment to 4-pixel multiple (default)
-        assert display._align_dimension(0) == 0
-        assert display._align_dimension(1) == 4
-        assert display._align_dimension(3) == 4
-        assert display._align_dimension(4) == 4
-        assert display._align_dimension(5) == 8
-        assert display._align_dimension(7) == 8
-        assert display._align_dimension(8) == 8
-        assert display._align_dimension(100) == 100
-        assert display._align_dimension(101) == 104
+        assert align_dimension(0) == 0
+        assert align_dimension(1) == 4
+        assert align_dimension(3) == 4
+        assert align_dimension(4) == 4
+        assert align_dimension(5) == 8
+        assert align_dimension(7) == 8
+        assert align_dimension(8) == 8
+        assert align_dimension(100) == 100
+        assert align_dimension(101) == 104
 
     def test_align_dimension_1bpp(self, display: EPaperDisplay) -> None:
         """Test dimension alignment with 1bpp pixel format."""
         from IT8951_ePaper_Py.constants import PixelFormat
 
         # Test alignment to 32-pixel multiple for 1bpp
-        assert display._align_dimension(0, PixelFormat.BPP_1) == 0
-        assert display._align_dimension(1, PixelFormat.BPP_1) == 32
-        assert display._align_dimension(31, PixelFormat.BPP_1) == 32
-        assert display._align_dimension(32, PixelFormat.BPP_1) == 32
-        assert display._align_dimension(33, PixelFormat.BPP_1) == 64
-        assert display._align_dimension(63, PixelFormat.BPP_1) == 64
-        assert display._align_dimension(64, PixelFormat.BPP_1) == 64
-        assert display._align_dimension(100, PixelFormat.BPP_1) == 128
-        assert display._align_dimension(128, PixelFormat.BPP_1) == 128
+        assert align_dimension(0, PixelFormat.BPP_1) == 0
+        assert align_dimension(1, PixelFormat.BPP_1) == 32
+        assert align_dimension(31, PixelFormat.BPP_1) == 32
+        assert align_dimension(32, PixelFormat.BPP_1) == 32
+        assert align_dimension(33, PixelFormat.BPP_1) == 64
+        assert align_dimension(63, PixelFormat.BPP_1) == 64
+        assert align_dimension(64, PixelFormat.BPP_1) == 64
+        assert align_dimension(100, PixelFormat.BPP_1) == 128
+        assert align_dimension(128, PixelFormat.BPP_1) == 128
 
     def test_validate_alignment_default(self, display: EPaperDisplay) -> None:
         """Test alignment validation with default pixel format."""
         # Aligned values should pass
-        is_valid, warnings = display.validate_alignment(0, 0, 100, 100)
+        is_valid, warnings = validate_alignment(0, 0, 100, 100)
         assert is_valid
         assert len(warnings) == 0
 
         # Unaligned X coordinate
-        is_valid, warnings = display.validate_alignment(1, 0, 100, 100)
+        is_valid, warnings = validate_alignment(1, 0, 100, 100)
         assert not is_valid
         assert len(warnings) == 1
         assert "X coordinate 1 not aligned to 4-pixel boundary" in warnings[0]
 
         # Multiple unaligned values
-        is_valid, warnings = display.validate_alignment(1, 2, 101, 102)
+        is_valid, warnings = validate_alignment(1, 2, 101, 102)
         assert not is_valid
         assert len(warnings) == 4
 
@@ -450,12 +451,12 @@ class TestEPaperDisplay:
         from IT8951_ePaper_Py.constants import PixelFormat
 
         # Aligned values should pass
-        is_valid, warnings = display.validate_alignment(0, 0, 64, 64, PixelFormat.BPP_1)
+        is_valid, warnings = validate_alignment(0, 0, 64, 64, PixelFormat.BPP_1)
         assert is_valid
         assert len(warnings) == 0
 
         # Unaligned values for 1bpp
-        is_valid, warnings = display.validate_alignment(16, 16, 100, 100, PixelFormat.BPP_1)
+        is_valid, warnings = validate_alignment(16, 16, 100, 100, PixelFormat.BPP_1)
         assert not is_valid
         assert len(warnings) == 5  # 4 alignment warnings + 1 special 1bpp note
         assert "1bpp mode requires strict 32-pixel alignment" in warnings[0]
@@ -671,7 +672,9 @@ class TestEPaperDisplay:
 
     def test_create_vcom_test_pattern(self, display: EPaperDisplay) -> None:
         """Test the VCOM test pattern creation."""
-        pattern = display._create_vcom_test_pattern(256, 128)
+        from IT8951_ePaper_Py.vcom_calibration import create_default_test_pattern
+
+        pattern = create_default_test_pattern(256, 128)
 
         assert isinstance(pattern, Image.Image)
         assert pattern.size == (256, 128)
@@ -970,12 +973,12 @@ class TestEPaperDisplay:
         """Test progressive display validation."""
         # Image too wide
         img = Image.new("L", (2000, 100))
-        with pytest.raises(InvalidParameterError, match="exceeds display width"):
+        with pytest.raises(InvalidParameterError, match="exceeds panel width"):
             initialized_display.display_image_progressive(img)
 
         # Image too tall
         img = Image.new("L", (100, 1000))
-        with pytest.raises(InvalidParameterError, match="exceeds display height"):
+        with pytest.raises(InvalidParameterError, match="exceeds panel height"):
             initialized_display.display_image_progressive(img, y=100)
 
 

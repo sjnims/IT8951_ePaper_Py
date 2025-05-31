@@ -226,6 +226,34 @@ The driver follows a layered architecture:
    - `IT8951TimeoutError` - Operation timeouts
    - `InvalidParameterError` - Invalid parameters
 
+## Thread Safety
+
+**Important:** This library is NOT thread-safe. The IT8951 controller and SPI communication protocol do not support concurrent operations.
+
+If you need to use the display from multiple threads:
+
+- **Option 1:** Use a single thread for all display operations
+- **Option 2:** Implement your own synchronization:
+
+  ```python
+  import threading
+  from IT8951_ePaper_Py import EPaperDisplay
+  
+  display = EPaperDisplay(vcom=-2.0)
+  display_lock = threading.Lock()
+  
+  # In each thread:
+  with display_lock:
+      display.display_image(image)
+  ```
+
+Thread safety issues include:
+
+- SPI transactions must be atomic (chip select, data transfer)
+- Command/data sequences can be corrupted by concurrent access
+- Power state changes affect all operations
+- The busy wait mechanism assumes single-threaded access
+
 ## Display Modes
 
 - `INIT` (0) - Full initialization mode
@@ -313,7 +341,8 @@ IT8951_ePaper_Py/
 - [Power Management](docs/POWER_MANAGEMENT.md) - Battery optimization and power states
 - [Memory Safety](docs/MEMORY_SAFETY.md) - Memory management best practices
 - [Bit Depth Support](docs/BIT_DEPTH_SUPPORT.md) - Using different pixel formats
-- [API Examples](docs/DOCSTRING_EXAMPLES.md) - Code examples for all major functions
+- [Thread Safety](docs/THREAD_SAFETY.md) - Multi-threading considerations and solutions
+- [Docstring Style Guide](docs/DOCSTRING_EXAMPLES.md) - Examples of Google-style docstrings for contributors
 
 ## Roadmap
 

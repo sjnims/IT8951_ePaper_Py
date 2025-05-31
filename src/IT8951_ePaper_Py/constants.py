@@ -182,6 +182,19 @@ class ProtocolConstants:
     LUT_STATE_BIT_POSITION = 7
     LUT_BUSY_BIT = 0x80  # Bit 7 mask for LUT busy state in MISC register
     ENHANCED_DRIVING_VALUE = 0x0602  # Value for ENHANCE_DRIVING register to fix blur
+    ADDRESS_SHIFT_16 = 16  # Shift for combining 16-bit address parts
+
+    # Pixel packing bit shifts
+    PIXEL_SHIFT_4BPP = 4  # Shift for 4bpp packing
+    PIXEL_SHIFT_2BPP_1 = 6  # First pixel shift for 2bpp
+    PIXEL_SHIFT_2BPP_2 = 4  # Second pixel shift for 2bpp
+    PIXEL_SHIFT_2BPP_3 = 2  # Third pixel shift for 2bpp
+    PIXEL_SHIFT_1BPP_THRESHOLD = 128  # Threshold for 1bpp conversion
+    PIXEL_SHIFT_1BPP_BITS = 7  # Bit position calculation for 1bpp
+    BITS_PER_BYTE = 8  # Number of bits in a byte
+    PIXELS_PER_BYTE_1BPP = 8  # Number of pixels packed in one byte for 1bpp
+    PIXELS_PER_BYTE_2BPP = 4  # Number of pixels packed in one byte for 2bpp
+    PIXELS_PER_BYTE_4BPP = 2  # Number of pixels packed in one byte for 4bpp
 
 
 class TimingConstants:

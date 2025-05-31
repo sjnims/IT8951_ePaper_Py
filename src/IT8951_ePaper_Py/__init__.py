@@ -20,6 +20,14 @@ Basic Usage:
     >>>
     >>> # Clean up
     >>> display.close()
+
+Thread Safety:
+    This library is NOT thread-safe. The IT8951 controller and SPI communication
+    protocol do not support concurrent operations. For multi-threaded applications:
+
+    - Use a single thread for all display operations
+    - Or implement your own synchronization (e.g., threading.Lock)
+    - See class documentation for specific thread safety concerns
 """  # noqa: N999
 
 from IT8951_ePaper_Py.display import EPaperDisplay

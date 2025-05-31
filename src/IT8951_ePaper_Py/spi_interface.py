@@ -285,7 +285,21 @@ class SPIDeviceInterface(Protocol):
 
 
 class SPIInterface(ABC):
-    """Abstract base class for SPI communication."""
+    """Abstract base class for SPI communication.
+
+    Thread Safety:
+        SPI interface implementations are NOT thread-safe. The underlying
+        hardware (SPI bus and GPIO pins) does not support concurrent access.
+
+        Critical issues with concurrent access:
+        - SPI transactions (chip select, data transfer) must be atomic
+        - GPIO operations (reset, busy check) can cause race conditions
+        - Command/data sequences can be interleaved, corrupting communication
+
+        If you need concurrent access to the display, implement synchronization
+        at a higher level (e.g., EPaperDisplay) or use a dedicated thread for
+        all SPI operations.
+    """
 
     @abstractmethod
     def init(self) -> None:

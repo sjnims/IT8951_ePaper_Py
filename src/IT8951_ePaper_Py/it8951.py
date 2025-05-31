@@ -1,7 +1,26 @@
 """Core IT8951 e-paper controller driver."""
 
 import time
+from typing import TYPE_CHECKING
 
+import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+    NumpyArray = NDArray[np.uint8]
+else:
+    NumpyArray = np.ndarray
+
+from IT8951_ePaper_Py.command_utils import (
+    Bounds,
+    Rectangle,
+    combine_address_16bit,
+    pack_bytes_to_words,
+    split_address_16bit,
+    validate_memory_address,
+    validate_rectangle,
+)
 from IT8951_ePaper_Py.constants import (
     DisplayConstants,
     PixelFormat,
@@ -16,7 +35,6 @@ from IT8951_ePaper_Py.exceptions import (
     DeviceError,
     InitializationError,
     InvalidParameterError,
-    IT8951MemoryError,
     IT8951TimeoutError,
     VCOMError,
 )
@@ -31,7 +49,21 @@ from IT8951_ePaper_Py.spi_interface import SPIInterface, create_spi_interface
 
 
 class IT8951:
-    """IT8951 e-paper controller driver."""
+    """IT8951 e-paper controller driver.
+
+    Thread Safety:
+        This class is NOT thread-safe. The IT8951 controller communication
+        protocol is stateful and does not support concurrent operations.
+
+        Specific concerns:
+        - SPI transactions must be atomic (command + data)
+        - Register operations can interfere with display updates
+        - Power state changes affect all operations
+        - The busy wait mechanism assumes single-threaded access
+
+        For multi-threaded applications, synchronize access at the
+        EPaperDisplay level or implement a dedicated display thread.
+    """
 
     def __init__(self, spi_interface: SPIInterface | None = None) -> None:
         """Initialize IT8951 driver.
@@ -216,7 +248,7 @@ class IT8951:
         low = self._read_register(Register.LISAR)
         # Read high 16 bits
         high = self._read_register(Register.LISAR + 2)
-        return (high << 16) | low
+        return combine_address_16bit(low, high)
 
     def standby(self) -> None:
         """Put device into standby mode."""
@@ -312,16 +344,11 @@ class IT8951:
             IT8951MemoryError: If address is invalid.
         """
         self._ensure_initialized()
+        validate_memory_address(address)
 
-        # Validate memory address
-        if address < 0 or address > ProtocolConstants.MAX_ADDRESS:
-            raise IT8951MemoryError(f"Invalid memory address: 0x{address:08X}")
-
-        self._write_register(Register.LISAR, address & ProtocolConstants.ADDRESS_MASK)
-        self._write_register(
-            Register.LISAR + ProtocolConstants.LISAR_HIGH_OFFSET,
-            (address >> (ProtocolConstants.BYTE_SHIFT * 2)) & ProtocolConstants.ADDRESS_MASK,
-        )
+        low, high = split_address_16bit(address)
+        self._write_register(Register.LISAR, low)
+        self._write_register(Register.LISAR + ProtocolConstants.LISAR_HIGH_OFFSET, high)
 
     def load_image_start(self, info: LoadImageInfo) -> None:
         """Start loading an image to controller memory.
@@ -371,12 +398,7 @@ class IT8951:
             data: Image data bytes.
         """
         self._ensure_initialized()
-
-        words: list[int] = []
-        for i in range(0, len(data), 2):
-            word = (data[i] << 8) | data[i + 1] if i + 1 < len(data) else data[i] << 8
-            words.append(word)
-
+        words = pack_bytes_to_words(data)
         self._spi.write_command(SystemCommand.MEM_BST_WR)
         self._spi.write_data_bulk(words)
 
@@ -400,18 +422,22 @@ class IT8951:
         for byte in data:
             # Reverse bits: 0b10110010 -> 0b01001101
             reversed_byte = 0
-            for i in range(8):
+            for i in range(ProtocolConstants.BITS_PER_BYTE):
                 if byte & (1 << i):
-                    reversed_byte |= 1 << (7 - i)
+                    reversed_byte |= 1 << (ProtocolConstants.PIXEL_SHIFT_1BPP_BITS - i)
             result.append(reversed_byte)
         return bytes(result)
 
     @staticmethod
-    def pack_pixels(pixels: bytes, pixel_format: PixelFormat) -> bytes:
+    def pack_pixels(pixels: bytes | NumpyArray, pixel_format: PixelFormat) -> bytes:
         """Pack pixel data according to the specified format.
+
+        This method automatically uses numpy-optimized implementations when
+        numpy arrays are provided, which can be 10-50x faster for large images.
 
         Args:
             pixels: 8-bit pixel data (each byte is one pixel).
+                   Can be bytes or numpy array.
             pixel_format: Target pixel format.
 
         Returns:
@@ -420,6 +446,20 @@ class IT8951:
         Raises:
             InvalidParameterError: If pixel format is not supported.
         """
+        # Use numpy-optimized version for numpy arrays or large byte arrays
+        use_numpy = isinstance(pixels, np.ndarray)
+        if not use_numpy and len(pixels) > 10000:
+            use_numpy = True
+
+        if use_numpy:
+            # Import here to avoid circular dependency
+            from IT8951_ePaper_Py.pixel_packing import pack_pixels_numpy
+
+            return pack_pixels_numpy(pixels, pixel_format)
+
+        # Ensure we have bytes for the original packers
+        pixel_bytes = pixels.tobytes() if isinstance(pixels, np.ndarray) else pixels
+
         # Use dictionary dispatch for cleaner code and lower complexity
         packers = {
             PixelFormat.BPP_8: IT8951._pack_8bpp,
@@ -432,7 +472,7 @@ class IT8951:
         if not packer:
             raise InvalidParameterError(f"Pixel format {pixel_format} not yet implemented")
 
-        return packer(pixels)
+        return packer(pixel_bytes)
 
     @staticmethod
     def _pack_8bpp(pixels: bytes) -> bytes:
@@ -443,12 +483,14 @@ class IT8951:
     def _pack_4bpp(pixels: bytes) -> bytes:
         """Pack 2 pixels per byte (4 bits each)."""
         packed: list[int] = []
-        for i in range(0, len(pixels), 2):
+        for i in range(0, len(pixels), ProtocolConstants.PIXELS_PER_BYTE_4BPP):
             # Each pixel is reduced to 4 bits (0-15 range)
-            pixel1 = (pixels[i] >> 4) if i < len(pixels) else 0
-            pixel2 = (pixels[i + 1] >> 4) if i + 1 < len(pixels) else 0
+            pixel1 = (pixels[i] >> ProtocolConstants.PIXEL_SHIFT_4BPP) if i < len(pixels) else 0
+            pixel2 = (
+                (pixels[i + 1] >> ProtocolConstants.PIXEL_SHIFT_4BPP) if i + 1 < len(pixels) else 0
+            )
             # Pack two pixels into one byte (pixel1 in high nibble, pixel2 in low nibble)
-            packed_byte = (pixel1 << 4) | pixel2
+            packed_byte = (pixel1 << ProtocolConstants.PIXEL_SHIFT_4BPP) | pixel2
             packed.append(packed_byte)
         return bytes(packed)
 
@@ -456,31 +498,58 @@ class IT8951:
     def _pack_2bpp(pixels: bytes) -> bytes:
         """Pack 4 pixels per byte (2 bits each)."""
         packed: list[int] = []
-        for i in range(0, len(pixels), 4):
-            # Each pixel is reduced to 2 bits (0-3 range)
-            pixel1 = (pixels[i] >> 6) if i < len(pixels) else 0
-            pixel2 = (pixels[i + 1] >> 6) if i + 1 < len(pixels) else 0
-            pixel3 = (pixels[i + 2] >> 6) if i + 2 < len(pixels) else 0
-            pixel4 = (pixels[i + 3] >> 6) if i + 3 < len(pixels) else 0
-            # Pack four pixels into one byte
-            packed_byte = (pixel1 << 6) | (pixel2 << 4) | (pixel3 << 2) | pixel4
+        pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_2BPP
+
+        for i in range(0, len(pixels), pixels_per_byte):
+            # Get pixels for this byte, with bounds checking
+            pixel_values = [IT8951._get_pixel_2bit(pixels, i + j) for j in range(pixels_per_byte)]
+
+            # Pack into byte with proper bit positions
+            packed_byte = (
+                (pixel_values[0] << 6)
+                | (pixel_values[1] << 4)
+                | (pixel_values[2] << 2)
+                | pixel_values[3]
+            )
             packed.append(packed_byte)
+
         return bytes(packed)
+
+    @staticmethod
+    def _get_pixel_2bit(pixels: bytes, index: int) -> int:
+        """Get a pixel value reduced to 2 bits."""
+        if index < len(pixels):
+            return pixels[index] >> 6  # Reduce 8-bit to 2-bit
+        return 0
 
     @staticmethod
     def _pack_1bpp(pixels: bytes) -> bytes:
         """Pack 8 pixels per byte (1 bit each)."""
         packed: list[int] = []
-        for i in range(0, len(pixels), 8):
-            packed_byte = 0
-            for j in range(8):
-                if i + j < len(pixels):
-                    # Convert to 1-bit (0 or 1) - threshold at 128
-                    bit = 1 if pixels[i + j] >= 128 else 0
-                    # Pack bit into byte (MSB first)
-                    packed_byte |= bit << (7 - j)
+        pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_1BPP
+        threshold = ProtocolConstants.PIXEL_SHIFT_1BPP_THRESHOLD
+
+        for i in range(0, len(pixels), pixels_per_byte):
+            packed_byte = IT8951._pack_byte_1bpp(pixels, i, pixels_per_byte, threshold)
             packed.append(packed_byte)
+
         return bytes(packed)
+
+    @staticmethod
+    def _pack_byte_1bpp(pixels: bytes, start_idx: int, pixels_per_byte: int, threshold: int) -> int:
+        """Pack up to 8 pixels into a single byte for 1bpp format."""
+        packed_byte = 0
+
+        for j in range(pixels_per_byte):
+            idx = start_idx + j
+            if idx < len(pixels):
+                # Convert to 1-bit (0 or 1) using threshold
+                bit = 1 if pixels[idx] >= threshold else 0
+                # Pack bit into byte (MSB first)
+                bit_position = 7 - j
+                packed_byte |= bit << bit_position
+
+        return packed_byte
 
     def load_image_end(self) -> None:
         """End image loading operation."""
@@ -500,10 +569,9 @@ class IT8951:
         if not self._device_info:
             raise DeviceError("Device info not available")
 
-        if area.x + area.width > self._device_info.panel_width:
-            raise InvalidParameterError("Display area exceeds panel width")
-        if area.y + area.height > self._device_info.panel_height:
-            raise InvalidParameterError("Display area exceeds panel height")
+        rect = Rectangle(x=area.x, y=area.y, width=area.width, height=area.height)
+        bounds = Bounds(width=self._device_info.panel_width, height=self._device_info.panel_height)
+        validate_rectangle(rect, bounds)
 
     def display_area(self, area: DisplayArea, wait: bool = True) -> None:
         """Display an area with specified mode.
