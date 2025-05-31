@@ -4,14 +4,17 @@ import logging
 import time
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import ParamSpec, TypeVar
 
 logger = logging.getLogger(__name__)
 
-F = TypeVar("F", bound=Callable[..., Any])
+P = ParamSpec("P")
+T = TypeVar("T")
 
 
-def timed_operation(operation_name: str | None = None) -> Callable[[F], F]:
+def timed_operation(
+    operation_name: str | None = None,
+) -> Callable[[Callable[P, T]], Callable[P, T]]:
     """Decorator to measure and log operation timing.
 
     Args:
@@ -22,9 +25,9 @@ def timed_operation(operation_name: str | None = None) -> Callable[[F], F]:
         Decorated function that logs execution time.
     """
 
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[P, T]) -> Callable[P, T]:
         @wraps(func)
-        def wrapper(*args: Any, **kwargs: Any) -> Any:  # noqa: ANN401
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             name = operation_name or func.__name__
             start_time = time.perf_counter()
             try:
@@ -37,6 +40,6 @@ def timed_operation(operation_name: str | None = None) -> Callable[[F], F]:
                 logger.debug(f"{name} failed after {elapsed:.2f}ms")
                 raise
 
-        return wrapper  # type: ignore[return-value]
+        return wrapper
 
     return decorator
