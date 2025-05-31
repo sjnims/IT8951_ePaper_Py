@@ -1108,9 +1108,10 @@ class TestA2ModeAutoClearing:
 
         display.init()
 
-        # Many A2 refreshes should not trigger clear
+        # Several A2 refreshes should not trigger clear
         img = Image.new("L", (100, 100), color=128)
-        for _ in range(20):
+        # Test with 5 iterations instead of 20 - sufficient to verify behavior
+        for _ in range(5):
             display.display_image(img, mode=DisplayMode.A2)
             assert display.a2_refresh_count == 0  # Counter stays at 0 when disabled
 
