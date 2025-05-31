@@ -342,7 +342,7 @@ Contributions are welcome! Please:
 This project uses GitHub Actions for continuous integration:
 
 - **Linting**: ruff (linting + formatting), pyright
-- **Testing**: pytest with coverage on Ubuntu and macOS
+- **Testing**: pytest with coverage on Ubuntu
 - **Security**: CodeQL for comprehensive security analysis
 - **Complexity**: radon for maintainability metrics
 - **Python Version**: 3.11.12 or later (supports 3.11 and 3.12)
