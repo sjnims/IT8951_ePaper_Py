@@ -194,8 +194,8 @@ class EPaperDisplay:
             )
 
         try:
-            # Create 8bpp data
-            data_8bpp = bytes([color] * buffer_size)
+            # Create 8bpp data more efficiently using bytes multiplication
+            data_8bpp = bytes([color]) * buffer_size
         except MemoryError as e:
             raise IT8951MemoryError(f"Failed to allocate display buffer: {e}") from e
 
