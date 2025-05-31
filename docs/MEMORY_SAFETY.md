@@ -1,6 +1,6 @@
 # Memory Safety Guide
 
-This guide explains the memory safety features in IT8951 e-Paper Python driver v0.4.0 and how to use them effectively.
+This guide explains the memory safety features in IT8951 e-Paper Python driver and how to use them effectively.
 
 ## Overview
 

@@ -24,6 +24,7 @@ Examples:
 
 from enum import Enum
 from pathlib import Path
+from types import TracebackType
 from typing import TYPE_CHECKING, BinaryIO
 
 import numpy as np
@@ -41,6 +42,7 @@ from IT8951_ePaper_Py.constants import (
     DisplayMode,
     MemoryConstants,
     PixelFormat,
+    PowerState,
     Rotation,
     RotationAngle,
 )
@@ -110,6 +112,12 @@ class EPaperDisplay:
         self._enhance_driving = enhance_driving
         self._device_info: DeviceInfo | None = None
 
+        # Initialize auto-sleep timer
+        import time
+
+        self._last_activity_time = time.time()
+        self._auto_sleep_timeout: float | None = None
+
     @timed_operation("init")
     def init(self) -> tuple[int, int]:
         """Initialize the display.
@@ -149,6 +157,15 @@ class EPaperDisplay:
 
         return (self._width, self._height)
 
+    @property
+    def power_state(self) -> PowerState:
+        """Get the current power state of the display.
+
+        Returns:
+            PowerState: The current power state (ACTIVE, STANDBY, or SLEEP).
+        """
+        return self._controller.power_state
+
     def close(self) -> None:
         """Close the display and cleanup resources."""
         if self._controller:
@@ -163,6 +180,8 @@ class EPaperDisplay:
             color: Grayscale color value (0=black, DisplayConstants.GRAYSCALE_MAX=white).
         """
         self._ensure_initialized()
+        self.check_auto_sleep()
+        self._update_activity_time()
 
         buffer_size = self._width * self._height
 
@@ -355,6 +374,8 @@ class EPaperDisplay:
                          Options: BPP_1, BPP_2, BPP_4, or BPP_8.
         """
         self._ensure_initialized()
+        self.check_auto_sleep()
+        self._update_activity_time()
 
         # Load and prepare image
         img = self._load_image(image)
@@ -432,6 +453,8 @@ class EPaperDisplay:
             alignment constraints.
         """
         self._ensure_initialized()
+        self.check_auto_sleep()
+        self._update_activity_time()
 
         # Load and prepare image
         img = self._load_image(image)
@@ -777,6 +800,69 @@ class EPaperDisplay:
         """Wake display from sleep or standby mode."""
         self._ensure_initialized()
         self._controller.wake()
+        self._update_activity_time()
+
+    def set_auto_sleep_timeout(self, timeout_seconds: float | None) -> None:
+        """Set auto-sleep timeout.
+
+        The display will automatically enter sleep mode after the specified
+        period of inactivity. Set to None to disable auto-sleep.
+
+        Args:
+            timeout_seconds: Timeout in seconds, or None to disable auto-sleep.
+                            Must be positive if provided.
+
+        Raises:
+            InvalidParameterError: If timeout is not positive.
+        """
+        if timeout_seconds is not None and timeout_seconds <= 0:
+            raise InvalidParameterError("Auto-sleep timeout must be positive")
+
+        self._auto_sleep_timeout = timeout_seconds
+        self._update_activity_time()
+
+    def _update_activity_time(self) -> None:
+        """Update the last activity timestamp."""
+        import time
+
+        self._last_activity_time = time.time()
+
+    def check_auto_sleep(self) -> None:
+        """Check if auto-sleep timeout has been reached and sleep if necessary.
+
+        This method is automatically called during display operations when auto-sleep
+        is enabled. You can also call it manually to check for timeout conditions,
+        which is useful for applications with long periods between display updates.
+
+        Note:
+            Does nothing if auto-sleep timeout is not set (None).
+        """
+        if self._auto_sleep_timeout is None:
+            return
+
+        import time
+
+        current_time = time.time()
+        inactive_time = current_time - self._last_activity_time
+
+        if inactive_time >= self._auto_sleep_timeout and self.power_state == PowerState.ACTIVE:
+            self.sleep()
+
+    def __enter__(self) -> "EPaperDisplay":
+        """Context manager entry - initialize display."""
+        self.init()
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
+        """Context manager exit - close display and optionally sleep."""
+        if self._auto_sleep_timeout is not None and self.power_state == PowerState.ACTIVE:
+            self.sleep()
+        self.close()
 
     def _load_image(self, image: Image.Image | str | Path | BinaryIO) -> Image.Image:
         """Load image from various sources.
@@ -1005,3 +1091,51 @@ class EPaperDisplay:
             dict[str, int]: Dictionary of register names to values.
         """
         return self._controller.dump_registers()
+
+    def get_device_status(self) -> dict[str, str | int | float | bool | None]:
+        """Get comprehensive device status information.
+
+        Returns device information including hardware specs, power state,
+        VCOM voltage, and other runtime status.
+
+        Returns:
+            dict: Device status with the following keys:
+                - panel_width: Display width in pixels
+                - panel_height: Display height in pixels
+                - memory_address: Image buffer memory address
+                - fw_version: Firmware version
+                - lut_version: LUT version
+                - power_state: Current power state (ACTIVE, STANDBY, or SLEEP)
+                - vcom_voltage: Current VCOM voltage
+                - a2_refresh_count: Current A2 refresh counter
+                - a2_refresh_limit: A2 refresh limit setting
+                - auto_sleep_timeout: Auto-sleep timeout in seconds (or None)
+                - enhanced_driving: Whether enhanced driving is enabled
+
+        Raises:
+            DisplayError: If display not initialized.
+        """
+        self._ensure_initialized()
+
+        status: dict[str, str | int | float | bool | None] = {}
+
+        # Add device info
+        if self._device_info:
+            status["panel_width"] = self._device_info.panel_width
+            status["panel_height"] = self._device_info.panel_height
+            status["memory_address"] = hex(self._device_info.memory_address)
+            # Ensure versions are strings
+            fw_ver = self._device_info.fw_version
+            status["fw_version"] = fw_ver if isinstance(fw_ver, str) else str(fw_ver)
+            lut_ver = self._device_info.lut_version
+            status["lut_version"] = lut_ver if isinstance(lut_ver, str) else str(lut_ver)
+
+        # Add runtime status
+        status["power_state"] = self.power_state.name
+        status["vcom_voltage"] = self._vcom
+        status["a2_refresh_count"] = self._a2_refresh_count
+        status["a2_refresh_limit"] = self._a2_refresh_limit
+        status["auto_sleep_timeout"] = self._auto_sleep_timeout
+        status["enhanced_driving"] = self.is_enhanced_driving_enabled()
+
+        return status

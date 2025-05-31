@@ -35,8 +35,28 @@ class TestEPaperDisplay:
         """Create and initialize EPaperDisplay."""
         # Data for _get_device_info (20 values)
         mock_spi.set_read_data(
-            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
-            + [0] * 16
+            [
+                1024,  # panel_width
+                768,  # panel_height
+                MemoryConstants.IMAGE_BUFFER_ADDR_L,  # memory_addr_l
+                MemoryConstants.IMAGE_BUFFER_ADDR_H,  # memory_addr_h
+                49,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # fw_version "1.0"
+                50,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # lut_version "2.0"
+            ]
         )
         # Data for _enable_packed_write register read
         mock_spi.set_read_data([0x0000])
@@ -835,6 +855,40 @@ class TestEPaperDisplay:
         assert loaded_img.mode == "L"
         assert loaded_img.size == (100, 100)
 
+    def test_get_device_status(
+        self, initialized_display: EPaperDisplay, mocker: MockerFixture
+    ) -> None:
+        """Test get_device_status method."""
+        from IT8951_ePaper_Py.constants import PowerState
+
+        # Mock enhanced driving check
+        mocker.patch.object(initialized_display, "is_enhanced_driving_enabled", return_value=True)
+
+        # Set some test values
+        initialized_display._a2_refresh_count = 5
+        initialized_display.set_auto_sleep_timeout(30.0)
+
+        # Get device status
+        status = initialized_display.get_device_status()
+
+        # Verify device info fields
+        assert status["panel_width"] == 1024
+        assert status["panel_height"] == 768
+        # Check memory address is a hex string
+        mem_addr = status["memory_address"]
+        assert isinstance(mem_addr, str)
+        assert mem_addr.startswith("0x")
+        assert status["fw_version"] == "1.0"
+        assert status["lut_version"] == "2.0"
+
+        # Verify runtime status fields
+        assert status["power_state"] == PowerState.ACTIVE.name
+        assert status["vcom_voltage"] == -2.0
+        assert status["a2_refresh_count"] == 5
+        assert status["a2_refresh_limit"] == 10
+        assert status["auto_sleep_timeout"] == 30.0
+        assert status["enhanced_driving"] is True
+
     def test_create_display_without_spi_interface(self, mocker: MockerFixture) -> None:
         """Test creating EPaperDisplay without providing spi_interface."""
         # Mock the create_spi_interface function
@@ -1119,3 +1173,325 @@ class TestA2ModeAutoClearing:
         # Test with disabled auto-clear
         display2 = EPaperDisplay(vcom=-2.0, a2_refresh_limit=0)
         assert display2.a2_refresh_limit == 0
+
+
+class TestPowerManagement:
+    """Test power management features."""
+
+    @pytest.fixture
+    def display(self, mocker: MockerFixture) -> EPaperDisplay:
+        """Create display with mocked components."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display, "clear")
+        display.init()
+        return display
+
+    def test_power_state_property(self, display: EPaperDisplay, mocker: MockerFixture) -> None:
+        """Test power_state property."""
+        from IT8951_ePaper_Py.constants import PowerState
+
+        # Mock the controller's _power_state attribute directly
+        display._controller._power_state = PowerState.SLEEP
+        assert display.power_state == PowerState.SLEEP
+
+        # Change the mocked value
+        display._controller._power_state = PowerState.STANDBY
+        assert display.power_state == PowerState.STANDBY
+
+    def test_wake_method(self, display: EPaperDisplay, mocker: MockerFixture) -> None:
+        """Test wake method."""
+        mock_wake = mocker.patch.object(display._controller, "wake")
+        mock_update_time = mocker.patch.object(display, "_update_activity_time")
+
+        display.wake()
+
+        mock_wake.assert_called_once()
+        mock_update_time.assert_called_once()
+
+    def test_set_auto_sleep_timeout(self, display: EPaperDisplay, mocker: MockerFixture) -> None:
+        """Test setting auto-sleep timeout."""
+        mock_update_time = mocker.patch.object(display, "_update_activity_time")
+
+        # Set valid timeout
+        display.set_auto_sleep_timeout(30.0)
+        assert display._auto_sleep_timeout == 30.0
+        mock_update_time.assert_called_once()
+
+        # Set None to disable
+        display.set_auto_sleep_timeout(None)
+        assert display._auto_sleep_timeout is None
+
+        # Test invalid timeout
+        with pytest.raises(InvalidParameterError, match="Auto-sleep timeout must be positive"):
+            display.set_auto_sleep_timeout(0)
+
+        with pytest.raises(InvalidParameterError, match="Auto-sleep timeout must be positive"):
+            display.set_auto_sleep_timeout(-5.0)
+
+    def test_check_auto_sleep(self, display: EPaperDisplay, mocker: MockerFixture) -> None:
+        """Test auto-sleep checking."""
+        from IT8951_ePaper_Py.constants import PowerState
+
+        # Mock time
+        mock_time = mocker.patch("time.time")
+        mock_sleep = mocker.patch.object(display, "sleep")
+
+        # Set up auto-sleep timeout
+        mock_time.return_value = 100.0  # Initial time
+        display.set_auto_sleep_timeout(10.0)  # 10 second timeout
+
+        # Check immediately - should not sleep
+        mock_time.return_value = 105.0  # 5 seconds later
+        display.check_auto_sleep()
+        mock_sleep.assert_not_called()
+
+        # Check after timeout - should sleep
+        mock_time.return_value = 111.0  # 11 seconds later
+        # Mock the power_state to return ACTIVE
+        display._controller._power_state = PowerState.ACTIVE
+        display.check_auto_sleep()
+        mock_sleep.assert_called_once()
+
+        # Check when already in sleep mode - should not sleep again
+        mock_sleep.reset_mock()
+        # Mock the power_state to return SLEEP
+        display._controller._power_state = PowerState.SLEEP
+        display.check_auto_sleep()
+        mock_sleep.assert_not_called()
+
+        # Check when auto-sleep is disabled
+        display.set_auto_sleep_timeout(None)
+        mock_sleep.reset_mock()
+        display.check_auto_sleep()
+        mock_sleep.assert_not_called()
+
+    def test_context_manager(self, mocker: MockerFixture) -> None:
+        """Test context manager functionality."""
+        mock_spi = MockSPI()
+
+        # Set up read data for init
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        # Mock wait_display_ready to avoid timeout
+        mocker.patch("IT8951_ePaper_Py.it8951.IT8951._wait_display_ready")
+
+        # Create display and mock methods
+        with EPaperDisplay(vcom=-2.0, spi_interface=mock_spi) as display:
+            # Verify init was called
+            assert display._initialized
+
+            # Set auto-sleep timeout
+            display.set_auto_sleep_timeout(5.0)
+
+        # After context exit, display should be closed
+        assert not display._initialized
+
+    def test_context_manager_with_auto_sleep(self, mocker: MockerFixture) -> None:
+        """Test context manager with auto-sleep on exit."""
+        from IT8951_ePaper_Py.constants import PowerState
+
+        mock_spi = MockSPI()
+
+        # Set up read data for init
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        # Mock wait_display_ready to avoid timeout
+        mocker.patch("IT8951_ePaper_Py.it8951.IT8951._wait_display_ready")
+
+        # Track sleep calls
+        mock_sleep = mocker.Mock()
+
+        with EPaperDisplay(vcom=-2.0, spi_interface=mock_spi) as display:
+            # Mock sleep method
+            display.sleep = mock_sleep
+
+            # Mock power state to return ACTIVE
+            display._controller._power_state = PowerState.ACTIVE
+
+            # Set auto-sleep timeout
+            display.set_auto_sleep_timeout(10.0)
+
+        # Sleep should have been called on exit
+        mock_sleep.assert_called_once()
+
+
+class TestMemoryAndEstimation:
+    """Test memory estimation and edge cases."""
+
+    def test_estimate_memory_usage_edge_cases(self) -> None:
+        """Test _estimate_memory_usage with various pixel formats."""
+        display = EPaperDisplay(vcom=-2.0)
+
+        # Test BPP_8
+        assert display._estimate_memory_usage(100, 100, PixelFormat.BPP_8) == 10000
+
+        # Test BPP_4
+        assert display._estimate_memory_usage(100, 100, PixelFormat.BPP_4) == 5000
+
+        # Test BPP_2
+        assert display._estimate_memory_usage(100, 100, PixelFormat.BPP_2) == 2500
+
+        # Test BPP_1
+        assert display._estimate_memory_usage(100, 100, PixelFormat.BPP_1) == 1250
+
+        # Test default case - we'll create a mock pixel format value
+        # that doesn't match any of the known formats
+        invalid_format = 99  # Not a valid PixelFormat value
+        # Since the method has a default case that returns pixels (worst case),
+        # we can test it by passing an int directly
+        assert display._estimate_memory_usage(100, 100, invalid_format) == 10000  # type: ignore
+
+    def test_memory_limit_exceeded(self, mocker: MockerFixture) -> None:
+        """Test handling when memory usage exceeds safe limit."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display, "clear")
+        display.init()
+
+        # Create an image that would exceed safe memory limit
+        # Mock _estimate_memory_usage to return a value over the limit
+        mocker.patch.object(
+            display,
+            "_estimate_memory_usage",
+            return_value=MemoryConstants.SAFE_IMAGE_MEMORY_BYTES + 1,
+        )
+
+        img = Image.new("L", (100, 100))
+
+        with pytest.raises(IT8951MemoryError, match="exceeds safe limit"):
+            display.display_image(img)
+
+    def test_progressive_display_chunk_alignment(self, mocker: MockerFixture) -> None:
+        """Test chunk height alignment in progressive display."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display, "clear")
+        display.init()
+
+        # Mock controller methods
+        mocker.patch.object(display._controller, "pack_pixels", return_value=b"\x00" * 1000)
+        mocker.patch.object(display._controller, "load_image_area_start")
+        mocker.patch.object(display._controller, "load_image_write")
+        mocker.patch.object(display._controller, "load_image_end")
+        mocker.patch.object(display._controller, "display_area")
+
+        # Test with chunk_height = 0 for non-1bpp (should become 4)
+        img = Image.new("L", (100, 100))
+        display.display_image_progressive(img, chunk_height=3, pixel_format=PixelFormat.BPP_4)
+
+        # Test with chunk_height = 0 for 1bpp (should become 32)
+        display.display_image_progressive(img, chunk_height=1, pixel_format=PixelFormat.BPP_1)
+
+    def test_progressive_display_zero_chunk_height(self, mocker: MockerFixture) -> None:
+        """Test progressive display with chunk height that aligns to 0."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display, "clear")
+        display.init()
+
+        # Mock controller methods
+        mocker.patch.object(display._controller, "pack_pixels", return_value=b"\x00" * 1000)
+        mock_load_start = mocker.patch.object(display._controller, "load_image_area_start")
+        mocker.patch.object(display._controller, "load_image_write")
+        mocker.patch.object(display._controller, "load_image_end")
+        mocker.patch.object(display._controller, "display_area")
+
+        # Create small image
+        img = Image.new("L", (64, 64))
+
+        # Test with chunk_height that would align to 0 for non-1bpp
+        # When chunk_height < 4 and aligns to 0, it should become 4
+        display.display_image_progressive(img, chunk_height=1, pixel_format=PixelFormat.BPP_4)
+
+        # For 1bpp, when chunk_height < 32 and aligns to 0, it should become 32
+        mock_load_start.reset_mock()
+        display.display_image_progressive(img, chunk_height=10, pixel_format=PixelFormat.BPP_1)
+
+
+class TestCloseEdgeCases:
+    """Test edge cases in close method."""
+
+    def test_close_without_controller(self) -> None:
+        """Test close when controller is None."""
+        display = EPaperDisplay(vcom=-2.0)
+        display._controller = None  # type: ignore
+
+        # Should not raise an error
+        display.close()
+        assert not display._initialized
+
+    def test_close_multiple_times(self, mocker: MockerFixture) -> None:
+        """Test calling close multiple times."""
+        mock_spi = MockSPI()
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Mock initialization
+        mock_spi.set_read_data(
+            [1024, 768, MemoryConstants.IMAGE_BUFFER_ADDR_L, MemoryConstants.IMAGE_BUFFER_ADDR_H]
+            + [0] * 16
+        )
+        mock_spi.set_read_data([0x0000])
+        mock_spi.set_read_data([2000])  # VCOM
+
+        mocker.patch.object(display, "clear")
+        display.init()
+
+        mock_controller_close = mocker.patch.object(display._controller, "close")
+
+        # First close
+        display.close()
+        assert not display._initialized
+        mock_controller_close.assert_called_once()
+
+        # Second close should still work
+        mock_controller_close.reset_mock()
+        display.close()
+        # Controller close should be called again since controller still exists
+        mock_controller_close.assert_called_once()

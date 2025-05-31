@@ -9,7 +9,7 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
-**Version 0.3.1**: Completed Phase 3 - Immediate Improvements! This release includes Python 3.12 support, code quality improvements, comprehensive documentation, and security policy.
+**Version 0.5.0**: Completed Phase 5 - Power Management! This release adds comprehensive power management features including standby/sleep modes, auto-sleep timeout, and device status monitoring.
 
 ## Features
 
@@ -25,19 +25,33 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - ⚡ Partial display updates for fast refresh
 - 🎨 Automatic image conversion and alignment
 - 🎯 Multiple pixel formats: 1bpp, 2bpp, 4bpp (default), 8bpp
+- 🔋 Power management with standby/sleep modes
+- ⏱️ Auto-sleep timeout for battery optimization
+- 📊 Comprehensive device status monitoring
 
-### Breaking Changes in v0.4.0 (Upcoming)
+### New in v0.5.0
+
+- ⚡ **Power Management Support**
+  - Standby mode for quick wake with low power consumption
+  - Sleep mode for extended idle periods with ultra-low power
+  - Auto-sleep timeout for battery-powered applications
+  - Context manager support with automatic sleep on exit
+- 📊 **Device Status Monitoring** with `get_device_status()` method
+- 📖 Comprehensive power management documentation
+
+### Breaking Changes in v0.4.0
 
 - ⚠️ **VCOM is now a required parameter** - no default value
   - Previously: `EPaperDisplay()` defaulted to VCOM=-2.0V
   - Now: `EPaperDisplay(vcom=-2.0)` - you MUST specify your display's VCOM
   - Check your display's FPC cable sticker for the correct VCOM value
 
-### New in v0.4.0 (Upcoming)
+### New in v0.4.0
 
 - 🚀 Progressive image loading for very large images
 - 📊 Memory usage estimation and warnings
 - 🔒 Enhanced memory safety features
+- 🖼️ Complete 1bpp and 2bpp support with optimizations
 
 ### New in v0.3.1
 
@@ -117,6 +131,26 @@ finally:
     display.close()
 ```
 
+### Power Management
+
+Use the context manager for automatic power management:
+
+```python
+# Auto-sleep after 30 seconds of inactivity
+with EPaperDisplay(vcom=-2.0) as display:
+    display.set_auto_sleep_timeout(30.0)
+    width, height = display.init()
+    
+    # Display your content
+    display.display_image(img)
+    
+    # Get device status including power state
+    status = display.get_device_status()
+    print(f"Power state: {status['power_state']}")
+    
+# Display automatically enters sleep mode on exit
+```
+
 ### Pixel Format
 
 The driver supports multiple pixel formats for different use cases:
@@ -191,6 +225,26 @@ python examples/partial_update.py
 ```python
 # Find optimal VCOM voltage for your display
 python examples/vcom_calibration.py
+```
+
+### Power Management
+
+```python
+# Demonstrate power management features
+python examples/power_management_demo.py
+```
+
+### Performance Optimizations
+
+```python
+# 4bpp optimized display (50% data reduction)
+python examples/performance_4bpp.py
+
+# 1bpp binary display for text/QR codes
+python examples/binary_1bpp_demo.py
+
+# Progressive loading for large images
+python examples/progressive_loading_demo.py
 ```
 
 See all examples in the [`examples/`](examples/) directory.
@@ -303,15 +357,31 @@ IT8951_ePaper_Py/
 └── pyproject.toml            # Project configuration
 ```
 
+## Documentation
+
+- [Performance Guide](docs/PERFORMANCE_GUIDE.md) - Optimization tips and benchmarks
+- [Display Modes](docs/DISPLAY_MODES.md) - Detailed explanation of all display modes
+- [Power Management](docs/POWER_MANAGEMENT.md) - Battery optimization and power states
+- [Memory Safety](docs/MEMORY_SAFETY.md) - Memory management best practices
+- [Bit Depth Support](docs/BIT_DEPTH_SUPPORT.md) - Using different pixel formats
+- [API Examples](docs/DOCSTRING_EXAMPLES.md) - Code examples for all major functions
+
 ## Roadmap
 
-See our [Development Roadmap](ROADMAP.md) for planned features and improvements, including:
+See our [Development Roadmap](ROADMAP.md) for completed and planned features:
 
-- 4bpp support for better performance
-- Lower bit depth support (1bpp, 2bpp)
-- Power management features
-- Enhanced display modes
-- And more!
+**Completed (v0.2.0 - v0.5.0):**
+- ✅ 4bpp support with 50% data reduction
+- ✅ Complete 1bpp and 2bpp support
+- ✅ Power management (standby, sleep, auto-sleep)
+- ✅ Enhanced driving capability
+- ✅ Progressive image loading
+- ✅ Memory safety features
+
+**Upcoming:**
+- Extended display modes (GLR16, GLD16, DU4)
+- Performance benchmarking tools
+- Advanced debugging features
 
 ## Contributing
 

@@ -106,6 +106,14 @@ class EndianType(IntEnum):
     LITTLE = 0
 
 
+class PowerState(IntEnum):
+    """Power state of the IT8951 controller."""
+
+    ACTIVE = 0
+    STANDBY = 1
+    SLEEP = 2
+
+
 class SPIConstants:
     """SPI communication constants."""
 

@@ -127,24 +127,24 @@ This roadmap outlines the phased implementation of missing features and improvem
 4.3.3 ✅ Implement progressive loading for very large images
 4.3.4 ✅ Add warnings for operations exceeding memory thresholds
 
-## Phase 5: Power Management (v0.5.0)
+## Phase 5: Power Management (v0.5.0) ✅
 
 **Essential for battery-powered and embedded applications**
 
-### 5.1 Basic Power Management Commands (partially complete)
+### 5.1 Basic Power Management Commands ✅
 
 5.1.1 ✅ Implement `standby()` method in `IT8951` - completed in v0.2.0
 5.1.2 ✅ Implement `sleep()` method in `IT8951` - completed in v0.2.0
 5.1.3 ✅ Add `wake()` method for recovery - completed in Phase 3.2.4
-5.1.4 Create power state tracking
-5.1.5 Add auto-sleep timeout option
+5.1.4 ✅ Create power state tracking - completed in v0.5.0
+5.1.5 ✅ Add auto-sleep timeout option - completed in v0.5.0
 
-### 5.2 Power Management Integration
+### 5.2 Power Management Integration ✅
 
-5.2.1 Add context manager support for auto-sleep
-5.2.2 Create power usage examples
-5.2.3 Document power consumption differences
-5.2.4 Add power state to device info
+5.2.1 ✅ Add context manager support for auto-sleep - completed in v0.5.0
+5.2.2 ✅ Create power usage examples - completed in v0.5.0 (power_management_demo.py)
+5.2.3 ✅ Document power consumption differences - completed in v0.5.0 (POWER_MANAGEMENT.md)
+5.2.4 ✅ Add power state to device info - completed in v0.5.0 (get_device_status method)
 
 ## Phase 6: Debugging and Diagnostics (v0.6.0)
 

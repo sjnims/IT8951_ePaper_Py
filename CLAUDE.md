@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when working with this IT8951 e-paper
 
 ## Project Overview
 
-A Python driver for the IT8951 e-paper controller, designed for use with Waveshare's 10.3-inch e-paper HAT. The driver communicates via SPI and is optimized for low power consumption:
+A Python driver for the IT8951 e-paper controller, designed for use with Waveshare's 10.3-inch e-paper HAT. The driver communicates via SPI and is optimized for low power consumption with comprehensive power management features:
 
 - **Hardware**: 10.3-inch e-paper HAT from Waveshare with IT8951 controller, and Raspberry Pi (any variant)
 - **Goal**: Provide a simple, efficient interface for rendering images to e-paper displays
@@ -14,11 +14,11 @@ A Python driver for the IT8951 e-paper controller, designed for use with Wavesha
 
 ## Architecture Overview
 
-- **display.py**: High-level user API (EPaperDisplay class) - start here for usage
-- **it8951.py**: Low-level IT8951 controller communication protocol
+- **display.py**: High-level user API (EPaperDisplay class) with power management - start here for usage
+- **it8951.py**: Low-level IT8951 controller communication protocol with power state tracking
 - **spi_interface.py**: Hardware abstraction layer (SPIInterface, RaspberryPiSPI, MockSPI)
 - **models.py**: Pydantic v2 models for type-safe data structures
-- **constants.py**: Hardware constants, commands, and display mode enums
+- **constants.py**: Hardware constants, commands, display modes, and PowerState enum
 - **exceptions.py**: Custom exception hierarchy (all inherit from IT8951Error)
 
 ## Quick Start
@@ -37,6 +37,24 @@ poetry run pyright
 poetry run ruff check .
 poetry run ruff format .
 
+```
+
+## Usage Example
+
+```python
+# Context manager for automatic power management
+with EPaperDisplay(vcom=-2.0) as display:
+    display.set_auto_sleep_timeout(30.0)  # Sleep after 30s inactivity
+    width, height = display.init()
+    
+    # Display operations
+    display.display_image(img)
+    
+    # Check device status
+    status = display.get_device_status()
+    print(f"Power state: {status['power_state']}")
+    
+# Display automatically enters sleep mode on exit
 ```
 
 ## Common Pitfalls to Avoid
@@ -88,12 +106,15 @@ When pyright complains about external libraries:
 ## Key Implementation Details
 
 - **Display Modes**: INIT, DU, GC16, GL16, A2 (see constants.py)
+- **Power States**: ACTIVE, STANDBY, SLEEP (see PowerState enum)
 - **Image Rotations**: 0°, 90°, 180°, 270° supported
 - **Default VCOM**: -2.0V (configurable per device)
 - **Max Display Size**: 2048x2048 pixels (validated in models)
 - **Endianness**: Little-endian by default
 - **Pixel Format**: 4bpp grayscale default
 - **Memory**: Images loaded to controller's internal memory before display
+- **Auto-sleep**: Configurable timeout for battery optimization
+- **Context Manager**: Automatic power management with `with` statement
 
 ## Code Style Enforcement
 

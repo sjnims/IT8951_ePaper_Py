@@ -5,6 +5,7 @@ import time
 from IT8951_ePaper_Py.constants import (
     DisplayConstants,
     PixelFormat,
+    PowerState,
     ProtocolConstants,
     Register,
     SystemCommand,
@@ -42,6 +43,16 @@ class IT8951:
         self._spi = spi_interface or create_spi_interface()
         self._device_info: DeviceInfo | None = None
         self._initialized = False
+        self._power_state = PowerState.ACTIVE
+
+    @property
+    def power_state(self) -> PowerState:
+        """Get the current power state of the device.
+
+        Returns:
+            PowerState: The current power state (ACTIVE, STANDBY, or SLEEP).
+        """
+        return self._power_state
 
     def init(self) -> DeviceInfo:
         """Initialize the IT8951 controller.
@@ -72,10 +83,12 @@ class IT8951:
             self._spi.close()
         self._initialized = False
         self._device_info = None
+        self._power_state = PowerState.ACTIVE
 
     def _system_run(self) -> None:
         """Send system run command."""
         self._spi.write_command(SystemCommand.SYS_RUN)
+        self._power_state = PowerState.ACTIVE
 
     def _get_device_info(self) -> DeviceInfo:
         """Get device information from controller.
@@ -209,11 +222,13 @@ class IT8951:
         """Put device into standby mode."""
         self._ensure_initialized()
         self._spi.write_command(SystemCommand.STANDBY)
+        self._power_state = PowerState.STANDBY
 
     def sleep(self) -> None:
         """Put device into sleep mode."""
         self._ensure_initialized()
         self._spi.write_command(SystemCommand.SLEEP)
+        self._power_state = PowerState.SLEEP
 
     def wake(self) -> None:
         """Wake device from sleep or standby mode.
@@ -224,6 +239,7 @@ class IT8951:
         self._ensure_initialized()
         # Wake is typically done by sending any command, so we use system run
         self._system_run()
+        self._power_state = PowerState.ACTIVE
 
     def enhance_driving_capability(self) -> None:
         """Enhance driving capability for long cables or blurry displays.

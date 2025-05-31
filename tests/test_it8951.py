@@ -6,6 +6,7 @@ from IT8951_ePaper_Py.constants import (
     DisplayMode,
     MemoryConstants,
     PixelFormat,
+    PowerState,
     ProtocolConstants,
     Register,
     SystemCommand,
@@ -129,6 +130,21 @@ class TestIT8951:
         driver.sleep()
 
         assert mock_spi.get_last_command() == SystemCommand.SLEEP
+
+    def test_wake(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test wake from sleep/standby mode."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Put device to sleep first
+        driver.sleep()
+        assert driver.power_state == PowerState.SLEEP
+
+        # Wake it up
+        driver.wake()
+        assert driver.power_state == PowerState.ACTIVE
+        assert mock_spi.get_last_command() == SystemCommand.SYS_RUN
 
     def test_vcom_operations(self, driver: IT8951, mock_spi: MockSPI) -> None:
         """Test VCOM voltage operations."""
