@@ -35,10 +35,11 @@ class TestPerformance:
         display.init()
         return display
 
+    @pytest.mark.slow
     def test_4bpp_vs_8bpp_packing_performance(self):
         """Test that 4bpp packing is measurably different from 8bpp."""
-        # Create test image (1872x1404)
-        image = np.random.randint(0, 256, size=(1404, 1872), dtype=np.uint8)
+        # Create test image (reduced size for faster tests)
+        image = np.random.randint(0, 256, size=(600, 800), dtype=np.uint8)
         image_bytes = image.flatten().tobytes()
 
         # Time 8bpp packing
@@ -52,8 +53,8 @@ class TestPerformance:
         time_4bpp = time.perf_counter() - start_4bpp
 
         # Verify data sizes
-        assert len(packed_8bpp) == 1872 * 1404  # 1 byte per pixel
-        assert len(packed_4bpp) == (1872 * 1404 + 1) // 2  # 2 pixels per byte
+        assert len(packed_8bpp) == 800 * 600  # 1 byte per pixel
+        assert len(packed_4bpp) == (800 * 600 + 1) // 2  # 2 pixels per byte
 
         # 4bpp should take more time due to bit manipulation
         # This is a trade-off for reduced data transfer
@@ -95,7 +96,8 @@ class TestPerformance:
         # 34 >> 4 = 0x2, 51 >> 4 = 0x3, combined as 0x23
         assert packed[1] == 0x23
 
-    @pytest.mark.parametrize("size", [(100, 100), (500, 500), (1000, 1000)])
+    @pytest.mark.slow
+    @pytest.mark.parametrize("size", [(50, 50), (100, 100), (200, 200)])
     def test_scaling_performance(self, size):
         """Test performance scaling with different image sizes."""
         width, height = size

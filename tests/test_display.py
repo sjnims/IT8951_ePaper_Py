@@ -327,8 +327,12 @@ class TestEPaperDisplay:
 
         display.init()
 
-        # Mock bytes() to raise MemoryError
-        mocker.patch("builtins.bytes", side_effect=MemoryError("Out of memory"))
+        # Mock ManagedBuffer.bytes to raise MemoryError instead of mocking global bytes()
+        # This is safer for parallel test execution
+        mocker.patch(
+            "IT8951_ePaper_Py.buffer_pool.ManagedBuffer.bytes",
+            side_effect=MemoryError("Out of memory"),
+        )
 
         with pytest.raises(IT8951MemoryError) as exc_info:
             display.clear()

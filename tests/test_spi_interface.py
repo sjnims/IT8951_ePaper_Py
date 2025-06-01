@@ -43,6 +43,7 @@ class TestMockSPI:
         assert spi.get_last_command() is None
         assert len(spi.get_data_buffer()) == 0
 
+    @pytest.mark.slow
     def test_reset(self) -> None:
         """Test hardware reset simulation."""
         spi = MockSPI()
@@ -270,6 +271,7 @@ class TestRaspberryPiSPI:
         assert "Failed to initialize SPI" in str(exc_info.value)
         assert "Hardware error" in str(exc_info.value)
 
+    @pytest.mark.slow
     def test_reset_with_hardware(self, mocker: MockerFixture) -> None:
         """Test hardware reset with mocked GPIO."""
         mock_gpio = mocker.MagicMock()

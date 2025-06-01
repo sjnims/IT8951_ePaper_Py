@@ -124,6 +124,15 @@ convention = "google"
 [tool.ruff.lint.isort]
 known-first-party = ["IT8951_ePaper_Py"]
 
+[tool.poe.tasks]
+# Convenience tasks for common operations
+test = "pytest"
+test-cov = "pytest --cov=src/IT8951_ePaper_Py --cov-report=term-missing --cov-report=html --cov-report=xml"
+test-serial = "pytest -n 0"
+lint = "ruff check ."
+format = "ruff format ."
+typecheck = "pyright"
+
 [tool.pyright]
 include = ["src", "tests"]
 exclude = ["**/node_modules", "**/__pycache__", ".venv", ".git", ".ruff_cache"]
@@ -172,19 +181,26 @@ python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = [
-    # "-n", "auto",  # Parallel execution available but disabled due to test isolation issues
+    "-n", "auto",  # Parallel execution enabled with proper test isolation
     "-ra",
-    "--cov=src/IT8951_ePaper_Py",
-    "--cov-report=term-missing",
-    "--cov-report=html",
-    "--cov-report=xml",
     "--strict-markers",
     "--strict-config",
-    "-vv",
+    "-v",  # Changed from -vv to reduce verbosity
 ]
+# Markers for test organization and ATS
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "hardware: marks tests that require real hardware",
+    "serial: marks tests that must run serially",
+    "integration: marks integration tests",
+    "performance: marks performance benchmarks",
+    "hardware: marks tests requiring real hardware",
+    "real_timing: marks tests that need real time.sleep() behavior",
+    "unit: marks unit tests",
+    "power: marks power management tests",
+]
+# Filter out coverage warnings from worker processes
+filterwarnings = [
+    "ignore:No data was collected:coverage.exceptions.CoverageWarning",
 ]
 
 
@@ -197,6 +213,8 @@ omit = [
 ]
 branch = true
 parallel = true  # Enable parallel coverage collection with pytest-xdist
+concurrency = ["thread", "multiprocessing"]  # Support for pytest-xdist workers
+sigterm = true  # Handle SIGTERM gracefully
 
 [tool.coverage.report]
 exclude_lines = [

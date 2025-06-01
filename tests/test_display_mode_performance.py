@@ -12,6 +12,7 @@ from IT8951_ePaper_Py.models import DisplayArea
 from IT8951_ePaper_Py.spi_interface import MockSPI
 
 
+@pytest.mark.slow
 class TestDisplayModePerformance:
     """Benchmark tests for different display modes."""
 

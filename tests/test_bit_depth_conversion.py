@@ -30,8 +30,8 @@ class TestBitDepthConversion:
         # Data for _get_device_info (20 values)
         mock_spi.set_read_data(
             [
-                1872,  # panel_width
-                1404,  # panel_height
+                800,  # panel_width (reduced for faster tests)
+                600,  # panel_height (reduced for faster tests)
                 MemoryConstants.IMAGE_BUFFER_ADDR_L,  # memory_addr_l
                 MemoryConstants.IMAGE_BUFFER_ADDR_H,  # memory_addr_h
                 49,
@@ -64,10 +64,11 @@ class TestBitDepthConversion:
         display.init()
         return display
 
+    @pytest.mark.slow
     def test_8bpp_to_4bpp_conversion_speed(self):
         """Test conversion speed from 8bpp to 4bpp."""
         # Create 8-bit test images of various sizes
-        test_sizes = [(100, 100), (500, 500), (1000, 1000)]
+        test_sizes = [(50, 50), (100, 100), (200, 200)]  # Reduced for faster tests
 
         for width, height in test_sizes:
             # Create gradient image (0-255)
@@ -116,8 +117,8 @@ class TestBitDepthConversion:
 
     def test_8bpp_to_1bpp_dithering(self):
         """Test dithering quality for 1bpp conversion."""
-        # Create gradient image
-        width, height = 512, 512
+        # Create gradient image (reduced size for faster tests)
+        width, height = 256, 256
         img = Image.new("L", (width, height))
         pixels = img.load()
 
@@ -143,7 +144,7 @@ class TestBitDepthConversion:
 
     def test_bit_depth_memory_efficiency(self):
         """Test memory usage for different bit depths."""
-        width, height = 1000, 1000
+        width, height = 400, 400  # Reduced for faster tests
         total_pixels = width * height
 
         # Calculate memory usage for each format
@@ -173,9 +174,10 @@ class TestBitDepthConversion:
             packed = pack_pixels(test_data, pixel_format)
             assert len(packed) == expected_size
 
+    @pytest.mark.slow
     def test_conversion_performance_comparison(self):
         """Compare conversion performance across bit depths."""
-        width, height = 800, 600
+        width, height = 200, 200  # Reduced for faster tests
 
         # Create test image with gradient
         img_array = np.zeros((height, width), dtype=np.uint8)

@@ -1,0 +1,219 @@
+name: CI with ATS
+
+on:
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize, reopened ]
+  
+# This workflow runs in parallel with the main CI workflow
+# It uses Codecov's Automated Test Selection to run only affected tests
+
+env:
+  PYTHON_VERSION: "3.11.12"
+
+jobs:
+  ats-test:
+    name: ATS Test Selection
+    runs-on: ubuntu-latest
+    # Only run on PRs where code has changed
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history needed for test impact analysis
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          version: latest
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+      
+      - name: Load cached venv
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-ats-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
+          restore-keys: |
+            venv-ats-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
+      
+      - name: Install dependencies
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction --no-root
+      
+      - name: Install project
+        run: poetry install --no-interaction
+      
+      - name: Install Codecov CLI
+        run: |
+          # Install the latest Codecov CLI
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          chmod +x codecov
+          sudo mv codecov /usr/local/bin/
+          
+      - name: Codecov ATS - Analyze Test Impact
+        id: ats
+        run: |
+          # Run Codecov ATS to determine which tests to run
+          echo "Running Codecov ATS analysis..."
+          
+          # Export test labels for Codecov
+          poetry run pytest --collect-only -q | grep -E "^tests/.*::.*" > test_labels.txt || true
+          
+          # Run Codecov label analysis
+          codecov label-analysis \
+            --token=${{ secrets.CODECOV_TOKEN }} \
+            --base-sha=${{ github.event.pull_request.base.sha }} \
+            --head-sha=${{ github.event.pull_request.head.sha }} \
+            --runner-name=python \
+            --labels-file=test_labels.txt \
+            --dry-run \
+            > ats_output.json || echo '{"ats_enabled": false}' > ats_output.json
+          
+          # Parse ATS results
+          if [ -f ats_output.json ]; then
+            ATS_ENABLED=$(jq -r '.ats_enabled // false' ats_output.json)
+            if [ "$ATS_ENABLED" = "true" ]; then
+              echo "ATS is enabled, extracting tests to run..."
+              jq -r '.labels_to_run[]' ats_output.json > tests_to_run.txt || echo "" > tests_to_run.txt
+              TEST_COUNT=$(wc -l < tests_to_run.txt)
+              echo "ats_enabled=true" >> $GITHUB_OUTPUT
+              echo "test_count=$TEST_COUNT" >> $GITHUB_OUTPUT
+            else
+              echo "ATS is not enabled for this run"
+              echo "ats_enabled=false" >> $GITHUB_OUTPUT
+              echo "test_count=0" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "ATS analysis failed, will run all tests"
+            echo "ats_enabled=false" >> $GITHUB_OUTPUT
+            echo "test_count=0" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Run Selected Tests (ATS Mode)
+        if: steps.ats.outputs.ats_enabled == 'true' && steps.ats.outputs.test_count != '0'
+        run: |
+          echo "## 🎯 Running ATS-selected tests (${{ steps.ats.outputs.test_count }} tests)" >> $GITHUB_STEP_SUMMARY
+          echo "Using Codecov's Automated Test Selection to run only affected tests." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Selected Tests:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat tests_to_run.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Convert test labels to pytest format
+          cat tests_to_run.txt | sed 's/::/\//g' | sed 's/^/--pyargs /' > pytest_args.txt
+          
+          # Run selected tests with coverage
+          poetry run pytest \
+            $(cat pytest_args.txt) \
+            --cov=src/IT8951_ePaper_Py \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=junit-ats.xml \
+            -o junit_family=xunit2 \
+            -v
+      
+      - name: Run All Tests (Fallback Mode)
+        if: steps.ats.outputs.ats_enabled != 'true' || steps.ats.outputs.test_count == '0'
+        run: |
+          echo "## 🔄 Running all tests (Fallback mode)" >> $GITHUB_STEP_SUMMARY
+          echo "ATS is not available or no tests were selected. Running full test suite." >> $GITHUB_STEP_SUMMARY
+          
+          # Run all tests
+          poetry run pytest \
+            --cov=src/IT8951_ePaper_Py \
+            --cov-report=xml \
+            --cov-report=term-missing \
+            --junitxml=junit-ats.xml \
+            -o junit_family=xunit2 \
+            -v
+      
+      - name: Upload ATS Coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage.xml
+          flags: ats-tests
+          name: ats-coverage
+          fail_ci_if_error: false
+      
+      - name: Upload ATS Test Results
+        if: ${{ !cancelled() }}
+        uses: codecov/test-results-action@v1
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./junit-ats.xml
+          flags: ats-tests
+          fail_ci_if_error: false
+      
+      - name: Generate ATS Performance Report
+        if: always()
+        run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ATS Performance Metrics" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f ats_output.json ] && [ "${{ steps.ats.outputs.ats_enabled }}" = "true" ]; then
+            TOTAL_TESTS=$(poetry run pytest --collect-only -q | grep -c "^tests/.*::.*" || echo "0")
+            SELECTED_TESTS=${{ steps.ats.outputs.test_count }}
+            REDUCTION=$((100 - (SELECTED_TESTS * 100 / TOTAL_TESTS)))
+            
+            echo "- Total tests in suite: $TOTAL_TESTS" >> $GITHUB_STEP_SUMMARY
+            echo "- Tests selected by ATS: $SELECTED_TESTS" >> $GITHUB_STEP_SUMMARY
+            echo "- Test reduction: ${REDUCTION}%" >> $GITHUB_STEP_SUMMARY
+            echo "- Time saved: ~${REDUCTION}% of total test time" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ATS was not used for this run." >> $GITHUB_STEP_SUMMARY
+          fi
+      
+      - name: Comment ATS Results on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let comment = '## 🎯 Codecov ATS Results\n\n';
+            
+            if ('${{ steps.ats.outputs.ats_enabled }}' === 'true') {
+              const testCount = '${{ steps.ats.outputs.test_count }}';
+              comment += `✅ **ATS enabled**: Running ${testCount} affected tests only.\n\n`;
+              comment += 'This PR affects a subset of tests. Using Automated Test Selection to save CI time.\n';
+            } else {
+              comment += '🔄 **ATS disabled**: Running full test suite.\n\n';
+              comment += 'Either this is the first run, or ATS data is not available yet.\n';
+            }
+            
+            // Find and update existing comment or create new one
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const atsComment = comments.find(comment => 
+              comment.body.includes('🎯 Codecov ATS Results') && 
+              comment.user.type === 'Bot'
+            );
+            
+            if (atsComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: atsComment.id,
+                body: comment
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: comment
+              });
+            }

@@ -127,6 +127,7 @@ class TestAlignmentEdgeCases:
         assert not valid
         assert len(errors) == 4  # 3 misaligned + 1 note for 1bpp
 
+    @pytest.mark.slow
     def test_alignment_performance_impact(self, display: EPaperDisplay, mocker: MockerFixture):
         """Test performance impact of misaligned dimensions."""
         # Mock the actual display operations to avoid hardware calls

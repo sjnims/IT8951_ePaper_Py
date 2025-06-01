@@ -46,6 +46,10 @@ flags:
     paths:
       - tests/
     carryforward: false
+  ats-tests:
+    paths:
+      - src/IT8951_ePaper_Py/
+    carryforward: true  # ATS needs carryforward for incremental coverage
 
 # Ignore certain files from coverage
 ignore:
@@ -66,3 +70,31 @@ github_checks:
 parsers:
   v1:
     include_full_missed_files: true
+
+# Automated Test Selection (ATS) configuration
+cli:
+  # Enable ATS for pull requests
+  runners:
+    python:
+      # Use pytest as the test runner
+      collect_tests_command:
+        - poetry
+        - run
+        - pytest
+        - --collect-only
+        - -q
+      # Label format for pytest
+      label_format: "::testnode"
+      # Enable test result processing
+      process_test_results: true
+      
+# ATS settings
+ats:
+  # Enable ATS by default
+  enabled: true
+  # Minimum number of commits with coverage data before ATS activates
+  min_commits: 3
+  # Maximum age of coverage data to consider (in days)
+  max_age: 30
+  # Fallback to running all tests if ATS fails
+  fallback_on_failure: true

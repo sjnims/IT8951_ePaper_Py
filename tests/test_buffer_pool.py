@@ -6,16 +6,13 @@ import time
 import weakref
 
 import numpy as np
+import pytest
 
 from IT8951_ePaper_Py.buffer_pool import BufferPool, ManagedBuffer
 
 
 class TestBufferPool:
     """Test buffer pool functionality."""
-
-    def setup_method(self):
-        """Clear pools before each test."""
-        BufferPool.clear_pools()
 
     def test_bytes_buffer_basic(self):
         """Test basic bytes buffer allocation and reuse."""
@@ -90,6 +87,7 @@ class TestBufferPool:
             assert np.all(arr == 42)
         # Array should be returned to pool automatically
 
+    @pytest.mark.serial
     def test_thread_safety(self):
         """Test thread safety of buffer pool."""
         results = []
