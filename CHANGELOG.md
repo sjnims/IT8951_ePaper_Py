@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-02-01
+
+### Added
+
+- Extended display mode support (GLR16, GLD16, DU4) for specialized use cases
+- Hardware compatibility warnings for extended modes
+- Comprehensive mode characteristics metadata for all display modes
+- Mode comparison and benchmarking example (extended_modes_demo.py)
+- Full test coverage for extended display modes
+- Pixel format compatibility validation with warnings
+- Mode selection decision tree in documentation
+
+### Changed
+
+- Enhanced display mode documentation with extended mode details
+- Updated ROADMAP.md to mark Phase 7 as complete
+
+### Fixed
+
+- Test assertion for pixel format warning messages
+
 ## [0.6.0] - 2025-01-31
 
 ### Added
@@ -148,7 +169,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type hints throughout codebase
 - Modern Python 3.11+ support
 
-[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.3.1...v0.4.0
