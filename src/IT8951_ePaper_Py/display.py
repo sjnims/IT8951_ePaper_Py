@@ -24,7 +24,7 @@ Examples:
 
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, BinaryIO
+from typing import TYPE_CHECKING, Any, BinaryIO
 
 import numpy as np
 from PIL import Image
@@ -381,37 +381,46 @@ class EPaperDisplay:
             # Unknown mode - let hardware handle it
             return
 
+        self._check_recommended_bpp(mode_info, pixel_format)
+        self._check_hardware_support(mode_info)
+
+    def _check_recommended_bpp(self, mode_info: dict[str, Any], pixel_format: PixelFormat) -> None:
+        """Check if pixel format is recommended for the display mode."""
         recommended_bpp = mode_info.get("recommended_bpp", [])
-        if (
-            isinstance(recommended_bpp, list)
-            and recommended_bpp
-            and pixel_format.value not in recommended_bpp
-        ):
-            import warnings
+        if not recommended_bpp:
+            return
 
-            # Convert enum value to actual bits per pixel
-            bpp_mapping = {0: 1, 1: 2, 2: 4, 3: 8}
-            current_bpp = bpp_mapping.get(pixel_format.value, 8)
-            bpp_list = [f"{bpp_mapping.get(b, 8)}bpp" for b in recommended_bpp]
-            warnings.warn(
-                f"Display mode {mode_info['name']} works best with "
-                f"{bpp_list} formats, "
-                f"but {current_bpp}bpp was selected. "
-                f"Consider changing pixel format for optimal results.",
-                UserWarning,
-                stacklevel=4,
-            )
+        if pixel_format.value in recommended_bpp:
+            return
 
-        # Check hardware support warning for extended modes
-        if mode_info.get("hardware_support") == "varies":
-            import warnings
+        import warnings
 
-            warnings.warn(
-                f"Display mode {mode_info['name']} is an extended mode that may not be "
-                f"supported by all IT8951 hardware variants. Test carefully on your device.",
-                UserWarning,
-                stacklevel=4,
-            )
+        # Convert enum value to actual bits per pixel
+        bpp_mapping = {0: 1, 1: 2, 2: 4, 3: 8}
+        current_bpp = bpp_mapping.get(pixel_format.value, 8)
+        bpp_list = [f"{bpp_mapping.get(int(b), 8)}bpp" for b in recommended_bpp]
+        warnings.warn(
+            f"Display mode {mode_info['name']} works best with "
+            f"{bpp_list} formats, "
+            f"but {current_bpp}bpp was selected. "
+            f"Consider changing pixel format for optimal results.",
+            UserWarning,
+            stacklevel=5,
+        )
+
+    def _check_hardware_support(self, mode_info: dict[str, Any]) -> None:
+        """Check hardware support warning for extended modes."""
+        if mode_info.get("hardware_support") != "varies":
+            return
+
+        import warnings
+
+        warnings.warn(
+            f"Display mode {mode_info['name']} is an extended mode that may not be "
+            f"supported by all IT8951 hardware variants. Test carefully on your device.",
+            UserWarning,
+            stacklevel=5,
+        )
 
     def _track_a2_refresh(self, mode: DisplayMode) -> None:
         """Track A2 mode refreshes and handle auto-clearing.
@@ -556,86 +565,123 @@ class EPaperDisplay:
         bounds = Bounds(width=self._width, height=self._height)
         validate_rectangle(rect, bounds)
 
-        # Align chunk height to pixel format requirements
-        if pixel_format == PixelFormat.BPP_1:
-            # 1bpp requires 32-pixel alignment
-            chunk_height = (chunk_height // 32) * 32
-            if chunk_height == 0:
-                chunk_height = 32
-        else:
-            # Other formats use 4-pixel alignment
-            chunk_height = (chunk_height // 4) * 4
-            if chunk_height == 0:
-                chunk_height = 4
+        # Align chunk height
+        aligned_chunk_height = self._get_aligned_chunk_height(chunk_height, pixel_format)
 
         # Process image in chunks
+        self._process_image_chunks(img, x, y, mode, pixel_format, aligned_chunk_height)
+
+        # Track A2 refreshes (only once for the entire progressive operation)
+        self._track_a2_refresh(mode)
+
+    def _get_aligned_chunk_height(self, chunk_height: int, pixel_format: PixelFormat) -> int:
+        """Get chunk height aligned to pixel format requirements."""
+        if pixel_format == PixelFormat.BPP_1:
+            # 1bpp requires 32-pixel alignment
+            aligned = (chunk_height // 32) * 32
+            return 32 if aligned == 0 else aligned
+        # Other formats use 4-pixel alignment
+        aligned = (chunk_height // 4) * 4
+        return 4 if aligned == 0 else aligned
+
+    def _process_image_chunks(  # noqa: PLR0913
+        self,
+        img: Image.Image,
+        x: int,
+        y: int,
+        mode: DisplayMode,
+        pixel_format: PixelFormat,
+        chunk_height: int,
+    ) -> None:
+        """Process and display image in chunks."""
         remaining_height = img.height
         current_y = 0
 
         while remaining_height > 0:
-            # Calculate chunk dimensions
             this_chunk_height = min(chunk_height, remaining_height)
-
-            # Align chunk dimensions
-            aligned_chunk_height = align_dimension(this_chunk_height, pixel_format)
-
-            # Extract chunk from image
-            chunk_box = (0, current_y, img.width, current_y + this_chunk_height)
-            chunk = img.crop(chunk_box)
-
-            # Resize chunk if alignment required it
-            if aligned_chunk_height != this_chunk_height:
-                chunk = chunk.resize((img.width, aligned_chunk_height), Image.Resampling.LANCZOS)
-
-            # Display this chunk
-            chunk_x = x
-            chunk_y = y + current_y
-
-            # Validate and align chunk parameters
-            aligned_x = align_coordinate(chunk_x, pixel_format)
-            aligned_y = align_coordinate(chunk_y, pixel_format)
-            aligned_width = align_dimension(chunk.width, pixel_format)
-
-            # Get pixel data and pack
-            data_8bpp = chunk.tobytes()
-            packed_data = self._controller.pack_pixels(data_8bpp, pixel_format)
-
-            # Load chunk to controller memory
-            info = LoadImageInfo(
-                source_buffer=packed_data,
-                target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
-                pixel_format=pixel_format,
-                rotate=Rotation.ROTATE_0,  # Rotation already applied to full image
+            self._display_chunk(
+                img, x, y + current_y, current_y, this_chunk_height, mode, pixel_format
             )
-
-            area_info = AreaImageInfo(
-                area_x=aligned_x,
-                area_y=aligned_y,
-                area_w=aligned_width,
-                area_h=aligned_chunk_height,
-            )
-
-            self._controller.load_image_area_start(info, area_info)
-            self._controller.load_image_write(packed_data)
-            self._controller.load_image_end()
-
-            # Display this chunk
-            display_area = DisplayArea(
-                x=aligned_x,
-                y=aligned_y,
-                width=aligned_width,
-                height=aligned_chunk_height,
-                mode=mode,
-            )
-
-            self._controller.display_area(display_area, wait=True)
-
-            # Move to next chunk
             current_y += this_chunk_height
             remaining_height -= this_chunk_height
 
-        # Track A2 refreshes (only once for the entire progressive operation)
-        self._track_a2_refresh(mode)
+    def _display_chunk(  # noqa: PLR0913
+        self,
+        img: Image.Image,
+        x: int,
+        y: int,
+        source_y: int,
+        chunk_height: int,
+        mode: DisplayMode,
+        pixel_format: PixelFormat,
+    ) -> None:
+        """Display a single chunk of the image."""
+        # Align chunk dimensions
+        aligned_chunk_height = align_dimension(chunk_height, pixel_format)
+
+        # Extract and prepare chunk
+        chunk = self._extract_chunk(img, source_y, chunk_height, aligned_chunk_height)
+
+        # Align coordinates
+        aligned_x = align_coordinate(x, pixel_format)
+        aligned_y = align_coordinate(y, pixel_format)
+        aligned_width = align_dimension(chunk.width, pixel_format)
+
+        # Pack and load chunk
+        packed_data = self._controller.pack_pixels(chunk.tobytes(), pixel_format)
+        self._load_chunk_to_memory(
+            packed_data, aligned_x, aligned_y, aligned_width, aligned_chunk_height, pixel_format
+        )
+
+        # Display chunk
+        display_area = DisplayArea(
+            x=aligned_x,
+            y=aligned_y,
+            width=aligned_width,
+            height=aligned_chunk_height,
+            mode=mode,
+        )
+        self._controller.display_area(display_area, wait=True)
+
+    def _extract_chunk(
+        self, img: Image.Image, source_y: int, chunk_height: int, aligned_height: int
+    ) -> Image.Image:
+        """Extract and resize chunk from image if needed."""
+        chunk_box = (0, source_y, img.width, source_y + chunk_height)
+        chunk = img.crop(chunk_box)
+
+        if aligned_height != chunk_height:
+            chunk = chunk.resize((img.width, aligned_height), Image.Resampling.LANCZOS)
+
+        return chunk
+
+    def _load_chunk_to_memory(  # noqa: PLR0913
+        self,
+        packed_data: bytes,
+        x: int,
+        y: int,
+        width: int,
+        height: int,
+        pixel_format: PixelFormat,
+    ) -> None:
+        """Load image chunk to controller memory."""
+        info = LoadImageInfo(
+            source_buffer=packed_data,
+            target_memory_addr=MemoryConstants.IMAGE_BUFFER_ADDR,
+            pixel_format=pixel_format,
+            rotate=Rotation.ROTATE_0,  # Rotation already applied
+        )
+
+        area_info = AreaImageInfo(
+            area_x=x,
+            area_y=y,
+            area_w=width,
+            area_h=height,
+        )
+
+        self._controller.load_image_area_start(info, area_info)
+        self._controller.load_image_write(packed_data)
+        self._controller.load_image_end()
 
     @timed_operation("display_partial")
     def display_partial(

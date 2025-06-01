@@ -185,7 +185,14 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "-v",  # Changed from -vv to reduce verbosity
+    "-vv",  # Restored verbose output
+    "--maxfail=3",  # Stop after 3 failures
+    "--tb=short",  # Shorter traceback format
+    "--dist=loadgroup",  # Group tests by module for better performance
+    "--cov=src/IT8951_ePaper_Py",  # Coverage collection
+    "--cov-report=term-missing",  # Show missing lines in terminal
+    "--cov-report=html",  # Generate HTML report
+    "--cov-report=xml",  # Generate XML for CI tools
 ]
 # Markers for test organization and ATS
 markers = [
@@ -202,6 +209,9 @@ markers = [
 filterwarnings = [
     "ignore:No data was collected:coverage.exceptions.CoverageWarning",
 ]
+# Test execution optimizations
+junit_family = "xunit2"
+cache_dir = ".pytest_cache"
 
 
 [tool.coverage.run]

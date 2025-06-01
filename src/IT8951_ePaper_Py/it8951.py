@@ -446,21 +446,28 @@ class IT8951:
         Raises:
             InvalidParameterError: If pixel format is not supported.
         """
-        # Use numpy-optimized version for numpy arrays or large byte arrays
-        use_numpy = isinstance(pixels, np.ndarray)
-        if not use_numpy and len(pixels) > 10000:
-            use_numpy = True
-
-        if use_numpy:
+        # Determine if we should use numpy optimization
+        if IT8951._should_use_numpy(pixels):
             # Import here to avoid circular dependency
             from IT8951_ePaper_Py.pixel_packing import pack_pixels_numpy
 
             return pack_pixels_numpy(pixels, pixel_format)
 
+        # Use standard byte packing
+        return IT8951._pack_pixels_standard(pixels, pixel_format)
+
+    @staticmethod
+    def _should_use_numpy(pixels: bytes | NumpyArray) -> bool:
+        """Determine if numpy optimization should be used."""
+        return isinstance(pixels, np.ndarray) or len(pixels) > 10000
+
+    @staticmethod
+    def _pack_pixels_standard(pixels: bytes | NumpyArray, pixel_format: PixelFormat) -> bytes:
+        """Pack pixels using standard byte operations."""
         # Ensure we have bytes for the original packers
         pixel_bytes = pixels.tobytes() if isinstance(pixels, np.ndarray) else pixels
 
-        # Use dictionary dispatch for cleaner code and lower complexity
+        # Use dictionary dispatch for cleaner code
         packers = {
             PixelFormat.BPP_8: IT8951._pack_8bpp,
             PixelFormat.BPP_4: IT8951._pack_4bpp,

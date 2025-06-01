@@ -15,6 +15,8 @@ The alignment ensures efficient memory access and prevents display corruption
 that can occur when data boundaries don't match hardware expectations.
 """
 
+from collections.abc import Callable
+
 from IT8951_ePaper_Py.constants import DisplayConstants, PixelFormat
 
 
@@ -187,11 +189,23 @@ def validate_alignment(
         providing a complete list of issues rather than stopping at the
         first problem.
     """
-    warnings: list[str] = []
-
     if pixel_format is None:
         pixel_format = PixelFormat.BPP_4
 
+    warnings = _check_parameter_alignment(x, y, width, height, pixel_format)
+
+    # Add special warning for 1bpp if there are alignment issues
+    if pixel_format == PixelFormat.BPP_1 and warnings:
+        warnings.insert(0, _get_1bpp_warning())
+
+    return (len(warnings) == 0, warnings)
+
+
+def _check_parameter_alignment(
+    x: int, y: int, width: int, height: int, pixel_format: PixelFormat
+) -> list[str]:
+    """Check alignment for all parameters and return warnings."""
+    warnings: list[str] = []
     alignment = get_alignment_boundary(pixel_format)
     alignment_desc = get_alignment_description(pixel_format)
 
@@ -204,19 +218,37 @@ def validate_alignment(
     ]
 
     for param_name, value, align_func in params:
-        if value % alignment != 0:
-            aligned_value = align_func(value, pixel_format)
-            warnings.append(
-                f"{param_name} {value} not aligned to {alignment_desc} boundary. "
-                f"Will be adjusted to {aligned_value}"
-            )
-
-    # Special warning for 1bpp
-    if pixel_format == PixelFormat.BPP_1 and warnings:
-        warnings.insert(
-            0,
-            "Note: 1bpp mode requires strict 32-pixel alignment on some models. "
-            "Image may be cropped or padded to meet requirements.",
+        warning = _check_single_parameter(
+            param_name, value, align_func, pixel_format, alignment, alignment_desc
         )
+        if warning:
+            warnings.append(warning)
 
-    return (len(warnings) == 0, warnings)
+    return warnings
+
+
+def _check_single_parameter(  # noqa: PLR0913
+    param_name: str,
+    value: int,
+    align_func: Callable[[int, PixelFormat], int],
+    pixel_format: PixelFormat,
+    alignment: int,
+    alignment_desc: str,
+) -> str | None:
+    """Check a single parameter alignment and return warning if needed."""
+    if value % alignment == 0:
+        return None
+
+    aligned_value = align_func(value, pixel_format)
+    return (
+        f"{param_name} {value} not aligned to {alignment_desc} boundary. "
+        f"Will be adjusted to {aligned_value}"
+    )
+
+
+def _get_1bpp_warning() -> str:
+    """Get the special warning message for 1bpp mode."""
+    return (
+        "Note: 1bpp mode requires strict 32-pixel alignment on some models. "
+        "Image may be cropped or padded to meet requirements."
+    )
