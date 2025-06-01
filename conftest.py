@@ -4,7 +4,7 @@ This file provides shared fixtures and configuration for the test suite.
 """
 
 from collections.abc import Generator
-from typing import Any
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
@@ -67,7 +67,7 @@ def pytest_configure(config: pytest.Config) -> None:
 
 
 # Configure pytest-xdist for proper test distribution
-def pytest_xdist_make_scheduler(config: pytest.Config, log: Any) -> Any:  # noqa: ANN401
+def pytest_xdist_make_scheduler(config: pytest.Config, log: object | None) -> None:
     """Configure xdist scheduler for optimal test distribution.
 
     Tests marked with @pytest.mark.serial will run in a single worker.
@@ -83,7 +83,6 @@ def pytest_xdist_make_scheduler(config: pytest.Config, log: Any) -> Any:  # noqa
     # The SerialScheduler was causing isinstance() errors during session teardown
     # Tests marked with @pytest.mark.serial can still be handled by configuring
     # pytest-xdist with appropriate options if needed
-    return None
 
 
 # =============================================================================
@@ -179,7 +178,7 @@ def test_array_100x100() -> NDArray[np.uint8]:
 
 
 @pytest.fixture
-def mock_controller_methods(mocker: MockerFixture) -> dict[str, Any]:
+def mock_controller_methods(mocker: MockerFixture) -> dict[str, Mock]:
     """Common controller method mocks."""
     return {
         "pack_pixels": mocker.Mock(return_value=b"\x00" * 1000),
@@ -250,7 +249,7 @@ def instant_timing(mocker: MockerFixture) -> None:
 
 
 @pytest.fixture
-def mock_hardware_timing(mocker: MockerFixture) -> dict[str, Any]:
+def mock_hardware_timing(mocker: MockerFixture) -> dict[str, float]:
     """Mock hardware-specific timing constants for faster tests."""
     from IT8951_ePaper_Py.constants import TimingConstants
 
@@ -374,14 +373,14 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
                         item.user_properties.append(("ats_label", test_label))
 
 
-def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None) -> Any:  # noqa: ANN401
+def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None) -> None:
     """Hook for ATS to track test execution and coverage mapping.
 
     This allows ATS to build a map of which tests cover which source files.
     """
     # Let the test run normally - ATS will use coverage data
     # to determine test impact
-    return None  # Use default protocol
+    # Use default protocol
 
 
 def pytest_report_header(config: pytest.Config) -> list[str]:
