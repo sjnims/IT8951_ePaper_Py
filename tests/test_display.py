@@ -1156,8 +1156,11 @@ class TestA2ModeAutoClearing:
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
             display.display_image(img, mode=DisplayMode.A2)
-            assert len(w) == 1  # Warning should trigger at limit-1
-            assert "approaching limit" in str(w[0].message)
+            assert len(w) == 2  # Two warnings: pixel format and approaching limit
+            # Check for both warnings
+            warning_messages = [str(warn.message) for warn in w]
+            assert any("works best with" in msg for msg in warning_messages)  # Pixel format warning
+            assert any("approaching limit" in msg for msg in warning_messages)  # A2 limit warning
             assert display.a2_refresh_count == 1
 
         # Second A2 refresh (count becomes 2, should trigger auto-clear)

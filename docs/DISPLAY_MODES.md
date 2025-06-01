@@ -40,33 +40,54 @@ This guide explains all display modes supported by the IT8951 controller, includ
 - **Characteristics**: Fastest mode but accumulates ghosting
 - **Important**: Use with auto-clear feature to prevent ghost buildup
 
-## Extended Display Modes
+## Extended Display Modes (v0.7.0)
 
-These modes are defined in the IT8951 specification but are scheduled for testing in Phase 6 of the roadmap.
+These extended modes are now implemented and available for use. Hardware support may vary by display model.
 
-### GLR16 (Grayscale Light Reduction 16, Mode 5)
+### GLR16 (Ghost Reduction 16-level, Mode 5)
 
-- **Purpose**: Ghost reduction variant of GL16
-- **Expected Update Time**: ~450-500ms
-- **Use Cases**: When GL16 leaves too much ghosting
-- **Characteristics**: Enhanced ghost clearing algorithm
-- **Status**: Defined but not yet tested/documented
+- **Purpose**: Enhanced ghost reduction for 16-level grayscale
+- **Update Time**: ~500-600ms (slightly slower than GL16)
+- **Use Cases**:
+  - When standard GL16 leaves visible ghosting
+  - High-contrast images that cause ghosting
+  - Periodic refresh to clean up accumulated artifacts
+- **Characteristics**:
+  - Uses additional voltage passes to reduce ghosting
+  - 16 grayscale levels maintained
+  - Better transition between high-contrast areas
+- **Recommended Pixel Format**: 4bpp or 8bpp
+- **Note**: May not be supported on all IT8951 variants
 
-### GLD16 (Grayscale Light Delta 16, Mode 6)
+### GLD16 (Ghost Level Detection 16, Mode 6)
 
-- **Purpose**: Optimized for partial updates
-- **Expected Update Time**: ~400-450ms
-- **Use Cases**: Updating regions with minimal change
-- **Characteristics**: Delta-based update algorithm
-- **Status**: Defined but not yet tested/documented
+- **Purpose**: Adaptive ghost compensation with analysis
+- **Update Time**: ~500-700ms (varies based on content)
+- **Use Cases**:
+  - Complex images with mixed content
+  - When ghosting patterns are unpredictable
+  - Fine art or detailed grayscale images
+- **Characteristics**:
+  - Analyzes display state before updating
+  - Applies adaptive compensation based on detected ghosting
+  - May perform pre-compensation passes
+- **Recommended Pixel Format**: 4bpp or 8bpp
+- **Note**: Most advanced mode, hardware support varies
 
 ### DU4 (Direct Update 4-level, Mode 7)
 
-- **Purpose**: Fast 4-level grayscale updates
-- **Expected Update Time**: ~300ms
-- **Use Cases**: Simple graphics with limited gray levels
-- **Characteristics**: Faster than full grayscale, more levels than DU
-- **Status**: Defined but not yet tested/documented
+- **Purpose**: Fast updates with 4 grayscale levels
+- **Update Time**: ~180-250ms
+- **Use Cases**:
+  - Simple graphics with limited shading
+  - UI elements with 2-4 gray levels
+  - Faster alternative to full 16-level modes
+- **Characteristics**:
+  - Only 4 distinct gray levels (0, 85, 170, 255)
+  - Faster than GC16/GL16 but more levels than DU/A2
+  - Some ghosting possible with repeated use
+- **Recommended Pixel Format**: 2bpp or 4bpp
+- **Note**: Good balance between speed and grayscale capability
 
 ## Mode Selection Guide
 
@@ -77,20 +98,30 @@ Is this the first display after power on?
 └─ Yes → Use INIT
 
 Is the content binary (pure black/white)?
-├─ Yes → Need speed?
+├─ Yes → Need ultra-fast speed?
 │        ├─ Yes → Use A2 (with auto-clear)
 │        └─ No → Use DU
 └─ No → Continue...
 
+How many grayscale levels needed?
+├─ 4 levels → Use DU4 (fast with basic shading)
+└─ 16 levels → Continue...
+
+Is ghosting a major concern?
+├─ Yes → Need adaptive compensation?
+│        ├─ Yes → Use GLD16
+│        └─ No → Use GLR16
+└─ No → Continue...
+
 Is this a photo or detailed image?
-├─ Yes → Use GC16
+├─ Yes → Use GC16 (highest quality)
 └─ No → Use GL16 (general purpose)
 ```
 
 ### Code Examples
 
 ```python
-from IT8951_ePaper_Py import EPaperDisplay, DisplayMode
+from IT8951_ePaper_Py import EPaperDisplay, DisplayMode, PixelFormat
 
 # Initialize and clear
 display = EPaperDisplay(vcom=-2.0)
@@ -107,17 +138,32 @@ display.display_image(photo, mode=DisplayMode.GC16)
 display = EPaperDisplay(vcom=-2.0, a2_refresh_limit=10)
 for frame in animation_frames:
     display.display_image(frame, mode=DisplayMode.A2)
+
+# Extended modes examples
+
+# Ghost reduction for high-contrast content
+display.display_image(high_contrast_img, mode=DisplayMode.GLR16)
+
+# Adaptive ghost compensation for complex images
+display.display_image(complex_artwork, mode=DisplayMode.GLD16)
+
+# Fast 4-level grayscale for UI elements
+display.display_image(ui_element, mode=DisplayMode.DU4,
+                     pixel_format=PixelFormat.BPP_2)
 ```
 
 ## Performance Characteristics
 
-| Mode | Speed | Quality | Ghosting | Power |
-|------|-------|---------|----------|--------|
-| INIT | Slowest | N/A | None | Highest |
-| DU | Fast | Binary | Low | Low |
-| GC16 | Medium | Best | None | Medium |
-| GL16 | Medium | Good | Low | Medium |
-| A2 | Fastest | Binary | High* | Lowest |
+| Mode | Speed | Quality | Ghosting | Power | Gray Levels |
+|------|-------|---------|----------|--------|-------------|
+| INIT | Slowest | N/A | None | Highest | 1 |
+| DU | Fast | Binary | Low | Low | 2 |
+| GC16 | Medium | Best | Minimal | Medium | 16 |
+| GL16 | Medium | Good | Low | Medium | 16 |
+| A2 | Fastest | Binary | High* | Lowest | 2 |
+| GLR16 | Slow | Good | Very Low | Medium-High | 16 |
+| GLD16 | Slow | Good | Adaptive | Medium-High | 16 |
+| DU4 | Fast | Limited | Medium | Low-Medium | 4 |
 
 *Without auto-clear
 
@@ -148,14 +194,26 @@ Not all modes may be available on all displays. The availability depends on:
 - Firmware version
 - Loaded waveform data
 
-## Future Enhancements
+## Hardware Compatibility
 
-The extended modes (GLR16, GLD16, DU4) are scheduled for:
+### Extended Mode Support
 
-- Testing and validation (Phase 6.1)
-- Performance benchmarking
-- Use case documentation
-- Example code creation
+The extended modes (GLR16, GLD16, DU4) availability depends on:
+
+- IT8951 firmware version
+- E-paper panel model and manufacturer
+- Loaded waveform data
+
+To check if your hardware supports these modes:
+
+```python
+# The driver will warn if a mode is not supported
+# when you try to use it
+try:
+    display.display_image(img, mode=DisplayMode.GLR16)
+except Exception as e:
+    print(f"GLR16 not supported: {e}")
+```
 
 ## Best Practices
 
@@ -170,15 +228,17 @@ The extended modes (GLR16, GLD16, DU4) are scheduled for:
 ```python
 from IT8951_ePaper_Py.constants import DisplayMode
 
-# Available modes
-DisplayMode.INIT   # 0
-DisplayMode.DU     # 1
-DisplayMode.GC16   # 2
-DisplayMode.GL16   # 3
-DisplayMode.A2     # 4
-DisplayMode.GLR16  # 5 (future)
-DisplayMode.GLD16  # 6 (future)
-DisplayMode.DU4    # 7 (future)
+# Standard modes (always available)
+DisplayMode.INIT   # 0 - Full refresh/clear
+DisplayMode.DU     # 1 - Direct Update (2-level)
+DisplayMode.GC16   # 2 - Grayscale Clear 16
+DisplayMode.GL16   # 3 - Grayscale Light 16
+DisplayMode.A2     # 4 - Animation (2-level, fastest)
+
+# Extended modes (v0.7.0, hardware support varies)
+DisplayMode.GLR16  # 5 - Ghost Reduction 16-level
+DisplayMode.GLD16  # 6 - Ghost Level Detection 16
+DisplayMode.DU4    # 7 - Direct Update 4-level
 ```
 
 ## References

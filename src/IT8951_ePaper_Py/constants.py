@@ -62,16 +62,104 @@ class Register(IntEnum):
 
 
 class DisplayMode(IntEnum):
-    """Display update modes."""
+    """Display update modes.
+
+    The IT8951 controller supports various display modes optimized for different
+    use cases. Each mode offers different trade-offs between speed, quality, and
+    ghosting reduction.
+    """
 
     INIT = 0  # Initialize display (full refresh, clears ghosting)
     DU = 1  # Direct Update (fast, 2-level, may show artifacts)
     GC16 = 2  # Grayscale Clear 16 (high quality, 16-level, slower)
     GL16 = 3  # Grayscale Light 16 (faster than GC16, slight quality reduction)
     A2 = 4  # Animation mode (very fast, 2-level, for rapid updates)
-    GLR16 = 5  # Ghost reduction 16-level (scheduled for v0.6.0)
-    GLD16 = 6  # Ghost level detection 16 (scheduled for v0.6.0)
-    DU4 = 7  # Direct update 4-level (scheduled for v0.6.0)
+    GLR16 = 5  # Ghost reduction 16-level (v0.7.0 - reduces ghosting artifacts)
+    GLD16 = 6  # Ghost level detection 16 (v0.7.0 - adaptive ghost compensation)
+    DU4 = 7  # Direct update 4-level (v0.7.0 - fast 4-grayscale mode)
+
+
+class DisplayModeCharacteristics:
+    """Characteristics of each display mode for validation and optimization."""
+
+    MODE_INFO: ClassVar[dict[DisplayMode, dict[str, str | int | list[int]]]] = {
+        DisplayMode.INIT: {
+            "name": "INIT",
+            "grayscale_levels": 1,
+            "speed": "slow",
+            "quality": "N/A",
+            "use_case": "Clear display, remove ghosting",
+            "ghosting": "removes",
+            "recommended_bpp": [0, 1, 2, 3],  # All formats supported
+        },
+        DisplayMode.DU: {
+            "name": "DU",
+            "grayscale_levels": 2,
+            "speed": "fast",
+            "quality": "low",
+            "use_case": "Text, simple graphics",
+            "ghosting": "high",
+            "recommended_bpp": [0, 1],  # Best with 1bpp or 2bpp
+        },
+        DisplayMode.GC16: {
+            "name": "GC16",
+            "grayscale_levels": 16,
+            "speed": "slowest",
+            "quality": "highest",
+            "use_case": "Photos, detailed images",
+            "ghosting": "low",
+            "recommended_bpp": [2, 3],  # Best with 4bpp or 8bpp
+        },
+        DisplayMode.GL16: {
+            "name": "GL16",
+            "grayscale_levels": 16,
+            "speed": "medium",
+            "quality": "high",
+            "use_case": "General purpose",
+            "ghosting": "medium",
+            "recommended_bpp": [2, 3],  # Best with 4bpp or 8bpp
+        },
+        DisplayMode.A2: {
+            "name": "A2",
+            "grayscale_levels": 2,
+            "speed": "fastest",
+            "quality": "lowest",
+            "use_case": "Animations, rapid updates",
+            "ghosting": "very high",
+            "recommended_bpp": [0],  # Best with 1bpp
+            "warning": "Use INIT mode periodically to clear ghosting",
+        },
+        DisplayMode.GLR16: {
+            "name": "GLR16",
+            "grayscale_levels": 16,
+            "speed": "slow",
+            "quality": "high",
+            "use_case": "When ghosting reduction is critical",
+            "ghosting": "very low",
+            "recommended_bpp": [2, 3],  # Best with 4bpp or 8bpp
+            "hardware_support": "varies",
+        },
+        DisplayMode.GLD16: {
+            "name": "GLD16",
+            "grayscale_levels": 16,
+            "speed": "slow",
+            "quality": "high",
+            "use_case": "Adaptive ghosting compensation",
+            "ghosting": "adaptive",
+            "recommended_bpp": [2, 3],  # Best with 4bpp or 8bpp
+            "hardware_support": "varies",
+        },
+        DisplayMode.DU4: {
+            "name": "DU4",
+            "grayscale_levels": 4,
+            "speed": "fast",
+            "quality": "medium",
+            "use_case": "Simple graphics with some shading",
+            "ghosting": "medium-high",
+            "recommended_bpp": [1, 2],  # Best with 2bpp or 4bpp
+            "hardware_support": "varies",
+        },
+    }
 
 
 class PixelFormat(IntEnum):

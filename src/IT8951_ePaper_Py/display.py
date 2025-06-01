@@ -51,6 +51,7 @@ from IT8951_ePaper_Py.command_utils import (
 from IT8951_ePaper_Py.constants import (
     DisplayConstants,
     DisplayMode,
+    DisplayModeCharacteristics,
     MemoryConstants,
     PixelFormat,
     PowerState,
@@ -365,6 +366,53 @@ class EPaperDisplay:
             return (pixels + 7) // 8  # 8 pixels per byte
         return pixels  # Default to worst case
 
+    def _validate_mode_pixel_format(self, mode: DisplayMode, pixel_format: PixelFormat) -> None:
+        """Validate compatibility between display mode and pixel format.
+
+        Args:
+            mode: Display mode to use.
+            pixel_format: Pixel format to use.
+
+        Raises:
+            InvalidParameterError: If mode/format combination is invalid.
+        """
+        mode_info = DisplayModeCharacteristics.MODE_INFO.get(mode)
+        if not mode_info:
+            # Unknown mode - let hardware handle it
+            return
+
+        recommended_bpp = mode_info.get("recommended_bpp", [])
+        if (
+            isinstance(recommended_bpp, list)
+            and recommended_bpp
+            and pixel_format.value not in recommended_bpp
+        ):
+            import warnings
+
+            # Convert enum value to actual bits per pixel
+            bpp_mapping = {0: 1, 1: 2, 2: 4, 3: 8}
+            current_bpp = bpp_mapping.get(pixel_format.value, 8)
+            bpp_list = [f"{bpp_mapping.get(b, 8)}bpp" for b in recommended_bpp]
+            warnings.warn(
+                f"Display mode {mode_info['name']} works best with "
+                f"{bpp_list} formats, "
+                f"but {current_bpp}bpp was selected. "
+                f"Consider changing pixel format for optimal results.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+        # Check hardware support warning for extended modes
+        if mode_info.get("hardware_support") == "varies":
+            import warnings
+
+            warnings.warn(
+                f"Display mode {mode_info['name']} is an extended mode that may not be "
+                f"supported by all IT8951 hardware variants. Test carefully on your device.",
+                UserWarning,
+                stacklevel=4,
+            )
+
     def _track_a2_refresh(self, mode: DisplayMode) -> None:
         """Track A2 mode refreshes and handle auto-clearing.
 
@@ -416,6 +464,9 @@ class EPaperDisplay:
         self._ensure_initialized()
         self.check_auto_sleep()
         self._update_activity_time()
+
+        # Validate mode and pixel format compatibility
+        self._validate_mode_pixel_format(mode, pixel_format)
 
         # Load and prepare image
         img = self._load_image(image)
