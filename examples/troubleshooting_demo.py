@@ -316,9 +316,7 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     print("\nThis demo helps diagnose common issues.")
 
     try:
-        display = EPaperDisplay(vcom=args.vcom)
-
-        try:
+        with EPaperDisplay(vcom=args.vcom) as display:
             # Initialize display
             width, height = display.init()
             print(f"\nDisplay initialized: {width}x{height}")
@@ -372,9 +370,6 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
 
                     if choice != "0":
                         input("\nPress Enter to continue...")
-
-        finally:
-            display.close()
 
         print("\nDiagnostics completed!")
 
