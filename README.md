@@ -9,6 +9,8 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
+**New in v0.8.0:** Enhanced developer experience with comprehensive examples for battery-powered applications and troubleshooting, plus expanded test suites with performance benchmarks for all critical operations.
+
 ## Features
 
 ### What Sets This Driver Apart
@@ -19,6 +21,8 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - **🛡️ Memory Safety** - Progressive loading for large images with automatic memory warnings
 - **🧪 Development-Friendly** - 98%+ test coverage, type hints, and mock SPI for testing without hardware
 - **⚡ Production-Ready** - Auto-alignment, VCOM calibration, A2 ghosting prevention, and comprehensive error handling
+- **📊 Performance Testing** - Built-in benchmarks for pixel packing, display operations, and memory usage
+- **🔍 Troubleshooting Tools** - Interactive diagnostics, register dumps, and guided problem resolution
 
 ## Requirements
 
@@ -196,6 +200,20 @@ python examples/binary_1bpp_demo.py
 python examples/progressive_loading_demo.py
 ```
 
+### Battery-Powered Applications
+
+```python
+# Comprehensive battery-powered device example
+python examples/battery_powered_demo.py
+```
+
+### Troubleshooting
+
+```python
+# Interactive troubleshooting guide with diagnostics
+python examples/troubleshooting_demo.py
+```
+
 See all examples in the [`examples/`](examples/) directory.
 
 ## Architecture
@@ -238,10 +256,10 @@ If you need to use the display from multiple threads:
   ```python
   import threading
   from IT8951_ePaper_Py import EPaperDisplay
-  
+
   display = EPaperDisplay(vcom=-2.0)
   display_lock = threading.Lock()
-  
+
   # In each thread:
   with display_lock:
       display.display_image(image)
@@ -310,7 +328,24 @@ poetry run pytest --cov
 # Run specific test file
 poetry run pytest tests/test_display.py
 
+# Run performance benchmarks
+poetry run pytest tests/test_performance.py -v
+
+# Run numpy pixel packing benchmarks
+poetry run pytest tests/test_numpy_pixel_packing.py -v
+
+# Run with detailed timing information
+poetry run pytest --durations=10
 ```
+
+The test suite includes:
+
+- **Unit tests** for all modules with 98%+ coverage
+- **Performance benchmarks** for critical operations
+- **Pixel packing tests** for all bit depths (1bpp, 2bpp, 4bpp, 8bpp)
+- **Power management tests** for battery optimization
+- **Alignment tests** for edge cases and hardware requirements
+- **Extended display mode tests** for GLR16, GLD16, and DU4 modes
 
 ### Project Structure
 
@@ -346,7 +381,7 @@ IT8951_ePaper_Py/
 
 ## Roadmap
 
-See our [Development Roadmap](ROADMAP.md) for completed and planned features.
+See our [Development Roadmap](ROADMAP.md) for completed and planned features. **Phase 8 (v0.8.0) is now complete**, featuring enhanced developer experience with new examples and comprehensive test suites.
 
 ## Contributing
 
@@ -371,14 +406,15 @@ Contributions are welcome! Please:
 This project uses GitHub Actions for continuous integration:
 
 - **Linting**: ruff (linting + formatting), pyright
-- **Testing**: pytest with coverage on Ubuntu
+- **Testing**: pytest with coverage on Ubuntu (98%+ coverage)
 - **Security**: CodeQL for comprehensive security analysis
 - **Complexity**: radon for maintainability metrics
+- **Performance**: Benchmark tests for critical paths
 - **Python Version**: 3.11.12 or later (supports 3.11 and 3.12)
 
 PRs must pass all checks before merging.
 
-## Troubleshooting
+## Troubleshooting Guide
 
 ### Common Issues
 

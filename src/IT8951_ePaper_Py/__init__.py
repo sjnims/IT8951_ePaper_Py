@@ -43,7 +43,7 @@ from IT8951_ePaper_Py.exceptions import (
     VCOMError,
 )
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"
 __all__ = [
     "CommunicationError",
     "DeviceError",
