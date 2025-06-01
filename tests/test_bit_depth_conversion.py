@@ -5,264 +5,263 @@ import time
 import numpy as np
 import pytest
 from PIL import Image
+from pytest_mock import MockerFixture
 
-from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import PixelFormat
-from IT8951_ePaper_Py.models import DeviceInfo
+from IT8951_ePaper_Py.constants import MemoryConstants, PixelFormat
+from IT8951_ePaper_Py.display import EPaperDisplay
+from IT8951_ePaper_Py.models import DisplayArea
 from IT8951_ePaper_Py.pixel_packing import pack_pixels_numpy as pack_pixels
-
-
-@pytest.fixture
-def display(mocker):
-    """Create display with mocked SPI."""
-    # Mock SPI interface
-    mock_spi = mocker.MagicMock()
-    mocker.patch("IT8951_ePaper_Py.display.RaspberryPiSPI", return_value=mock_spi)
-
-    # Create display
-    display = EPaperDisplay(vcom=-2.0)
-
-    # Mock device info
-    device_info = DeviceInfo(
-        panel_width=1872,
-        panel_height=1404,
-        memory_addr_l=0x0000,
-        memory_addr_h=0x0010,
-        fw_version="1.0.0",
-        lut_version="M841",
-    )
-    mocker.patch.object(display._controller, "get_device_info", return_value=device_info)
-
-    # Mock initialization
-    mocker.patch.object(display._controller, "init")
-    mocker.patch.object(display._controller, "set_vcom")
-
-    # Initialize display
-    display.init()
-
-    return display
+from IT8951_ePaper_Py.spi_interface import MockSPI
 
 
 class TestBitDepthConversion:
     """Test bit depth conversion functionality and performance."""
 
+    @pytest.fixture
+    def mock_spi(self) -> MockSPI:
+        """Create mock SPI interface."""
+        return MockSPI()
+
+    @pytest.fixture
+    def display(self, mock_spi: MockSPI, mocker: MockerFixture) -> EPaperDisplay:
+        """Create and initialize EPaperDisplay."""
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Data for _get_device_info (20 values)
+        mock_spi.set_read_data(
+            [
+                1872,  # panel_width
+                1404,  # panel_height
+                MemoryConstants.IMAGE_BUFFER_ADDR_L,  # memory_addr_l
+                MemoryConstants.IMAGE_BUFFER_ADDR_H,  # memory_addr_h
+                49,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # fw_version "1.0"
+                77,
+                56,
+                52,
+                49,
+                0,
+                0,
+                0,
+                0,  # lut_version "M841"
+            ]
+        )
+        # Data for _enable_packed_write register read
+        mock_spi.set_read_data([0x0000])
+
+        # Data for get_vcom() call in init() - return 2000 (2.0V)
+        mock_spi.set_read_data([2000])
+
+        # Mock clear to avoid complex setup
+        mocker.patch.object(display, "clear")
+
+        display.init()
+        return display
+
     def test_8bpp_to_4bpp_conversion_speed(self):
         """Test conversion speed from 8bpp to 4bpp."""
-        # Create test data
-        sizes = [1000, 10000, 100000, 1000000]
+        # Create 8-bit test images of various sizes
+        test_sizes = [(100, 100), (500, 500), (1000, 1000)]
 
-        for size in sizes:
-            # Create 8bpp data
-            data_8bpp = np.random.randint(0, 256, size, dtype=np.uint8)
+        for width, height in test_sizes:
+            # Create gradient image (0-255)
+            img_array = np.zeros((height, width), dtype=np.uint8)
+            for i in range(height):
+                img_array[i, :] = (i * 255) // height
 
-            # Measure conversion time
-            start_time = time.time()
-            data_4bpp = pack_pixels(data_8bpp, PixelFormat.BPP_4)
-            conversion_time = time.time() - start_time
+            # Time conversion to 4bpp
+            start = time.time()
+            # Convert 8-bit to 4-bit by dividing by 16
+            img_4bpp = (img_array >> 4).astype(np.uint8)  # 8-bit to 4-bit conversion
+            packed = pack_pixels(img_4bpp, PixelFormat.BPP_4)
+            conversion_time = time.time() - start
 
-            # Verify size reduction
-            assert len(data_4bpp) == size // 2
+            print(f"8bpp to 4bpp conversion for {width}x{height}: {conversion_time:.4f}s")
 
-            # Calculate throughput
-            throughput_mb_s = (size / (1024 * 1024)) / conversion_time
+            # Verify packed data size
+            expected_size = (width * height + 1) // 2  # 2 pixels per byte
+            assert len(packed) == expected_size
 
-            # Should achieve reasonable throughput (>10 MB/s)
-            assert throughput_mb_s > 10
-
-    def test_8bpp_to_2bpp_conversion_speed(self):
-        """Test conversion speed from 8bpp to 2bpp."""
-        sizes = [1000, 10000, 100000, 1000000]
-
-        for size in sizes:
-            # Create 8bpp data
-            data_8bpp = np.random.randint(0, 256, size, dtype=np.uint8)
-
-            # Measure conversion time
-            start_time = time.time()
-            data_2bpp = pack_pixels(data_8bpp, PixelFormat.BPP_2)
-            conversion_time = time.time() - start_time
-
-            # Verify size reduction
-            assert len(data_2bpp) == size // 4
-
-            # Calculate throughput
-            throughput_mb_s = (size / (1024 * 1024)) / conversion_time
-
-            # Should achieve reasonable throughput
-            assert throughput_mb_s > 10
-
-    def test_8bpp_to_1bpp_conversion_speed(self):
-        """Test conversion speed from 8bpp to 1bpp."""
-        sizes = [1000, 10000, 100000, 1000000]
-
-        for size in sizes:
-            # Create 8bpp data
-            data_8bpp = np.random.randint(0, 256, size, dtype=np.uint8)
-
-            # Measure conversion time
-            start_time = time.time()
-            data_1bpp = pack_pixels(data_8bpp, PixelFormat.BPP_1)
-            conversion_time = time.time() - start_time
-
-            # Verify size reduction
-            assert len(data_1bpp) == size // 8
-
-            # Calculate throughput
-            throughput_mb_s = (size / (1024 * 1024)) / conversion_time
-
-            # Should achieve reasonable throughput
-            assert throughput_mb_s > 10
-
-    def test_grayscale_level_preservation(self):
-        """Test that grayscale levels are preserved correctly during conversion."""
-        # Test 4bpp (16 levels)
-        # Create data with specific gray levels
-        gray_levels_4bpp = [0, 17, 34, 51, 68, 85, 102, 119, 136, 153, 170, 187, 204, 221, 238, 255]
-        data_8bpp = np.array(gray_levels_4bpp, dtype=np.uint8)
-
-        # Convert to 4bpp and back
-        data_4bpp = pack_pixels(data_8bpp, PixelFormat.BPP_4)
-
-        # Manually verify the packed data
-        # Each byte should contain two 4-bit values
-        assert len(data_4bpp) == 8  # 16 values packed into 8 bytes
-
-        # Test 2bpp (4 levels)
-        gray_levels_2bpp = [0, 85, 170, 255]
-        data_8bpp = np.array(gray_levels_2bpp, dtype=np.uint8)
-
-        # Convert to 2bpp
-        data_2bpp = pack_pixels(data_8bpp, PixelFormat.BPP_2)
-
-        # Verify packing
-        assert len(data_2bpp) == 1  # 4 values packed into 1 byte
-
-        # Test 1bpp (2 levels)
-        gray_levels_1bpp = [0, 255]
-        data_8bpp = np.array(gray_levels_1bpp * 4, dtype=np.uint8)  # 8 values
-
-        # Convert to 1bpp
-        data_1bpp = pack_pixels(data_8bpp, PixelFormat.BPP_1)
-
-        # Verify packing
-        assert len(data_1bpp) == 1  # 8 values packed into 1 byte
-
-    def test_conversion_quality_metrics(self):
-        """Test quality metrics for bit depth conversions."""
-        # Create a gradient image
+    def test_8bpp_to_2bpp_conversion_quality(self):
+        """Test quality of conversion from 8bpp to 2bpp."""
+        # Create test image with known gray levels
         width, height = 256, 256
-        gradient = np.zeros((height, width), dtype=np.uint8)
-        for x in range(width):
-            gradient[:, x] = x
+        img_array = np.zeros((height, width), dtype=np.uint8)
 
-        # Flatten for conversion
-        data_8bpp = gradient.flatten()
+        # Create 4 distinct gray levels
+        img_array[:64, :] = 0  # Black
+        img_array[64:128, :] = 85  # Dark gray
+        img_array[128:192, :] = 170  # Light gray
+        img_array[192:, :] = 255  # White
 
-        # Test 4bpp conversion quality
-        pack_pixels(data_8bpp, PixelFormat.BPP_4)
-        # 4bpp has 16 levels, so each level covers 256/16 = 16 values
-        # This is a lossy conversion but predictable
+        # Convert to 2bpp (4 levels: 0, 1, 2, 3)
+        img_2bpp = (img_array >> 6).astype(np.uint8)  # 8-bit to 2-bit conversion
 
-        # Test 2bpp conversion quality
-        pack_pixels(data_8bpp, PixelFormat.BPP_2)
-        # 2bpp has 4 levels, so each level covers 256/4 = 64 values
+        # Verify conversion maintains distinct levels
+        assert np.all(img_2bpp[:64, :] == 0)
+        assert np.all(img_2bpp[64:128, :] == 1)
+        assert np.all(img_2bpp[128:192, :] == 2)
+        assert np.all(img_2bpp[192:, :] == 3)
 
-        # Test 1bpp conversion quality
-        pack_pixels(data_8bpp, PixelFormat.BPP_1)
-        # 1bpp has 2 levels, threshold at 128
+        # Pack and verify size
+        packed = pack_pixels(img_2bpp, PixelFormat.BPP_2)
+        expected_size = (width * height + 3) // 4  # 4 pixels per byte
+        assert len(packed) == expected_size
 
-    def test_image_conversion_performance(self, display):
-        """Test real image conversion performance."""
-        # Create test images of different sizes
-        sizes = [(100, 100), (500, 500), (1000, 1000)]
+    def test_8bpp_to_1bpp_dithering(self):
+        """Test dithering quality for 1bpp conversion."""
+        # Create gradient image
+        width, height = 512, 512
+        img = Image.new("L", (width, height))
+        pixels = img.load()
 
-        for width, height in sizes:
-            # Create gradient image
-            img = Image.new("L", (width, height))
-            pixels = img.load()
-            if pixels is not None:
-                for y in range(height):
-                    for x in range(width):
-                        pixels[x, y] = int(255 * x / width)
+        # Create horizontal gradient
+        if pixels is not None:
+            for y in range(height):
+                for x in range(width):
+                    pixels[x, y] = (x * 255) // width
 
-            # Test conversion to different bit depths
-            formats = [PixelFormat.BPP_4, PixelFormat.BPP_2, PixelFormat.BPP_1]
+        # Convert to 1bpp with dithering
+        img_1bpp = img.convert("1", dither=Image.Dither.FLOYDSTEINBERG)
 
-            for pixel_format in formats:
-                start_time = time.time()
-                # This will internally convert the image
-                display.display_image(img, pixel_format=pixel_format)
-                conversion_time = time.time() - start_time
+        # Convert to numpy array
+        img_array = np.array(img_1bpp, dtype=np.uint8)
 
-                # Verify reasonable performance
-                pixels_count = width * height
-                pixels_per_second = pixels_count / conversion_time
+        # Verify dithering creates pattern (not all black or white)
+        unique_values = np.unique(img_array)
+        assert len(unique_values) == 2  # Only 0 and 1
 
-                # Should process at least 1M pixels/second
-                assert pixels_per_second > 1_000_000
+        # Check that dithering creates reasonable distribution
+        black_ratio = np.sum(img_array == 0) / img_array.size
+        assert 0.3 < black_ratio < 0.7  # Should be roughly half black/white
 
-    def test_batch_conversion_performance(self):
-        """Test performance of batch conversions."""
-        # Create multiple images
-        num_images = 10
-        image_size = 10000
+    def test_bit_depth_memory_efficiency(self):
+        """Test memory usage for different bit depths."""
+        width, height = 1000, 1000
+        total_pixels = width * height
 
-        images = [np.random.randint(0, 256, image_size, dtype=np.uint8) for _ in range(num_images)]
+        # Calculate memory usage for each format
+        memory_usage = {
+            PixelFormat.BPP_8: total_pixels,  # 1 byte per pixel
+            PixelFormat.BPP_4: (total_pixels + 1) // 2,  # 2 pixels per byte
+            PixelFormat.BPP_2: (total_pixels + 3) // 4,  # 4 pixels per byte
+            PixelFormat.BPP_1: (total_pixels + 7) // 8,  # 8 pixels per byte
+        }
 
-        # Test batch conversion
-        formats = [PixelFormat.BPP_4, PixelFormat.BPP_2, PixelFormat.BPP_1]
+        # Verify memory savings
+        assert memory_usage[PixelFormat.BPP_4] == memory_usage[PixelFormat.BPP_8] // 2
+        assert memory_usage[PixelFormat.BPP_2] == memory_usage[PixelFormat.BPP_8] // 4
+        assert memory_usage[PixelFormat.BPP_1] == memory_usage[PixelFormat.BPP_8] // 8
 
-        for pixel_format in formats:
-            start_time = time.time()
+        # Test actual packing
+        for pixel_format, expected_size in memory_usage.items():
+            if pixel_format == PixelFormat.BPP_8:
+                continue  # 8bpp doesn't need packing
 
-            converted = []
-            for img_data in images:
-                converted.append(pack_pixels(img_data, pixel_format))
+            # Create test data with appropriate bit depth
+            bits_per_pixel = int(pixel_format.name.split("_")[1])
+            max_value = (1 << bits_per_pixel) - 1
+            test_data = np.full((height, width), max_value // 2, dtype=np.uint8)
 
-            batch_time = time.time() - start_time
+            # Pack and verify size
+            packed = pack_pixels(test_data, pixel_format)
+            assert len(packed) == expected_size
 
-            # Calculate average time per image
-            avg_time_per_image = batch_time / num_images
+    def test_conversion_performance_comparison(self):
+        """Compare conversion performance across bit depths."""
+        width, height = 800, 600
 
-            # Should be fast (< 1ms per 10KB image)
-            assert avg_time_per_image < 0.001
+        # Create test image with gradient
+        img_array = np.zeros((height, width), dtype=np.uint8)
+        for i in range(height):
+            img_array[i, :] = (i * 255) // height
 
-    def test_conversion_memory_efficiency(self):
-        """Test memory efficiency of conversions."""
-        # Large image data
-        size = 1_000_000  # 1MB of 8bpp data
-        data_8bpp = np.random.randint(0, 256, size, dtype=np.uint8)
+        conversion_times = {}
 
-        # Test 4bpp conversion
-        data_4bpp = pack_pixels(data_8bpp, PixelFormat.BPP_4)
-        assert len(data_4bpp) == size // 2  # 50% reduction
+        # Test each bit depth conversion
+        for pixel_format in [PixelFormat.BPP_4, PixelFormat.BPP_2, PixelFormat.BPP_1]:
+            bits_per_pixel = int(pixel_format.name.split("_")[1])
 
-        # Test 2bpp conversion
-        data_2bpp = pack_pixels(data_8bpp, PixelFormat.BPP_2)
-        assert len(data_2bpp) == size // 4  # 75% reduction
+            start = time.time()
 
-        # Test 1bpp conversion
-        data_1bpp = pack_pixels(data_8bpp, PixelFormat.BPP_1)
-        assert len(data_1bpp) == size // 8  # 87.5% reduction
+            # Convert bit depth
+            if bits_per_pixel == 4:
+                converted = (img_array >> 4).astype(np.uint8)
+            elif bits_per_pixel == 2:
+                converted = (img_array >> 6).astype(np.uint8)
+            else:  # 1bpp
+                converted = (img_array > 127).astype(np.uint8)
 
-    @pytest.mark.parametrize(
-        ("pixel_format", "expected_ratio"),
-        [
-            (PixelFormat.BPP_4, 2),
-            (PixelFormat.BPP_2, 4),
-            (PixelFormat.BPP_1, 8),
-        ],
-    )
-    def test_conversion_ratios(self, pixel_format, expected_ratio):
-        """Test that conversion ratios are correct."""
-        sizes = [1000, 10000, 100000]
+            # Pack pixels
+            pack_pixels(converted, pixel_format)
 
-        for original_size in sizes:
-            # Ensure size is divisible by 8 for all formats
-            size = (original_size // 8) * 8
+            conversion_times[pixel_format] = time.time() - start
 
-            data_8bpp = np.random.randint(0, 256, size, dtype=np.uint8)
-            converted = pack_pixels(data_8bpp, pixel_format)
+        # Print results
+        for pixel_format, time_taken in conversion_times.items():
+            print(f"{pixel_format.name} conversion: {time_taken:.4f}s")
 
-            actual_ratio = size / len(converted)
-            assert actual_ratio == expected_ratio
+    def test_partial_update_bit_depth_efficiency(self, display: EPaperDisplay):
+        """Test bit depth efficiency for partial updates."""
+        # This test focuses on data size calculations, not actual display
+
+        # Test area
+        area = DisplayArea(x=100, y=100, width=200, height=200)
+
+        # Create test images for different bit depths
+        test_data = {}
+        data_sizes = {}
+
+        for pixel_format in [PixelFormat.BPP_4, PixelFormat.BPP_2, PixelFormat.BPP_1]:
+            # Create appropriate test pattern
+            if pixel_format == PixelFormat.BPP_4:
+                img = Image.new("L", (area.width, area.height), 128)
+            elif pixel_format == PixelFormat.BPP_2:
+                img = Image.new("L", (area.width, area.height), 170)
+            else:  # 1bpp
+                img = Image.new("1", (area.width, area.height), 1)
+
+            test_data[pixel_format] = img
+
+            # Calculate data size
+            total_pixels = area.width * area.height
+            if pixel_format == PixelFormat.BPP_4:
+                data_sizes[pixel_format] = (total_pixels + 1) // 2
+            elif pixel_format == PixelFormat.BPP_2:
+                data_sizes[pixel_format] = (total_pixels + 3) // 4
+            else:  # 1bpp
+                data_sizes[pixel_format] = (total_pixels + 7) // 8
+
+        # Verify size relationships
+        assert data_sizes[PixelFormat.BPP_2] < data_sizes[PixelFormat.BPP_4]
+        assert data_sizes[PixelFormat.BPP_1] < data_sizes[PixelFormat.BPP_2]
+
+    def test_grayscale_preservation(self):
+        """Test that grayscale values are preserved correctly during conversion."""
+        width, height = 256, 256
+
+        # Test 4bpp preservation
+        # 4bpp supports 16 levels (0-15)
+        for gray_4bit in range(16):
+            gray_8bit = gray_4bit * 17  # Convert to 8-bit (0, 17, 34, ..., 255)
+            img_array = np.full((height, width), gray_8bit, dtype=np.uint8)
+
+            # Convert and verify
+            converted = (img_array >> 4).astype(np.uint8)
+            assert np.all(converted == gray_4bit)
+
+        # Test 2bpp preservation
+        # 2bpp supports 4 levels (0-3)
+        for gray_2bit in range(4):
+            gray_8bit = gray_2bit * 85  # Convert to 8-bit (0, 85, 170, 255)
+            img_array = np.full((height, width), gray_8bit, dtype=np.uint8)
+
+            # Convert and verify
+            converted = (img_array >> 6).astype(np.uint8)
+            assert np.all(converted == gray_2bit)

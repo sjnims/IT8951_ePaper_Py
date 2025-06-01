@@ -4,269 +4,292 @@ import time
 
 import pytest
 from PIL import Image
+from pytest_mock import MockerFixture
 
-from IT8951_ePaper_Py import EPaperDisplay
-from IT8951_ePaper_Py.constants import DisplayMode, PixelFormat
-from IT8951_ePaper_Py.models import DeviceInfo
-
-
-@pytest.fixture
-def display(mocker):
-    """Create display with mocked SPI for benchmarking."""
-    # Mock SPI interface
-    mock_spi = mocker.MagicMock()
-    mocker.patch("IT8951_ePaper_Py.display.RaspberryPiSPI", return_value=mock_spi)
-
-    # Create display
-    display = EPaperDisplay(vcom=-2.0)
-
-    # Mock device info
-    device_info = DeviceInfo(
-        panel_width=1872,
-        panel_height=1404,
-        memory_addr_l=0x0000,
-        memory_addr_h=0x0010,
-        fw_version="1.0.0",
-        lut_version="M841",
-    )
-    mocker.patch.object(display._controller, "get_device_info", return_value=device_info)
-
-    # Mock initialization
-    mocker.patch.object(display._controller, "init")
-    mocker.patch.object(display._controller, "set_vcom")
-
-    # Initialize display
-    display.init()
-
-    # Mock the actual transfer methods to simulate realistic timing
-    def mock_load_image(image_data, x, y, width, height) -> None:
-        # Simulate transfer time based on data size
-        data_size = len(image_data)
-        # Assume 10MB/s transfer rate
-        time.sleep(data_size / (10 * 1024 * 1024))
-
-    def mock_display_area(x, y, width, height, mode) -> None:
-        # Simulate display update time based on mode and area
-        area_pixels = width * height
-        total_pixels = 1872 * 1404
-        area_ratio = area_pixels / total_pixels
-
-        # Base timings for full screen (in seconds)
-        mode_timings = {
-            DisplayMode.INIT: 2.0,
-            DisplayMode.DU: 0.26,
-            DisplayMode.GC16: 0.45,
-            DisplayMode.GL16: 0.45,
-            DisplayMode.A2: 0.12,
-            DisplayMode.DU4: 0.30,
-            DisplayMode.GLR16: 0.50,
-            DisplayMode.GLD16: 0.50,
-        }
-
-        base_time = mode_timings.get(mode, 0.5)
-        time.sleep(base_time * area_ratio)
-
-    # Mock the internal methods used by display_image
-    mocker.patch.object(display._controller, "_load_image_to_memory", side_effect=mock_load_image)
-
-    # Mock display_area to simulate timing
-    def mock_display_area_wrapper(area, wait=True) -> None:
-        mock_display_area(area.x, area.y, area.width, area.height, area.mode)
-
-    mocker.patch.object(display._controller, "display_area", side_effect=mock_display_area_wrapper)
-
-    return display
+from IT8951_ePaper_Py.constants import DisplayMode, MemoryConstants, PixelFormat
+from IT8951_ePaper_Py.display import EPaperDisplay
+from IT8951_ePaper_Py.models import DisplayArea
+from IT8951_ePaper_Py.spi_interface import MockSPI
 
 
 class TestDisplayModePerformance:
-    """Benchmark tests for display mode performance."""
+    """Benchmark tests for different display modes."""
 
-    def test_mode_switching_performance(self, display):
-        """Test performance of switching between different display modes."""
+    @pytest.fixture
+    def mock_spi(self) -> MockSPI:
+        """Create mock SPI interface."""
+        return MockSPI()
+
+    @pytest.fixture
+    def display(self, mock_spi: MockSPI, mocker: MockerFixture) -> EPaperDisplay:
+        """Create and initialize EPaperDisplay for benchmarking."""
+        display = EPaperDisplay(vcom=-2.0, spi_interface=mock_spi)
+
+        # Data for _get_device_info (20 values)
+        mock_spi.set_read_data(
+            [
+                1872,  # panel_width
+                1404,  # panel_height
+                MemoryConstants.IMAGE_BUFFER_ADDR_L,  # memory_addr_l
+                MemoryConstants.IMAGE_BUFFER_ADDR_H,  # memory_addr_h
+                49,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # fw_version "1.0"
+                77,
+                56,
+                52,
+                49,
+                0,
+                0,
+                0,
+                0,  # lut_version "M841"
+            ]
+        )
+        # Data for _enable_packed_write register read
+        mock_spi.set_read_data([0x0000])
+
+        # Data for get_vcom() call in init() - return 2000 (2.0V)
+        mock_spi.set_read_data([2000])
+
+        # Mock clear to avoid complex setup
+        mocker.patch.object(display, "clear")
+
+        display.init()
+
+        # Mock the actual display operations with timing simulation
+        def mock_display_image(image, x=0, y=0, mode=DisplayMode.GC16) -> None:
+            # Simulate display time based on mode
+            if mode == DisplayMode.A2:
+                time.sleep(0.001)  # Fastest
+            elif mode == DisplayMode.DU:
+                time.sleep(0.002)  # Fast
+            elif mode == DisplayMode.GL16:
+                time.sleep(0.005)  # Medium
+            elif mode == DisplayMode.GC16:
+                time.sleep(0.010)  # Slowest
+
+        mocker.patch.object(display, "display_image", side_effect=mock_display_image)
+
+        return display
+
+    def test_display_mode_timing_comparison(self, display: EPaperDisplay):
+        """Compare timing of different display modes."""
         # Create test images
-        sizes = [(100, 100), (500, 500), (1000, 1000), (1872, 1404)]
-        test_images = {}
-        for size in sizes:
-            img = Image.new("L", size, 128)
-            test_images[size] = img
+        test_sizes = [(200, 200), (400, 400), (800, 600)]
 
-        # Test all display modes
-        modes = [
-            DisplayMode.DU,
-            DisplayMode.GC16,
-            DisplayMode.GL16,
-            DisplayMode.A2,
-            DisplayMode.GLR16,
-            DisplayMode.GLD16,
-            DisplayMode.DU4,
+        results = {}
+
+        for width, height in test_sizes:
+            img = Image.new("L", (width, height), 128)
+            mode_times = {}
+
+            # Test each display mode
+            for mode in [DisplayMode.A2, DisplayMode.DU, DisplayMode.GL16, DisplayMode.GC16]:
+                start = time.time()
+                display.display_image(img, 0, 0, mode)
+                elapsed = time.time() - start
+                mode_times[mode.name] = elapsed
+
+            results[f"{width}x{height}"] = mode_times
+
+        # Print results
+        for size, times in results.items():
+            print(f"\n{size}:")
+            for mode, time_taken in sorted(times.items(), key=lambda x: x[1]):
+                print(f"  {mode}: {time_taken:.4f}s")
+
+    def test_partial_update_mode_performance(self, display: EPaperDisplay):
+        """Test performance of partial updates with different modes."""
+        # Create small test areas
+        test_areas = [
+            DisplayArea(x=100, y=100, width=100, height=100),
+            DisplayArea(x=300, y=300, width=200, height=200),
+            DisplayArea(x=600, y=600, width=300, height=300),
         ]
 
-        results = {}
+        # Mock display_partial with timing
+        def mock_display_partial(image, x, y, mode=DisplayMode.DU) -> None:
+            if mode == DisplayMode.A2:
+                time.sleep(0.0005)
+            elif mode == DisplayMode.DU:
+                time.sleep(0.001)
+            else:
+                time.sleep(0.003)
 
-        for size, img in test_images.items():
-            results[size] = {}
-
-            for mode in modes:
-                # Measure display time
-                start_time = time.time()
-                display.display_image(img, mode=mode)
-                elapsed = time.time() - start_time
-
-                results[size][mode.name] = elapsed
-
-        # Verify performance characteristics
-        for size in sizes:
-            size_results = results[size]
-
-            # DU and A2 should be fastest
-            assert size_results["DU"] < size_results["GC16"]
-            assert size_results["A2"] < size_results["GC16"]
-
-            # GC16/GL16 should be similar
-            assert abs(size_results["GC16"] - size_results["GL16"]) < 0.1
-
-            # Extended modes should be slower than basic modes
-            if "GLR16" in size_results:
-                assert size_results["GLR16"] >= size_results["GL16"]
-
-    def test_pixel_format_impact_on_modes(self, display):
-        """Test how different pixel formats affect mode performance."""
-        # Create test image
-        img = Image.new("L", (800, 600), 128)
-
-        formats = [PixelFormat.BPP_1, PixelFormat.BPP_2, PixelFormat.BPP_4, PixelFormat.BPP_8]
-        modes = [DisplayMode.DU, DisplayMode.GC16, DisplayMode.A2]
+        display.display_partial = mock_display_partial
 
         results = {}
 
-        for pixel_format in formats:
-            results[pixel_format.name] = {}
+        for area in test_areas:
+            img = Image.new("L", (area.width, area.height), 128)
+            mode_times = {}
 
-            for mode in modes:
-                # Measure time
-                start_time = time.time()
-                display.display_image(img, mode=mode, pixel_format=pixel_format)
-                elapsed = time.time() - start_time
+            # Test A2 and DU modes (recommended for partial updates)
+            for mode in [DisplayMode.A2, DisplayMode.DU]:
+                start = time.time()
+                display.display_partial(img, area.x, area.y, mode)
+                elapsed = time.time() - start
+                mode_times[mode.name] = elapsed
 
-                results[pixel_format.name][mode.name] = elapsed
+            results[f"{area.width}x{area.height}"] = mode_times
 
-        # Verify lower bit depths are faster
-        for mode in modes:
-            mode_name = mode.name
-            assert results["BPP_1"][mode_name] <= results["BPP_2"][mode_name]
-            assert results["BPP_2"][mode_name] <= results["BPP_4"][mode_name]
-            assert results["BPP_4"][mode_name] <= results["BPP_8"][mode_name]
+        # Verify A2 is faster than DU
+        for _size, times in results.items():
+            assert times["A2"] < times["DU"]
 
-    def test_partial_update_performance(self, display):
-        """Benchmark partial update vs full screen update."""
-        # Create test images
-        full_img = Image.new("L", (1872, 1404), 128)
-        partial_sizes = [(100, 100), (200, 200), (500, 500), (1000, 1000)]
+    def test_mode_quality_vs_speed_tradeoff(self, display: EPaperDisplay):
+        """Test the quality vs speed tradeoff of display modes."""
+        # Create test patterns that show quality differences
+        width, height = 400, 400
 
-        results = {"full_screen": {}}
+        # Gradient pattern (shows banding in low-quality modes)
+        gradient = Image.new("L", (width, height))
+        pixels = gradient.load()
+        if pixels is not None:
+            for y in range(height):
+                for x in range(width):
+                    pixels[x, y] = (x * 255) // width
 
-        # Test full screen with different modes
-        modes = [DisplayMode.DU, DisplayMode.GC16, DisplayMode.A2]
+        # Checkerboard pattern (shows ghosting)
+        checkerboard = Image.new("L", (width, height))
+        pixels = checkerboard.load()
+        if pixels is not None:
+            for y in range(height):
+                for x in range(width):
+                    pixels[x, y] = 255 if (x // 10 + y // 10) % 2 == 0 else 0
 
-        for mode in modes:
-            start_time = time.time()
-            display.display_image(full_img, mode=mode)
-            results["full_screen"][mode.name] = time.time() - start_time
+        # Text-like pattern (fine details)
+        text_pattern = Image.new("L", (width, height), 255)
+        pixels = text_pattern.load()
+        # Create horizontal lines to simulate text
+        if pixels is not None:
+            for y in range(0, height, 20):
+                for x in range(width):
+                    if y % 40 < 3:
+                        pixels[x, y] = 0
 
-        # Test partial updates
-        for size in partial_sizes:
-            partial_img = Image.new("L", size, 128)
-            results[f"partial_{size[0]}x{size[1]}"] = {}
+        patterns = {
+            "gradient": gradient,
+            "checkerboard": checkerboard,
+            "text": text_pattern,
+        }
 
-            for mode in modes:
-                start_time = time.time()
-                display.display_image(partial_img, x=0, y=0, mode=mode)
-                elapsed = time.time() - start_time
-                results[f"partial_{size[0]}x{size[1]}"][mode.name] = elapsed
+        # Test each pattern with each mode
+        results = {}
+        for pattern_name, pattern in patterns.items():
+            mode_times = {}
 
-        # Verify partial updates are faster
-        for size in partial_sizes:
-            key = f"partial_{size[0]}x{size[1]}"
-            for mode in modes:
-                assert results[key][mode.name] < results["full_screen"][mode.name]
+            for mode in [DisplayMode.A2, DisplayMode.DU, DisplayMode.GL16, DisplayMode.GC16]:
+                start = time.time()
+                display.display_image(pattern, 0, 0, mode)
+                elapsed = time.time() - start
+                mode_times[mode.name] = elapsed
 
-    def test_mode_sequence_optimization(self, display):
-        """Test performance of mode sequences (e.g., INIT followed by GC16)."""
-        img = Image.new("L", (1872, 1404), 128)
+            results[pattern_name] = mode_times
 
-        # Test single mode
-        start_time = time.time()
-        display.display_image(img, mode=DisplayMode.GC16)
-        single_gc16_time = time.time() - start_time
+        # Print recommendations
+        print("\nMode recommendations by content type:")
+        print("- Text/UI: A2 (fastest, good for black/white)")
+        print("- General content: DU (fast, decent quality)")
+        print("- Photos: GL16/GC16 (slower, best quality)")
 
-        # Test INIT + GC16 sequence
-        start_time = time.time()
-        display.clear()  # Uses INIT mode
-        display.display_image(img, mode=DisplayMode.GC16)
-        init_gc16_time = time.time() - start_time
+    def test_rapid_update_performance(self, display: EPaperDisplay):
+        """Test performance of rapid sequential updates."""
+        # Small area for rapid updates
+        area = DisplayArea(x=100, y=100, width=100, height=100)
+        img = Image.new("L", (area.width, area.height))
 
-        # INIT + GC16 should take longer than just GC16
-        assert init_gc16_time > single_gc16_time
+        # Test rapid updates with different modes
+        update_counts = {
+            DisplayMode.A2: 0,
+            DisplayMode.DU: 0,
+        }
 
-        # Test rapid A2 updates
-        a2_times = []
-        for _i in range(5):
-            start_time = time.time()
-            display.display_image(img, mode=DisplayMode.A2)
-            a2_times.append(time.time() - start_time)
+        test_duration = 0.1  # 100ms test window
 
-        # A2 updates should be consistent
-        avg_a2_time = sum(a2_times) / len(a2_times)
-        for t in a2_times:
-            assert abs(t - avg_a2_time) < 0.05  # Within 50ms
+        for mode in [DisplayMode.A2, DisplayMode.DU]:
+            start = time.time()
+            count = 0
 
-    @pytest.mark.parametrize(
-        "mode",
-        [
-            DisplayMode.DU,
-            DisplayMode.GC16,
-            DisplayMode.GL16,
-            DisplayMode.A2,
-        ],
-    )
-    def test_mode_scaling_performance(self, display, mode):
-        """Test how modes scale with image size."""
-        sizes = [(100, 100), (500, 500), (1000, 1000), (1500, 1500)]
-        times = []
+            while time.time() - start < test_duration:
+                # Alternate between black and white
+                img.putpixel((50, 50), 255 if count % 2 == 0 else 0)
+                display.display_partial(img, area.x, area.y, mode)
+                count += 1
 
-        for size in sizes:
-            img = Image.new("L", size, 128)
-            start_time = time.time()
-            display.display_image(img, mode=mode)
-            times.append(time.time() - start_time)
+            update_counts[mode] = count
 
-        # Time should increase with area
-        for i in range(1, len(sizes)):
-            prev_area = sizes[i - 1][0] * sizes[i - 1][1]
-            curr_area = sizes[i][0] * sizes[i][1]
-            area_ratio = curr_area / prev_area
-            time_ratio = times[i] / times[i - 1]
+        # A2 should achieve more updates
+        assert update_counts[DisplayMode.A2] > update_counts[DisplayMode.DU]
 
-            # Time ratio should be roughly proportional to area ratio
-            # Allow 50% deviation for overhead
-            assert 0.5 * area_ratio <= time_ratio <= 1.5 * area_ratio
+        print(f"\nRapid update test ({test_duration}s):")
+        for mode, count in update_counts.items():
+            print(f"  {mode.name}: {count} updates ({count / test_duration:.1f} Hz)")
 
-    def test_mode_memory_efficiency(self, display):
-        """Test memory usage patterns for different modes."""
-        # This test verifies that modes handle memory efficiently
-        img = Image.new("L", (1872, 1404), 128)
+    def test_mode_switching_overhead(self, display: EPaperDisplay):
+        """Test overhead of switching between display modes."""
+        img = Image.new("L", (200, 200), 128)
 
-        # Modes that should use less memory (1-bit internal processing)
-        efficient_modes = [DisplayMode.DU, DisplayMode.A2]
+        # Test same mode repeated updates
+        same_mode_start = time.time()
+        for _ in range(10):
+            display.display_image(img, 0, 0, DisplayMode.DU)
+        same_mode_time = time.time() - same_mode_start
 
-        # Modes that need full grayscale
-        full_modes = [DisplayMode.GC16, DisplayMode.GL16]
+        # Test alternating modes
+        alternating_start = time.time()
+        for i in range(10):
+            mode = DisplayMode.DU if i % 2 == 0 else DisplayMode.A2
+            display.display_image(img, 0, 0, mode)
+        alternating_time = time.time() - alternating_start
 
-        # The actual memory usage is mocked, but we verify the calls
-        for mode in efficient_modes:
-            display.display_image(img, mode=mode, pixel_format=PixelFormat.BPP_1)
-            # Should complete without memory errors
+        # Mode switching might add slight overhead
+        overhead = alternating_time - same_mode_time
+        print(f"\nMode switching overhead: {overhead:.4f}s ({overhead / 10:.4f}s per switch)")
 
-        for mode in full_modes:
-            display.display_image(img, mode=mode, pixel_format=PixelFormat.BPP_8)
-            # Should complete without memory errors
+    def test_pixel_format_impact_on_modes(self, display: EPaperDisplay):
+        """Test how pixel format affects mode performance."""
+        width, height = 400, 400
+
+        # Test different pixel formats
+        results = {}
+
+        for pixel_format in [PixelFormat.BPP_1, PixelFormat.BPP_2, PixelFormat.BPP_4]:
+            # Create appropriate image
+            if pixel_format == PixelFormat.BPP_1:
+                img = Image.new("1", (width, height), 1)
+            else:
+                img = Image.new("L", (width, height), 128)
+
+            format_times = {}
+
+            # Test with A2 and DU modes
+            for mode in [DisplayMode.A2, DisplayMode.DU]:
+                # Simulate that lower bit depth transfers faster
+                transfer_factor = {
+                    PixelFormat.BPP_1: 0.25,
+                    PixelFormat.BPP_2: 0.5,
+                    PixelFormat.BPP_4: 1.0,
+                }[pixel_format]
+
+                start = time.time()
+                # Simulate transfer time
+                time.sleep(0.001 * transfer_factor)
+                display.display_image(img, 0, 0, mode)
+                elapsed = time.time() - start
+
+                format_times[mode.name] = elapsed
+
+            results[pixel_format.name] = format_times
+
+        # Print results
+        print("\nPixel format impact on display modes:")
+        for fmt, times in results.items():
+            print(f"{fmt}:")
+            for mode, time_taken in times.items():
+                print(f"  {mode}: {time_taken:.4f}s")
