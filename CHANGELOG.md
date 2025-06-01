@@ -8,6 +8,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2025-02-01
+
+### Added
+
+- Automated Test Selection (ATS) with Codecov for intelligent test filtering
+- GitHub Actions workflow configuration for Codecov ATS (ci-ats.yml)
+- Test markers for better organization (@pytest.mark.slow, serial, performance, etc.)
+- Parallel test execution with pytest-xdist (~2 second test runs)
+- Shared test fixtures for reduced setup overhead (conftest.py)
+- Helper methods extracted from complex functions for maintainability
+- Code quality improvements through cyclomatic complexity reduction
+
+### Changed
+
+- Test isolation fixed for reliable parallel execution
+- Hardware timing delays mocked more aggressively in tests
+- Test data sizes optimized for faster execution
+- Restored pytest settings with coverage after fixing test isolation
+- Coverage configuration enhanced for parallel test support
+- Refactored high complexity methods:
+  - EPaperDisplay._validate_mode_pixel_format split into helper methods
+  - display_image_progressive broken down into focused methods
+  - IT8951.pack_pixels simplified with helper methods
+  - validate_alignment refactored for better maintainability
+
+### Fixed
+
+- Test isolation issues causing hangs in parallel execution
+- Flaky timing assertion in test_partial_update_mode_performance
+- Coverage collection issues with pytest-xdist workers
+
+### Developer Experience
+
+- Tests run in ~2 seconds with full parallelization
+- 98.35% test coverage maintained
+- 0 pyright errors (100% type safety)
+- All ruff linting and formatting checks pass
+- Cyclomatic complexity reduced across codebase
+
 ## [0.7.0] - 2025-02-01
 
 ### Added
@@ -169,7 +208,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type hints throughout codebase
 - Modern Python 3.11+ support
 
-[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.7.0...v0.9.0
 [0.7.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.4.0...v0.5.0
