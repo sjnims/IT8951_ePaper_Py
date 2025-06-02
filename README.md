@@ -366,25 +366,25 @@ IT8951_ePaper_Py/
 │       ├── __init__.py          # Package initialization
 │       ├── constants.py         # Hardware constants
 │       ├── exceptions.py        # Custom exceptions
-│       ├── models.py           # Pydantic data models
-│       ├── spi_interface.py    # SPI abstraction layer
-│       ├── it8951.py          # Core driver
-│       ├── display.py         # High-level interface
-│       ├── alignment.py        # Pixel alignment utilities
-│       ├── buffer_pool.py      # Memory buffer management
-│       ├── command_utils.py    # Command validation helpers
-│       ├── pixel_packing.py    # Numpy-optimized pixel packing
-│       ├── utils.py           # General utilities
-│       └── vcom_calibration.py # VCOM calibration logic
-├── tests/                     # Test suite
-├── examples/                  # Example scripts
-├── stubs/                     # Type stubs for external libs
-├── docs/                      # Documentation
-├── ROADMAP.md                # Development roadmap
-├── CLAUDE.md                 # AI assistant instructions
-├── CHANGELOG.md              # Version history
-├── CONTRIBUTING.md           # Contribution guidelines
-└── pyproject.toml            # Project configuration
+│       ├── models.py            # Pydantic data models
+│       ├── spi_interface.py     # SPI abstraction layer
+│       ├── it8951.py            # Core driver
+│       ├── display.py           # High-level interface
+│       ├── alignment.py         # Pixel alignment utilities
+│       ├── buffer_pool.py       # Memory buffer management
+│       ├── command_utils.py     # Command validation helpers
+│       ├── pixel_packing.py     # Numpy-optimized pixel packing
+│       ├── utils.py             # General utilities
+│       └── vcom_calibration.py  # VCOM calibration logic
+├── tests/                       # Test suite
+├── examples/                    # Example scripts
+├── stubs/                       # Type stubs for external libs
+├── docs/                        # Documentation
+├── ROADMAP.md                   # Development roadmap
+├── CLAUDE.md                    # AI assistant instructions
+├── CHANGELOG.md                 # Version history
+├── CONTRIBUTING.md              # Contribution guidelines
+└── pyproject.toml               # Project configuration
 ```
 
 ## Documentation
