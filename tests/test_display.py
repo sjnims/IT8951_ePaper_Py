@@ -685,7 +685,9 @@ class TestEPaperDisplay:
         assert pattern.mode == "L"
 
         # Check that it has gradients (different pixel values)
-        pixels = list(pattern.getdata())
+        # Use tobytes() which has better type annotations than getdata()
+        pixel_bytes = pattern.tobytes()
+        pixels = list(pixel_bytes)  # Each byte is a pixel value (0-255)
         unique_values = set(pixels)
         assert len(unique_values) > 1  # Should have multiple gray levels
 

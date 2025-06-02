@@ -8,22 +8,23 @@ codecov:
 coverage:
   precision: 2  # 2 decimal places
   round: down   # round coverage down
-  range: "80...100"  # coverage range for color coding (80-100% = green)
+  range: "95...100"  # coverage range for color coding (95-100% = green, matching our high standards)
 
   status:
     # Overall project coverage
     project:
       default:
-        target: 80%  # minimum acceptable coverage
-        threshold: 1%  # allow 1% drop in coverage
+        target: 95%  # realistic target below current 98.35%
+        threshold: 1%  # allow 1% drop in coverage (to 97.35%)
         base: auto
         if_ci_failed: error
+        informational: false  # fail the check if coverage drops too much
     
     # Coverage for changed code in PRs
     patch:
       default:
-        target: 90%  # higher standard for new code
-        threshold: 1%
+        target: 90%  # high standard for new code, but achievable
+        threshold: 0%  # no drop allowed for new code
         base: auto
         if_ci_failed: error
 

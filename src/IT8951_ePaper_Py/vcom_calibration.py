@@ -24,8 +24,10 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TYPE_CHECKING
 
+from PIL import Image
+
 if TYPE_CHECKING:
-    from PIL import Image
+    pass  # Additional type-checking only imports can go here
 
 
 class VCOMAction(Enum):
@@ -230,7 +232,7 @@ def print_calibration_header(session: VCOMCalibrationSession) -> None:
     print("6. Type 'quit' to cancel\n")
 
 
-def create_default_test_pattern(width: int, height: int) -> "Image.Image":
+def create_default_test_pattern(width: int, height: int) -> Image.Image:
     """Create a default test pattern for VCOM calibration.
 
     Generates a comprehensive test pattern designed to reveal VCOM-related
@@ -263,7 +265,7 @@ def create_default_test_pattern(width: int, height: int) -> "Image.Image":
         - Edge bleeding or spreading
         - Alignment problems
     """
-    from PIL import Image, ImageDraw
+    from PIL import ImageDraw
 
     test_pattern = Image.new("L", (width, height))
     draw = ImageDraw.Draw(test_pattern)

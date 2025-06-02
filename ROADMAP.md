@@ -234,48 +234,216 @@ This roadmap outlines the phased implementation of missing features and improvem
 ### 9.3 Code Quality Improvements ✅
 
 9.3.1 ✅ Refactor high cyclomatic complexity methods
-9.3.2 ✅ Extract helper methods for better maintainability  
+9.3.2 ✅ Extract helper methods for better maintainability
 9.3.3 ✅ Maintain 100% type safety with pyright
 9.3.4 ✅ Ensure all tests pass with refactored code
 9.3.5 ✅ Keep linting and formatting standards
 
-## Phase 10: Long-term Enhancements (v1.0.0)
+## Phase 10: Critical Fixes (v0.10.0)
 
-**Design patterns and architectural improvements for long-term maintainability**
+**Immediate fixes identified in Phase 9 review**
 
-### 10.1 Design Pattern Improvements
+### 10.1 CI/CD Configuration Fixes
 
-10.1.1 Implement builder pattern for complex display configurations
-10.1.2 Create plugin architecture for custom display modes
-10.1.3 Add strategy pattern for pixel packing algorithms
-10.1.4 Implement observer pattern for display state changes
-10.1.5 Create factory pattern for SPI interface selection
+10.1.1 Remove --dry-run flag from ATS workflow for actual execution
+10.1.2 Fix dependency duplication in pyproject.toml (lines 21-25 and 44-48)
+10.1.3 Relax Python version constraint to `>=3.11` (from `>=3.11.12,<3.13`)
+10.1.4 Standardize cache keys between CI and ATS workflows
+10.1.5 Extract magic numbers (VCOM tolerance 0.05V, numpy threshold 10000)
 
-### 10.2 Advanced Performance Features
+## Phase 11: Thread Safety & Type Safety (v0.11.0)
 
-10.2.1 Add async/await support for long operations
-10.2.2 Implement performance regression framework
-10.2.3 Create SPI bulk transfer optimizations
-10.2.4 Add memory pooling for buffer allocations
-10.2.5 Implement lazy loading for large image operations
+**High-priority safety improvements**
 
-### 10.3 Enterprise Features
+### 11.1 Thread Safety Implementation
 
-10.3.1 Add comprehensive logging framework
-10.3.2 Implement metrics collection interface
-10.3.3 Create diagnostic dump utilities
-10.3.4 Add remote debugging capabilities
-10.3.5 Implement configuration management system
+11.1.1 Create ThreadSafeEPaperDisplay wrapper class with RLock
+11.1.2 Implement thread-safe decorators for critical operations
+11.1.3 Add comprehensive concurrency tests
+11.1.4 Document thread safety guarantees and patterns
+11.1.5 Create thread_safety_demo.py example
+
+### 11.2 Type Safety Fixes
+
+11.2.1 Fix unexplained type ignores in display.py (lines 191, 208)
+11.2.2 Fix type ignores in spi_interface.py (lines 432-438) with proper stubs
+11.2.3 Implement TypedDict for complex return types (DeviceStatus, etc.)
+11.2.4 Add explanatory comments for all remaining type ignores
+11.2.5 Ensure 100% type coverage with pyright strict mode
+
+## Phase 12: Robustness & Testing (v0.12.0)
+
+**Error recovery and comprehensive testing**
+
+### 12.1 Error Recovery Framework
+
+12.1.1 Implement retry decorator with configurable backoff
+12.1.2 Add retry logic for SPI communication failures
+12.1.3 Create recovery procedures documentation
+12.1.4 Implement configurable retry policies
+12.1.5 Add error_recovery_demo.py example
+
+### 12.2 Integration Test Suite
+
+12.2.1 Create test_integration.py for multi-feature workflows
+12.2.2 Add power management + display mode combination tests
+12.2.3 Test progressive loading + bit depth optimization
+12.2.4 Add error propagation tests across components
+12.2.5 Create integration test markers and categories
+
+## Phase 13: Documentation & API Reference (v0.13.0)
+
+**Essential documentation for adoption**
+
+### 13.1 API Documentation
+
+13.1.1 Set up Sphinx for API documentation generation
+13.1.2 Configure autodoc to generate from docstrings
+13.1.3 Deploy documentation to GitHub Pages
+13.1.4 Create versioned documentation
+13.1.5 Add interactive examples to docs
+
+### 13.2 Diagnostic Utilities
+
+13.2.1 Create diagnostic dump utilities
+13.2.2 Add diagnostic information to error messages
+13.2.3 Implement debug mode with verbose logging
+13.2.4 Create troubleshooting decision tree
+13.2.5 Add diagnostic example script
+
+## Phase 14: Performance & Memory Optimization (v0.14.0)
+
+**Performance improvements for better user experience**
+
+### 14.1 Performance Optimizations
+
+14.1.1 Optimize list comprehensions in hot paths (spi_interface.py)
+14.1.2 Pre-allocate arrays for bulk operations
+14.1.3 Profile and optimize memory allocations
+14.1.4 Add performance regression tests
+14.1.5 Create performance profiling example
+
+### 14.2 Memory & Transfer Optimizations
+
+14.2.1 Add memory pooling for buffer allocations
+14.2.2 Create SPI bulk transfer optimizations
+14.2.3 Implement zero-copy operations where possible
+14.2.4 Add memory usage monitoring
+14.2.5 Optimize numpy array operations
+
+## Phase 15: Developer Experience (v0.15.0)
+
+**Improved developer workflow and platform support**
+
+### 15.1 Examples and Guides
+
+15.1.1 Create buffer_pool_demo.py for buffer management
+15.1.2 Add integration_scenarios.py for complex workflows
+15.1.3 Add hardware setup troubleshooting guide
+15.1.4 Write migration guide from C driver
+15.1.5 Create best practices guide
+
+### 15.2 Multi-Platform Support
+
+15.2.1 Add macOS runners to CI workflow
+15.2.2 Add ARM64 (Raspberry Pi) testing
+15.2.3 Test on Python 3.11, 3.12, and 3.13
+15.2.4 Add Windows compatibility verification
+15.2.5 Create platform-specific documentation
+
+### 15.3 Developer Tools
+
+15.3.1 Add IDE configuration files (VSCode, PyCharm)
+15.3.2 Create development setup scripts
+15.3.3 Add debugging configuration guides
+15.3.4 Implement development CLI tools
+15.3.5 Create contributor onboarding guide
+
+## Phase 16: Architecture & Design Patterns (v1.0.0)
+
+**Long-term maintainability improvements**
+
+### 16.1 Design Pattern Implementation
+
+16.1.1 Implement builder pattern for complex display configurations
+16.1.2 Create plugin architecture for custom display modes
+16.1.3 Add strategy pattern for pixel packing algorithms
+16.1.4 Implement observer pattern for display state changes
+16.1.5 Create factory pattern for SPI interface selection
+
+### 16.2 Code Organization
+
+16.2.1 Split display.py using mixins (power, vcom, modes)
+16.2.2 Split test_display.py into focused test modules
+16.2.3 Create display_base.py for core functionality
+16.2.4 Implement display_power.py mixin
+16.2.5 Organize tests by feature area
+
+## Phase 17: Advanced Features (v1.1.0)
+
+**Future enhancements for advanced use cases**
+
+### 17.1 Async Support
+
+17.1.1 Add async/await support for long operations
+17.1.2 Implement async SPI interface
+17.1.3 Create async context managers
+17.1.4 Add async event handling
+17.1.5 Create async examples
+
+### 17.2 Enterprise Features
+
+17.2.1 Add comprehensive logging framework
+17.2.2 Implement metrics collection interface
+17.2.3 Add remote debugging capabilities
+17.2.4 Implement configuration management system
+17.2.5 Create enterprise deployment guide
+
+### 17.3 Hardware Abstraction
+
+17.3.1 Create platform detection utilities
+17.3.2 Add platform-specific optimizations
+17.3.3 Implement hardware capability detection
+17.3.4 Add platform compatibility matrix
+17.3.5 Create cross-platform testing guide
 
 ## Implementation Notes
 
 - Each phase builds upon previous phases
-- Phase 1-2 provide the most immediate user value
-- Phase 3 addresses critical improvements and fixes
-- Phase 4-5 enable new use cases
-- Phase 6 provides immediate code quality improvements (NEW - high priority)
-- Phase 7-8 improve maintainability and developer experience
-- Phase 9 optimizes development workflow
-- Phase 10 prepares for v1.0.0 with long-term architectural improvements
+- Phases 1-9 have been completed (✅)
+- Phase 10 addresses immediate critical fixes
+- Phase 11 implements thread and type safety
+- Phase 12 adds robustness through testing
+- Phase 13 provides essential documentation
+- Phase 14 optimizes performance
+- Phase 15 improves developer experience
+- Phase 16 reaches v1.0.0 with architecture improvements
+- Phase 17 adds advanced features for v1.1.0
 - All features should maintain backward compatibility
 - Type hints and proper error handling required throughout
+
+### Reprioritized Implementation Order
+
+Based on the Phase 9 review findings, the phases have been reorganized by priority:
+
+**Critical Path (Phases 10-12)**
+
+1. Phase 10: Critical Fixes
+2. Phase 11: Thread & Type Safety
+3. Phase 12: Robustness & Testing
+
+**User Experience (Phases 13-15)**
+4. Phase 13: Documentation
+5. Phase 14: Performance
+6. Phase 15: Developer Experience
+
+**Long-term (Phases 16-17)**
+7. Phase 16: Architecture - v1.0.0
+8. Phase 17: Advanced Features - v1.1.0
+
+### Key Changes from Original Roadmap
+
+- **Removed duplicates**: Memory pooling and SPI optimizations consolidated
+- **Elevated priorities**: CI/CD fixes, thread safety, and type safety moved up
+- **Logical grouping**: Phases now grouped by theme rather than mixed concerns
+- **Clear versioning**: v1.0.0 reserved for architecture completion

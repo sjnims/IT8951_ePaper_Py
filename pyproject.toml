@@ -2,33 +2,36 @@
 name = "it8951-epaper-py"
 description = "Pure Python driver for IT8951 e-paper controller"
 readme = "README.md"
-requires-python = ">=3.11.12,<3.13"
+requires-python = ">=3.11"
 license = {text = "MIT"}
 authors = [
     {name = "Steve Nims", email = "sjnims@gmail.com"},
 ]
 keywords = ["e-paper", "epaper", "IT8951", "waveshare", "raspberry-pi"]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: System :: Hardware",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "pydantic>=2.5",
-    "pillow>=10.1.0",
-    "numpy>=1.24",
+    "pydantic>=2.9",
+    "pillow>=10.4",
+    "numpy>=1.26,<2.0",  # Stay on 1.x to avoid breaking changes
 ]
 dynamic = ["version"]
 
 [project.urls]
 Homepage = "https://github.com/sjnims/IT8951_ePaper_Py"
 Repository = "https://github.com/sjnims/IT8951_ePaper_Py"
-Documentation = "https://github.com/sjnims/IT8951_ePaper_Py"
+Documentation = "https://github.com/sjnims/IT8951_ePaper_Py#documentation"
+"Bug Tracker" = "https://github.com/sjnims/IT8951_ePaper_Py/issues"
+"Changelog" = "https://github.com/sjnims/IT8951_ePaper_Py/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
 rpi = ["RPi-GPIO>=0.7.1"]
@@ -38,19 +41,22 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-version = "0.9.0"
+version = "0.9.0"  # Actual version is in src/IT8951_ePaper_Py/__init__.py
 packages = [{include = "IT8951_ePaper_Py", from = "src"}]
 
 [tool.poetry.dependencies]
-python = ">=3.11.12,<3.13"
+python = ">=3.11"
+pydantic = "^2.9"
+pillow = "^10.4"
+numpy = "^1.26"  # Will stay on 1.x branch
 spidev = {version = "^3.6", markers = "platform_machine == 'aarch64' or platform_machine == 'armv7l'"}
 RPi-GPIO = {version = "^0.7.1", markers = "platform_machine == 'aarch64' or platform_machine == 'armv7l'", optional = true}
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^8.3.5"
+pytest = "^8.4.0"
 pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.1"
-ruff = "^0.11.11"
+ruff = "^0.11.12"
 pyright = "^1.1.401"
 radon = "^6.0.1"
 pytest-xdist = "^3.7.0"
@@ -73,6 +79,7 @@ ignore = [
     "TRY300",   # Consider else block (style preference)
     "TRY301",   # Detailed exception context is intentional for debugging
     "TRY400",   # Using logger.error with explicit exception info is intentional for structured error logging
+    "C901",     # Too complex - we handle complexity with radon
 ]
 select = [
     "E",    # pycodestyle errors
@@ -129,9 +136,12 @@ known-first-party = ["IT8951_ePaper_Py"]
 test = "pytest"
 test-cov = "pytest --cov=src/IT8951_ePaper_Py --cov-report=term-missing --cov-report=html --cov-report=xml"
 test-serial = "pytest -n 0"
+test-fast = "pytest -m 'not slow'"
 lint = "ruff check ."
 format = "ruff format ."
 typecheck = "pyright"
+complexity = "radon cc src/ -a -nb"
+check-all = ["lint", "typecheck", "test"]
 
 [tool.pyright]
 include = ["src", "tests"]
@@ -146,7 +156,7 @@ reportUnnecessaryTypeIgnoreComment = "none"
 reportPrivateUsage = "warning"
 reportUnusedFunction = "none"
 reportUntypedFunctionDecorator = "none"
-pythonVersion = "3.11.12"
+pythonVersion = "3.11"
 pythonPlatform = "Linux"
 typeCheckingMode = "strict"
 
@@ -174,6 +184,21 @@ reportUnusedImport = "warning"
 reportPrivateUsage = "none"
 reportConstantRedefinition = "none"
 reportIncompatibleVariableOverride = "none"
+
+[[tool.pyright.executionEnvironments]]
+root = "examples"
+extraPaths = ["src"]
+# Suppress warnings about Pillow's incomplete type stubs in examples
+reportUnknownMemberType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+
+[[tool.pyright.executionEnvironments]]
+root = "."
+include = ["conftest.py"]
+extraPaths = ["src"]
+# Suppress numpy randint type warning in conftest.py
+reportUnknownMemberType = "none"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -241,7 +266,7 @@ exclude_lines = [
 precision = 2
 show_missing = true
 skip_covered = false
-fail_under = 80
+fail_under = 95
 
 [tool.radon]
 exclude = "tests/*,docs/*,examples/*"

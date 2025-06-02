@@ -80,7 +80,7 @@ def diagnose_communication(display: EPaperDisplay) -> None:
         print("3. Try power cycling the display")
 
 
-def diagnose_display_quality(display: EPaperDisplay) -> None:  # noqa: C901
+def diagnose_display_quality(display: EPaperDisplay) -> None:
     """Diagnose display quality issues."""
     print("\n2. DIAGNOSING DISPLAY QUALITY")
     print("-" * 40)
@@ -299,7 +299,7 @@ def check_vcom_mismatch(display: EPaperDisplay, specified_vcom: float) -> None:
         print(f"Failed to read VCOM: {e}")
 
 
-def main() -> None:  # noqa: C901, PLR0912, PLR0915
+def main() -> None:  # noqa: PLR0912, PLR0915
     """Main function."""
     parser = argparse.ArgumentParser(description="Troubleshooting and diagnostics demo")
     parser.add_argument(

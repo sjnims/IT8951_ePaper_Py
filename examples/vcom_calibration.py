@@ -29,7 +29,7 @@ def create_test_pattern(width: int, height: int) -> Image.Image:
     return img
 
 
-def main() -> None:  # noqa: PLR0912, PLR0915, C901
+def main() -> None:  # noqa: PLR0912, PLR0915
     """Run VCOM calibration."""
     print("IT8951 VCOM Calibration Tool")
     print("============================")

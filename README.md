@@ -9,7 +9,7 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
-**New in v0.8.0:** Enhanced developer experience with comprehensive examples for battery-powered applications and troubleshooting, plus expanded test suites with performance benchmarks for all critical operations.
+**New in v0.9.0:** CI/CD optimizations with Automated Test Selection (ATS), parallel test execution (~2 second test runs), and improved code maintainability through reduced cyclomatic complexity.
 
 ## Features
 
@@ -19,22 +19,22 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - **🔋 Power Management** - Standby/sleep modes with auto-sleep timeout for battery-powered devices
 - **🎯 Smart Defaults** - 4bpp mode by default (50% less data, same quality as 8bpp)
 - **🛡️ Memory Safety** - Progressive loading for large images with automatic memory warnings
-- **🧪 Development-Friendly** - 98%+ test coverage, type hints, and mock SPI for testing without hardware
+- **🧪 Development-Friendly** - 98.35% test coverage, type hints, and mock SPI for testing without hardware
 - **⚡ Production-Ready** - Auto-alignment, VCOM calibration, A2 ghosting prevention, and comprehensive error handling
 - **📊 Performance Testing** - Built-in benchmarks for pixel packing, display operations, and memory usage
 - **🔍 Troubleshooting Tools** - Interactive diagnostics, register dumps, and guided problem resolution
 
 ## Requirements
 
-- Python 3.11.12 or later (supports 3.11 and 3.12)
+- Python 3.11 or later (supports 3.11 and 3.12)
 - Raspberry Pi with SPI enabled (for hardware usage)
 - Waveshare 10.3" e-paper HAT with IT8951 controller
 
 ### Python Dependencies
 
-- `pydantic` >= 2.5 - Data validation and models
-- `pillow` >= 10.1.0 - Image processing
-- `numpy` >= 1.24 - Numerical operations
+- `pydantic` >= 2.9 - Data validation and models
+- `pillow` >= 10.4 - Image processing
+- `numpy` >= 1.26,<2.0 - Numerical operations (stays on 1.x to avoid breaking changes)
 - `spidev` >= 3.6 - SPI communication (Raspberry Pi only)
 - `RPi.GPIO` >= 0.7.1 - GPIO control (optional, Raspberry Pi only)
 
@@ -234,7 +234,13 @@ The driver follows a layered architecture:
 4. **Data Models** ([`models.py`](src/IT8951_ePaper_Py/models.py))
    - Type-safe configuration with Pydantic
    - Validation and data structures
-5. **Exception Hierarchy** ([`exceptions.py`](src/IT8951_ePaper_Py/exceptions.py))
+5. **Utilities and Helpers**
+   - [`alignment.py`](src/IT8951_ePaper_Py/alignment.py) - Pixel alignment operations
+   - [`buffer_pool.py`](src/IT8951_ePaper_Py/buffer_pool.py) - Memory buffer management
+   - [`command_utils.py`](src/IT8951_ePaper_Py/command_utils.py) - Command validation
+   - [`pixel_packing.py`](src/IT8951_ePaper_Py/pixel_packing.py) - Numpy-optimized pixel packing
+   - [`vcom_calibration.py`](src/IT8951_ePaper_Py/vcom_calibration.py) - VCOM calibration logic
+6. **Exception Hierarchy** ([`exceptions.py`](src/IT8951_ePaper_Py/exceptions.py))
    - `IT8951Error` - Base exception
    - `CommunicationError` - SPI communication failures
    - `DeviceError` - Device-reported errors
@@ -243,6 +249,7 @@ The driver follows a layered architecture:
    - `IT8951MemoryError` - Memory operation failures
    - `IT8951TimeoutError` - Operation timeouts
    - `InvalidParameterError` - Invalid parameters
+   - `VCOMError` - VCOM voltage configuration errors
 
 ## Thread Safety
 
@@ -279,6 +286,9 @@ Thread safety issues include:
 - `GC16` (2) - 16-level grayscale (high quality)
 - `GL16` (3) - 16-level grayscale with flashing
 - `A2` (4) - 2-level fast update
+- `GLR16` (5) - Ghost reduction 16-level (reduces ghosting artifacts)
+- `GLD16` (6) - Ghost level detection 16 (adaptive ghost compensation)
+- `DU4` (7) - Direct update 4-level (fast 4-grayscale mode)
 
 ## Development
 
@@ -340,7 +350,7 @@ poetry run pytest --durations=10
 
 The test suite includes:
 
-- **Unit tests** for all modules with 98%+ coverage
+- **Unit tests** for all modules with 98.35% coverage
 - **Performance benchmarks** for critical operations
 - **Pixel packing tests** for all bit depths (1bpp, 2bpp, 4bpp, 8bpp)
 - **Power management tests** for battery optimization
@@ -359,13 +369,21 @@ IT8951_ePaper_Py/
 │       ├── models.py           # Pydantic data models
 │       ├── spi_interface.py    # SPI abstraction layer
 │       ├── it8951.py          # Core driver
-│       └── display.py         # High-level interface
+│       ├── display.py         # High-level interface
+│       ├── alignment.py        # Pixel alignment utilities
+│       ├── buffer_pool.py      # Memory buffer management
+│       ├── command_utils.py    # Command validation helpers
+│       ├── pixel_packing.py    # Numpy-optimized pixel packing
+│       ├── utils.py           # General utilities
+│       └── vcom_calibration.py # VCOM calibration logic
 ├── tests/                     # Test suite
 ├── examples/                  # Example scripts
 ├── stubs/                     # Type stubs for external libs
 ├── docs/                      # Documentation
 ├── ROADMAP.md                # Development roadmap
 ├── CLAUDE.md                 # AI assistant instructions
+├── CHANGELOG.md              # Version history
+├── CONTRIBUTING.md           # Contribution guidelines
 └── pyproject.toml            # Project configuration
 ```
 
@@ -377,11 +395,12 @@ IT8951_ePaper_Py/
 - [Memory Safety](docs/MEMORY_SAFETY.md) - Memory management best practices
 - [Bit Depth Support](docs/BIT_DEPTH_SUPPORT.md) - Using different pixel formats
 - [Thread Safety](docs/THREAD_SAFETY.md) - Multi-threading considerations and solutions
+- [ATS Monitoring](docs/ATS_MONITORING.md) - Automated Test Selection CI/CD optimization
 - [Docstring Style Guide](docs/DOCSTRING_EXAMPLES.md) - Examples of Google-style docstrings for contributors
 
 ## Roadmap
 
-See our [Development Roadmap](ROADMAP.md) for completed and planned features. **Phase 8 (v0.8.0) is now complete**, featuring enhanced developer experience with new examples and comprehensive test suites.
+See our [Development Roadmap](ROADMAP.md) for completed and planned features. **Phase 9 (v0.9.0) is now complete**, featuring CI/CD optimizations and code quality improvements. Next up: Critical fixes and thread safety implementation.
 
 ## Contributing
 
@@ -406,11 +425,11 @@ Contributions are welcome! Please:
 This project uses GitHub Actions for continuous integration:
 
 - **Linting**: ruff (linting + formatting), pyright
-- **Testing**: pytest with coverage on Ubuntu (98%+ coverage)
+- **Testing**: pytest with coverage on Ubuntu (98.35% coverage)
 - **Security**: CodeQL for comprehensive security analysis
 - **Complexity**: radon for maintainability metrics
 - **Performance**: Benchmark tests for critical paths
-- **Python Version**: 3.11.12 or later (supports 3.11 and 3.12)
+- **Python Version**: 3.11 or later (supports 3.11 and 3.12)
 
 PRs must pass all checks before merging.
 

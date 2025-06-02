@@ -299,7 +299,7 @@ def auto_fast_timing(request: pytest.FixtureRequest, mocker: MockerFixture) -> N
 # =============================================================================
 
 
-def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:  # noqa: C901
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """Modify test collection for ATS and add automatic markers.
 
     This hook:

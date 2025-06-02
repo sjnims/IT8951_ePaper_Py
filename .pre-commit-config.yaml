@@ -1,28 +1,95 @@
+# See https://pre-commit.com for more information
+# See https://pre-commit.com/hooks.html for more hooks
+default_language_version:
+  python: python3.11
+
+ci:
+  # Skip hooks that require additional dependencies in CI
+  skip: [pyright]
+
 repos:
+  # Python code formatting and linting
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.11.12
     hooks:
       - id: ruff
-        args: [--fix]
+        args: [--fix, --exit-non-zero-on-fix]
+        name: ruff (lint and fix)
       - id: ruff-format
+        name: ruff (format)
 
+  # Type checking
   - repo: https://github.com/microsoft/pyright
     rev: v1.1.401
     hooks:
       - id: pyright
+        name: pyright (type check)
         additional_dependencies:
-          - pydantic>=2.5
-          - pillow>=10.1.0
-          - numpy>=1.24
+          - pydantic>=2.9
+          - pillow>=10.4
+          - numpy>=1.26,<2.0
+        # Only run on Python files in src/
+        files: ^src/.*\.py$
 
+  # General file checks
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
       - id: trailing-whitespace
+        name: trim trailing whitespace
       - id: end-of-file-fixer
+        name: fix end of files
       - id: check-yaml
+        name: check yaml syntax
       - id: check-added-large-files
+        name: check for large files
+        args: [--maxkb=1000]
       - id: check-merge-conflict
+        name: check for merge conflicts
       - id: check-toml
+        name: check toml syntax
       - id: mixed-line-ending
+        name: fix mixed line endings
         args: [--fix=lf]
+      - id: check-case-conflict
+        name: check for case conflicts
+      - id: check-docstring-first
+        name: check docstring is first
+
+  # Security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        name: detect secrets
+        args: [--baseline, .secrets.baseline]
+        exclude: poetry.lock
+
+  # Poetry checks
+  - repo: https://github.com/python-poetry/poetry
+    rev: 1.8.5
+    hooks:
+      - id: poetry-check
+        name: poetry check
+      - id: poetry-lock
+        name: poetry lock check
+        args: [--check]
+
+  # Documentation checks
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-type-ignore
+        name: check blanket type ignores
+      - id: python-check-blanket-noqa
+        name: check blanket noqa
+      - id: python-use-type-annotations
+        name: check type annotations
+
+  # Import sorting (backup in case ruff misses it)
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        name: isort (import sorting)
+        args: [--profile, black, --line-length, "100"]
