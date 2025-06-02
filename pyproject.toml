@@ -79,7 +79,6 @@ ignore = [
     "TRY300",   # Consider else block (style preference)
     "TRY301",   # Detailed exception context is intentional for debugging
     "TRY400",   # Using logger.error with explicit exception info is intentional for structured error logging
-    "C901",     # Too complex - we handle complexity with radon
 ]
 select = [
     "E",    # pycodestyle errors
@@ -97,7 +96,6 @@ select = [
     "D",    # pydocstyle
     "PL",   # pylint
     "SIM",  # flake8-simplify
-    "C90",  # mccabe complexity
     "RET",  # flake8-return
     "TRY",  # tryceratops
 ]
@@ -121,7 +119,6 @@ select = [
     "S108",    # Probable insecure usage of temp file/directory
     "ARG001",  # Unused function argument (common in test fixtures)
     "ARG002",  # Unused method argument
-    "C901",    # Function is too complex (tests can be complex)
     "PLR0915", # Too many statements
 ]
 

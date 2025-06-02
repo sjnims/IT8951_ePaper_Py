@@ -307,13 +307,6 @@ jobs:
           poetry run radon hal src/ >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
         continue-on-error: true
-      
-      - name: Check complexity with ruff
-        run: |
-          echo "## Ruff Complexity Check" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          poetry run ruff check src/ --select=C90 --statistics >> $GITHUB_STEP_SUMMARY || true
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
   docs:
     name: Documentation
