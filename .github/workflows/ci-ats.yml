@@ -9,7 +9,7 @@ on:
 # It uses Codecov's Automated Test Selection to run only affected tests
 
 env:
-  PYTHON_VERSION: "3.11.12"
+  PYTHON_VERSION: "3.11"
 
 jobs:
   ats-test:
@@ -74,7 +74,6 @@ jobs:
             --head-sha=${{ github.event.pull_request.head.sha }} \
             --runner-name=python \
             --labels-file=test_labels.txt \
-            --dry-run \
             > ats_output.json || echo '{"ats_enabled": false}' > ats_output.json
           
           # Parse ATS results

@@ -23,6 +23,7 @@ from IT8951_ePaper_Py.command_utils import (
 )
 from IT8951_ePaper_Py.constants import (
     DisplayConstants,
+    PerformanceConstants,
     PixelFormat,
     PowerState,
     ProtocolConstants,
@@ -459,7 +460,10 @@ class IT8951:
     @staticmethod
     def _should_use_numpy(pixels: bytes | NumpyArray) -> bool:
         """Determine if numpy optimization should be used."""
-        return isinstance(pixels, np.ndarray) or len(pixels) > 10000
+        return (
+            isinstance(pixels, np.ndarray)
+            or len(pixels) > PerformanceConstants.NUMPY_OPTIMIZATION_THRESHOLD
+        )
 
     @staticmethod
     def _pack_pixels_standard(pixels: bytes | NumpyArray, pixel_format: PixelFormat) -> bytes:

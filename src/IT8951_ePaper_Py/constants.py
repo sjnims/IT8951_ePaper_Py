@@ -237,8 +237,15 @@ class DisplayConstants:
     MAX_HEIGHT = 2048  # Maximum supported display height
     DEFAULT_CLEAR_COLOR = 0xFF  # White (for clear operations)
     GRAYSCALE_MAX = 255  # Maximum grayscale value (8-bit)
+    VCOM_TOLERANCE = 0.05  # Voltage tolerance for VCOM verification (in volts)
     PIXEL_ALIGNMENT = 4  # Default alignment for most modes
     PIXEL_ALIGNMENT_1BPP = 32  # 32-bit alignment for 1bpp mode (per wiki)
+
+
+class PerformanceConstants:
+    """Performance optimization thresholds."""
+
+    NUMPY_OPTIMIZATION_THRESHOLD = 10000  # Pixel count threshold for numpy optimization
 
 
 class MemoryConstants:

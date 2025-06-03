@@ -8,6 +8,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.0] - 2025-02-02
+
+### Added
+
+- Constants for VCOM tolerance (0.05V) and numpy optimization threshold (10000 pixels)
+- PerformanceConstants class in constants.py for performance-related thresholds
+
+### Changed
+
+- Removed --dry-run flag from ATS workflow to enable actual test selection
+- Relaxed Python version specification in CI workflows from "3.11.12" to "3.11"
+- Standardized cache keys between CI and ATS workflows using PYTHON_VERSION variable
+- Extracted magic numbers to named constants:
+  - VCOM_TOLERANCE in DisplayConstants (was hardcoded 0.05)
+  - NUMPY_OPTIMIZATION_THRESHOLD in PerformanceConstants (was hardcoded 10000)
+
+### Fixed
+
+- Removed duplicate dependency definitions in pyproject.toml (kept only in [tool.poetry.dependencies])
+- Fixed inconsistent cache key patterns in CI workflow (py311 vs ${{ env.PYTHON_VERSION }})
+
 ## [0.9.0] - 2025-02-01
 
 ### Added

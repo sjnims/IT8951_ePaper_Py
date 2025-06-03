@@ -9,7 +9,9 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
-**New in v0.9.0:** CI/CD optimizations with Automated Test Selection (ATS), parallel test execution (~2 second test runs), and improved code maintainability through reduced cyclomatic complexity.
+**New in v0.10.0:** Critical CI/CD fixes including enabled ATS execution, standardized cache keys, and extracted magic numbers for better maintainability.
+
+**v0.9.0:** CI/CD optimizations with Automated Test Selection (ATS), parallel test execution (~2 second test runs), and improved code maintainability through reduced cyclomatic complexity.
 
 ## Features
 

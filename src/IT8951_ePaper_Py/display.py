@@ -159,7 +159,7 @@ class EPaperDisplay:
 
         # Verify VCOM was set correctly
         actual_vcom = self._controller.get_vcom()
-        if abs(actual_vcom - self._vcom) > 0.05:  # Allow 0.05V tolerance
+        if abs(actual_vcom - self._vcom) > DisplayConstants.VCOM_TOLERANCE:
             import warnings
 
             warnings.warn(
@@ -726,7 +726,7 @@ class EPaperDisplay:
 
         # Verify VCOM was set correctly
         actual_vcom = self._controller.get_vcom()
-        if abs(actual_vcom - voltage) > 0.05:  # Allow 0.05V tolerance
+        if abs(actual_vcom - voltage) > DisplayConstants.VCOM_TOLERANCE:
             import warnings
 
             warnings.warn(

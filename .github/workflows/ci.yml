@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PYTHON_VERSION: "3.11.12"
+  PYTHON_VERSION: "3.11"
 
 jobs:
   # Detect what files changed to optimize workflow
@@ -169,9 +169,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .venv
-          key: venv-${{ runner.os }}-py311-${{ hashFiles('**/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-${{ hashFiles('**/poetry.lock') }}
           restore-keys: |
-            venv-${{ runner.os }}-py311-
+            venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
       
       - name: Install dependencies
         run: poetry install --no-interaction --no-root
