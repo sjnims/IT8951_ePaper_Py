@@ -19,6 +19,11 @@ classifiers = [
     "Topic :: System :: Hardware",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "pydantic>=2.9",
+    "pillow>=10.4",
+    "numpy>=1.26,<2.0",  # Stay on 1.x to avoid breaking changes
+]
 dynamic = ["version"]
 
 [project.urls]
@@ -137,10 +142,8 @@ check-all = ["lint", "typecheck", "test"]
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["**/node_modules", "**/__pycache__", ".git", ".ruff_cache"]
+exclude = ["**/node_modules", "**/__pycache__", ".venv", ".git", ".ruff_cache"]
 stubPath = "stubs"
-venvPath = "."
-venv = ".venv"
 reportMissingImports = true
 reportImportCycles = true
 reportMissingTypeStubs = false
