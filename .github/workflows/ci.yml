@@ -113,7 +113,6 @@ jobs:
             venv-${{ runner.os }}-${{ env.PYTHON_VERSION }}-
       
       - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
         run: poetry install --no-interaction --no-root
       
       - name: Install project

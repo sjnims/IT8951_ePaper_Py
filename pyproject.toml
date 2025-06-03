@@ -149,7 +149,6 @@ reportPrivateUsage = "warning"
 reportUnusedFunction = "none"
 reportUntypedFunctionDecorator = "none"
 pythonVersion = "3.11"
-pythonPlatform = "Linux"
 typeCheckingMode = "strict"
 
 [[tool.pyright.executionEnvironments]]
