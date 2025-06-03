@@ -137,8 +137,10 @@ check-all = ["lint", "typecheck", "test"]
 
 [tool.pyright]
 include = ["src", "tests"]
-exclude = ["**/node_modules", "**/__pycache__", ".venv", ".git", ".ruff_cache"]
+exclude = ["**/node_modules", "**/__pycache__", ".git", ".ruff_cache"]
 stubPath = "stubs"
+venvPath = "."
+venv = ".venv"
 reportMissingImports = true
 reportImportCycles = true
 reportMissingTypeStubs = false

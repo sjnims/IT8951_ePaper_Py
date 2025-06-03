@@ -124,6 +124,11 @@ jobs:
       - name: Run ruff formatting check
         run: poetry run ruff format --check .
       
+      - name: Debug - Check installed packages
+        run: |
+          poetry run pip list
+          poetry run python -c "import sys; print('Python path:', sys.path)"
+          
       - name: Run pyright
         run: poetry run pyright
       
