@@ -41,7 +41,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-version = "0.10.0"  # Actual version is in src/IT8951_ePaper_Py/__init__.py
+version = "0.11.0"  # Actual version is in src/IT8951_ePaper_Py/__init__.py
 packages = [{include = "IT8951_ePaper_Py", from = "src"}]
 
 [tool.poetry.dependencies]
