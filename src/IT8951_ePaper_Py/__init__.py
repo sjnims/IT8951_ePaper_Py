@@ -45,7 +45,7 @@ from IT8951_ePaper_Py.exceptions import (
 from IT8951_ePaper_Py.retry_policy import RetryPolicy, RetrySPIInterface, create_retry_spi_interface
 from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay
 
-__version__ = "0.11.0"
+__version__ = "0.11.1"
 __all__ = [
     "CommunicationError",
     "DeviceError",
