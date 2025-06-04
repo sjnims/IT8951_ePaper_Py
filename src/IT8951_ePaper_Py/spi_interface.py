@@ -237,7 +237,7 @@ class GPIOInterface(Protocol):
         Returns:
             int: Pin state (0 or 1).
         """
-        ...  # pragma: no cover
+        ...  # pragma: no cover  # Protocol method - implementation provided by concrete classes
 
     def cleanup(self) -> None:
         """Clean up GPIO resources."""
@@ -278,7 +278,7 @@ class SPIDeviceInterface(Protocol):
         Returns:
             list[int]: Data received during transfer.
         """
-        ...  # pragma: no cover
+        ...  # pragma: no cover  # Protocol method - implementation provided by concrete classes
 
     def close(self) -> None:
         """Close SPI device."""
