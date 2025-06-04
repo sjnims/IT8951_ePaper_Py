@@ -22,12 +22,12 @@ Basic Usage:
     >>> display.close()
 
 Thread Safety:
-    This library is NOT thread-safe. The IT8951 controller and SPI communication
-    protocol do not support concurrent operations. For multi-threaded applications:
+    The base EPaperDisplay class is NOT thread-safe. For multi-threaded applications,
+    use ThreadSafeEPaperDisplay which provides automatic synchronization:
 
-    - Use a single thread for all display operations
-    - Or implement your own synchronization (e.g., threading.Lock)
-    - See class documentation for specific thread safety concerns
+    >>> from IT8951_ePaper_Py import ThreadSafeEPaperDisplay
+    >>> display = ThreadSafeEPaperDisplay(vcom=-2.0)
+    >>> # Can be safely used from multiple threads
 """  # noqa: N999
 
 from IT8951_ePaper_Py.display import EPaperDisplay
@@ -42,6 +42,8 @@ from IT8951_ePaper_Py.exceptions import (
     IT8951TimeoutError,
     VCOMError,
 )
+from IT8951_ePaper_Py.retry_policy import RetryPolicy, RetrySPIInterface, create_retry_spi_interface
+from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay
 
 __version__ = "0.10.0"
 __all__ = [
@@ -54,5 +56,9 @@ __all__ = [
     "IT8951TimeoutError",
     "InitializationError",
     "InvalidParameterError",
+    "RetryPolicy",
+    "RetrySPIInterface",
+    "ThreadSafeEPaperDisplay",
     "VCOMError",
+    "create_retry_spi_interface",
 ]

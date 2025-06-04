@@ -255,31 +255,59 @@ The driver follows a layered architecture:
 
 ## Thread Safety
 
-**Important:** This library is NOT thread-safe. The IT8951 controller and SPI communication protocol do not support concurrent operations.
+**Important:** The base `EPaperDisplay` class is NOT thread-safe. The IT8951 controller and SPI communication protocol do not support concurrent operations.
 
-If you need to use the display from multiple threads:
+### Using ThreadSafeEPaperDisplay (Recommended)
 
-- **Option 1:** Use a single thread for all display operations
-- **Option 2:** Implement your own synchronization:
+For multi-threaded applications, use the provided `ThreadSafeEPaperDisplay` wrapper:
 
-  ```python
-  import threading
-  from IT8951_ePaper_Py import EPaperDisplay
+```python
+from IT8951_ePaper_Py import ThreadSafeEPaperDisplay
+import threading
 
-  display = EPaperDisplay(vcom=-2.0)
-  display_lock = threading.Lock()
+# Create thread-safe display instance
+display = ThreadSafeEPaperDisplay(vcom=-2.0)
 
-  # In each thread:
-  with display_lock:
-      display.display_image(image)
-  ```
+# Can be safely used from multiple threads
+def worker(thread_id):
+    display.display_image(image, x=thread_id * 100, y=0)
 
-Thread safety issues include:
+threads = [threading.Thread(target=worker, args=(i,)) for i in range(4)]
+for t in threads:
+    t.start()
+for t in threads:
+    t.join()
+```
 
+The `ThreadSafeEPaperDisplay` class:
+- Provides automatic thread synchronization using a reentrant lock
+- Has identical API to `EPaperDisplay` - just change the class name
+- Allows nested method calls within the same thread
+- Protects all public methods and properties
+
+### Manual Synchronization
+
+If you prefer manual control, implement your own synchronization:
+
+```python
+import threading
+from IT8951_ePaper_Py import EPaperDisplay
+
+display = EPaperDisplay(vcom=-2.0)
+display_lock = threading.Lock()
+
+# In each thread:
+with display_lock:
+    display.display_image(image)
+```
+
+Thread safety issues to be aware of:
 - SPI transactions must be atomic (chip select, data transfer)
 - Command/data sequences can be corrupted by concurrent access
 - Power state changes affect all operations
 - The busy wait mechanism assumes single-threaded access
+
+See [Thread Safety Guide](docs/THREAD_SAFETY.md) for detailed documentation and patterns.
 
 ## Display Modes
 
