@@ -28,11 +28,26 @@ Examples:
         # Wrap with retry logic
         retry_spi = RetrySPIInterface(base_spi, RetryPolicy())
         retry_spi.init()
+
+    Advanced backoff strategies::
+
+        from IT8951_ePaper_Py.retry_policy import RetryPolicy, BackoffStrategy
+
+        # Exponential backoff (default)
+        exponential = RetryPolicy(backoff_strategy=BackoffStrategy.EXPONENTIAL)
+
+        # Linear backoff
+        linear = RetryPolicy(backoff_strategy=BackoffStrategy.LINEAR)
+
+        # Fixed delay (no backoff)
+        fixed = RetryPolicy(backoff_strategy=BackoffStrategy.FIXED)
 """
 
+import random
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from enum import Enum
 from functools import wraps
 from typing import Any, TypeVar
 
@@ -42,6 +57,15 @@ from IT8951_ePaper_Py.spi_interface import SPIInterface
 F = TypeVar("F", bound=Callable[..., Any])
 
 
+class BackoffStrategy(Enum):
+    """Backoff strategies for retry delays."""
+
+    FIXED = "fixed"  # No backoff, constant delay
+    LINEAR = "linear"  # Linear increase (delay * attempt)
+    EXPONENTIAL = "exponential"  # Exponential increase (delay * factor^attempt)
+    JITTER = "jitter"  # Exponential with random jitter
+
+
 @dataclass
 class RetryPolicy:
     """Configuration for retry behavior.
@@ -49,14 +73,20 @@ class RetryPolicy:
     Attributes:
         max_attempts: Maximum number of attempts (including initial).
         delay: Base delay between retries in seconds.
-        backoff_factor: Multiplier for delay after each retry.
+        backoff_factor: Multiplier for delay after each retry (for exponential/linear).
+        backoff_strategy: Strategy for calculating delay between retries.
         exceptions: Tuple of exception types to retry on.
+        max_delay: Maximum delay between retries (caps exponential growth).
+        jitter_range: Range for random jitter (0.0-1.0), used with JITTER strategy.
     """
 
     max_attempts: int = 3
     delay: float = 0.1
     backoff_factor: float = 2.0
+    backoff_strategy: BackoffStrategy = BackoffStrategy.EXPONENTIAL
     exceptions: tuple[type[Exception], ...] = (CommunicationError, IT8951TimeoutError)
+    max_delay: float = 10.0
+    jitter_range: float = 0.1
 
     def __post_init__(self) -> None:
         """Validate retry policy parameters."""
@@ -66,6 +96,37 @@ class RetryPolicy:
             raise ValueError("delay must be non-negative")
         if self.backoff_factor < 1.0:
             raise ValueError("backoff_factor must be at least 1.0")
+        if self.max_delay < self.delay:
+            raise ValueError("max_delay must be at least as large as delay")
+        if not 0.0 <= self.jitter_range <= 1.0:
+            raise ValueError("jitter_range must be between 0.0 and 1.0")
+
+    def calculate_delay(self, attempt: int) -> float:
+        """Calculate delay for a given attempt number.
+
+        Args:
+            attempt: Attempt number (0-based).
+
+        Returns:
+            Delay in seconds for this attempt.
+        """
+        if self.backoff_strategy == BackoffStrategy.FIXED:
+            delay = self.delay
+        elif self.backoff_strategy == BackoffStrategy.LINEAR:
+            delay = self.delay * (attempt + 1)
+        elif self.backoff_strategy == BackoffStrategy.EXPONENTIAL:
+            delay = self.delay * (self.backoff_factor**attempt)
+        elif self.backoff_strategy == BackoffStrategy.JITTER:
+            # Exponential with jitter
+            base_delay = self.delay * (self.backoff_factor**attempt)
+            # Using random for jitter is acceptable for retry delays (not cryptographic)
+            jitter = random.uniform(-self.jitter_range, self.jitter_range) * base_delay  # noqa: S311
+            delay = base_delay + jitter
+        else:
+            delay = self.delay
+
+        # Cap the delay at max_delay
+        return min(delay, self.max_delay)
 
 
 def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
@@ -89,7 +150,6 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
         @wraps(func)
         def wrapper(*args: object, **kwargs: object) -> object:
             last_exception: Exception | None = None
-            current_delay = policy.delay
 
             for attempt in range(policy.max_attempts):
                 try:
@@ -97,9 +157,9 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
                 except policy.exceptions as e:
                     last_exception = e
                     if attempt < policy.max_attempts - 1:
-                        # Log retry attempt (could be enhanced with proper logging)
-                        time.sleep(current_delay)
-                        current_delay *= policy.backoff_factor
+                        # Calculate delay for this attempt
+                        delay = policy.calculate_delay(attempt)
+                        time.sleep(delay)
                     else:
                         # Last attempt failed, re-raise
                         raise

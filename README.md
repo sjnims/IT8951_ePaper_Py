@@ -419,6 +419,52 @@ IT8951_ePaper_Py/
 └── pyproject.toml               # Project configuration
 ```
 
+## Error Recovery and Retry Mechanisms
+
+The driver includes comprehensive error recovery capabilities:
+
+### Configurable Retry Policies
+
+```python
+from IT8951_ePaper_Py import RetryPolicy, BackoffStrategy, create_retry_spi_interface
+
+# Exponential backoff (default)
+policy = RetryPolicy(
+    max_attempts=5,
+    delay=0.1,
+    backoff_factor=2.0,
+    backoff_strategy=BackoffStrategy.EXPONENTIAL
+)
+
+# Linear backoff for gradual retry
+linear_policy = RetryPolicy(
+    backoff_strategy=BackoffStrategy.LINEAR,
+    max_delay=5.0  # Cap maximum delay
+)
+
+# Fixed delay with jitter to prevent thundering herd
+jitter_policy = RetryPolicy(
+    backoff_strategy=BackoffStrategy.JITTER,
+    jitter_range=0.1  # ±10% randomness
+)
+
+# Create display with retry-enabled SPI
+spi = create_retry_spi_interface(retry_policy=policy)
+display = EPaperDisplay(vcom=-2.0, spi_interface=spi)
+```
+
+### Error Recovery Examples
+
+```python
+# See comprehensive error recovery demonstration
+python examples/error_recovery_demo.py
+
+# Basic retry mechanism demo
+python examples/retry_demo.py
+```
+
+See [Error Recovery Guide](docs/ERROR_RECOVERY.md) for detailed recovery procedures and best practices.
+
 ## Documentation
 
 - [Performance Guide](docs/PERFORMANCE_GUIDE.md) - Optimization tips and benchmarks
@@ -427,6 +473,7 @@ IT8951_ePaper_Py/
 - [Memory Safety](docs/MEMORY_SAFETY.md) - Memory management best practices
 - [Bit Depth Support](docs/BIT_DEPTH_SUPPORT.md) - Using different pixel formats
 - [Thread Safety](docs/THREAD_SAFETY.md) - Multi-threading considerations and solutions
+- [Error Recovery](docs/ERROR_RECOVERY.md) - Retry policies and recovery procedures
 - [ATS Monitoring](docs/ATS_MONITORING.md) - Automated Test Selection CI/CD optimization
 - [Docstring Style Guide](docs/DOCSTRING_EXAMPLES.md) - Examples of Google-style docstrings for contributors
 

@@ -42,11 +42,17 @@ from IT8951_ePaper_Py.exceptions import (
     IT8951TimeoutError,
     VCOMError,
 )
-from IT8951_ePaper_Py.retry_policy import RetryPolicy, RetrySPIInterface, create_retry_spi_interface
+from IT8951_ePaper_Py.retry_policy import (
+    BackoffStrategy,
+    RetryPolicy,
+    RetrySPIInterface,
+    create_retry_spi_interface,
+)
 from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay
 
 __version__ = "0.11.3"
 __all__ = [
+    "BackoffStrategy",
     "CommunicationError",
     "DeviceError",
     "DisplayError",

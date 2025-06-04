@@ -6,6 +6,7 @@ import pytest
 
 from IT8951_ePaper_Py.exceptions import CommunicationError, IT8951TimeoutError
 from IT8951_ePaper_Py.retry_policy import (
+    BackoffStrategy,
     RetryPolicy,
     RetrySPIInterface,
     create_retry_spi_interface,
@@ -52,6 +53,78 @@ class TestRetryPolicy:
         """Test that backoff_factor < 1 raises error."""
         with pytest.raises(ValueError, match="backoff_factor must be at least 1.0"):
             RetryPolicy(backoff_factor=0.5)
+
+    def test_invalid_max_delay(self):
+        """Test that max_delay < delay raises error."""
+        with pytest.raises(ValueError, match="max_delay must be at least as large as delay"):
+            RetryPolicy(delay=1.0, max_delay=0.5)
+
+    def test_invalid_jitter_range(self):
+        """Test that jitter_range outside 0-1 raises error."""
+        with pytest.raises(ValueError, match="jitter_range must be between 0.0 and 1.0"):
+            RetryPolicy(jitter_range=1.5)
+
+    def test_backoff_strategies(self):
+        """Test different backoff strategies."""
+        # Test default (exponential)
+        policy = RetryPolicy()
+        assert policy.backoff_strategy == BackoffStrategy.EXPONENTIAL
+
+        # Test all strategies are accepted
+        for strategy in BackoffStrategy:
+            policy = RetryPolicy(backoff_strategy=strategy)
+            assert policy.backoff_strategy == strategy
+
+    def test_calculate_delay_fixed(self):
+        """Test fixed backoff strategy."""
+        policy = RetryPolicy(delay=0.5, backoff_strategy=BackoffStrategy.FIXED)
+        assert policy.calculate_delay(0) == 0.5
+        assert policy.calculate_delay(1) == 0.5
+        assert policy.calculate_delay(5) == 0.5
+
+    def test_calculate_delay_linear(self):
+        """Test linear backoff strategy."""
+        policy = RetryPolicy(delay=0.1, backoff_strategy=BackoffStrategy.LINEAR)
+        assert policy.calculate_delay(0) == 0.1  # 0.1 * (0+1)
+        assert policy.calculate_delay(1) == 0.2  # 0.1 * (1+1)
+        assert abs(policy.calculate_delay(2) - 0.3) < 0.001  # 0.1 * (2+1) with float tolerance
+
+    def test_calculate_delay_exponential(self):
+        """Test exponential backoff strategy."""
+        policy = RetryPolicy(
+            delay=0.1, backoff_factor=2.0, backoff_strategy=BackoffStrategy.EXPONENTIAL
+        )
+        assert policy.calculate_delay(0) == 0.1  # 0.1 * 2^0
+        assert policy.calculate_delay(1) == 0.2  # 0.1 * 2^1
+        assert policy.calculate_delay(2) == 0.4  # 0.1 * 2^2
+
+    def test_calculate_delay_with_max_delay(self):
+        """Test that max_delay caps the calculated delay."""
+        policy = RetryPolicy(
+            delay=1.0,
+            backoff_factor=10.0,
+            max_delay=5.0,
+            backoff_strategy=BackoffStrategy.EXPONENTIAL,
+        )
+        assert policy.calculate_delay(0) == 1.0  # 1.0 * 10^0
+        assert policy.calculate_delay(1) == 5.0  # 10.0 capped at 5.0
+        assert policy.calculate_delay(2) == 5.0  # 100.0 capped at 5.0
+
+    def test_calculate_delay_jitter(self):
+        """Test jitter backoff strategy."""
+        policy = RetryPolicy(
+            delay=1.0, backoff_factor=2.0, jitter_range=0.1, backoff_strategy=BackoffStrategy.JITTER
+        )
+
+        # Run multiple times to test randomness
+        delays = [policy.calculate_delay(1) for _ in range(10)]
+
+        # All delays should be around 2.0 +/- 0.2 (10% jitter of 2.0)
+        for delay in delays:
+            assert 1.8 <= delay <= 2.2
+
+        # Delays should not all be the same (testing randomness)
+        assert len(set(delays)) > 1
 
 
 class TestWithRetry:
@@ -108,8 +181,39 @@ class TestWithRetry:
 
         # Verify sleep was called with correct delays
         assert mock_sleep.call_count == 2
-        mock_sleep.assert_any_call(0.01)  # First retry
-        mock_sleep.assert_any_call(0.02)  # Second retry with backoff
+        # First retry uses calculate_delay(0) = 0.01 * 2^0 = 0.01
+        # Second retry uses calculate_delay(1) = 0.01 * 2^1 = 0.02
+        calls = mock_sleep.call_args_list
+        assert calls[0][0][0] == 0.01  # First retry
+        assert calls[1][0][0] == 0.02  # Second retry with backoff
+
+    def test_retry_with_different_strategies(self):
+        """Test retry with different backoff strategies."""
+        # Test with fixed strategy
+        mock_func = Mock(side_effect=[CommunicationError("fail"), "success"])
+        policy = RetryPolicy(max_attempts=2, delay=0.05, backoff_strategy=BackoffStrategy.FIXED)
+
+        with patch("IT8951_ePaper_Py.retry_policy.time.sleep") as mock_sleep:
+            decorated = with_retry(policy)(mock_func)
+            result = decorated()
+
+        assert result == "success"
+        mock_sleep.assert_called_once_with(0.05)
+
+        # Test with linear strategy
+        mock_func = Mock(
+            side_effect=[CommunicationError("fail"), CommunicationError("fail"), "success"]
+        )
+        policy = RetryPolicy(max_attempts=3, delay=0.01, backoff_strategy=BackoffStrategy.LINEAR)
+
+        with patch("IT8951_ePaper_Py.retry_policy.time.sleep") as mock_sleep:
+            decorated = with_retry(policy)(mock_func)
+            result = decorated()
+
+        assert result == "success"
+        calls = mock_sleep.call_args_list
+        assert calls[0][0][0] == 0.01  # 0.01 * 1
+        assert calls[1][0][0] == 0.02  # 0.01 * 2
 
     def test_only_retry_specified_exceptions(self):
         """Test that only specified exceptions are retried."""
