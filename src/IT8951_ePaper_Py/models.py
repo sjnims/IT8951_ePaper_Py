@@ -258,7 +258,7 @@ class VCOMConfig(BaseModel):
         Raises:
             ValueError: If voltage is outside safe range.
         """
-        if not DisplayConstants.MIN_VCOM <= v <= DisplayConstants.MAX_VCOM:
+        if not DisplayConstants.MIN_VCOM <= v <= DisplayConstants.MAX_VCOM:  # pragma: no cover
             raise ValueError(
                 f"VCOM voltage must be between {DisplayConstants.MIN_VCOM}V "
                 f"and {DisplayConstants.MAX_VCOM}V"

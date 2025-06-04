@@ -10,9 +10,17 @@ from PIL import Image
 from pytest_mock import MockerFixture
 
 from IT8951_ePaper_Py.alignment import align_coordinate, align_dimension, validate_alignment
-from IT8951_ePaper_Py.constants import DisplayMode, MemoryConstants, PixelFormat, Rotation
+from IT8951_ePaper_Py.constants import (
+    DisplayMode,
+    MemoryConstants,
+    PixelFormat,
+    PowerState,
+    Rotation,
+)
 from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.exceptions import DisplayError, InvalidParameterError, IT8951MemoryError
+from IT8951_ePaper_Py.it8951 import IT8951
+from IT8951_ePaper_Py.models import DeviceInfo
 from IT8951_ePaper_Py.spi_interface import MockSPI
 
 
@@ -1508,3 +1516,55 @@ class TestCloseEdgeCases:
         display.close()
         # Controller close should be called again since controller still exists
         mock_controller_close.assert_called_once()
+
+    def test_context_manager_exit_with_auto_sleep_active(self, mocker: MockerFixture) -> None:
+        """Test context manager exit when auto-sleep is enabled and device is active."""
+        # Create display with mocked controller
+        mock_controller = mocker.Mock(spec=IT8951)
+        mock_controller.power_state = PowerState.ACTIVE
+
+        display = EPaperDisplay(vcom=-2.0)
+        display._controller = mock_controller
+        display._initialized = True
+        display._auto_sleep_timeout = 30.0  # Enable auto-sleep
+
+        # Mock the sleep method
+        mock_sleep = mocker.patch.object(display, "sleep")
+        mock_close = mocker.patch.object(display, "close")
+
+        # Call __exit__ with device in active state
+        display.__exit__(None, None, None)
+
+        # Should call sleep because auto_sleep_timeout is set and device is active
+        mock_sleep.assert_called_once()
+        mock_close.assert_called_once()
+
+    def test_get_device_status_with_device_info(self, mocker: MockerFixture) -> None:
+        """Test get_device_status when device_info is populated."""
+        # Create display with mocked controller
+        mock_controller = mocker.Mock(spec=IT8951)
+        mock_controller.device_info = DeviceInfo(
+            panel_width=1024,
+            panel_height=768,
+            memory_addr_l=0x0000,
+            memory_addr_h=0x0100,
+            fw_version="v1.0.0",
+            lut_version="v2.0.0",
+        )
+        mock_controller.power_state = PowerState.ACTIVE
+        mock_controller.get_vcom.return_value = -2.06
+
+        display = EPaperDisplay(vcom=-2.0)
+        display._controller = mock_controller
+        display._initialized = True
+        display._device_info = mock_controller.device_info
+
+        # Get device status
+        status = display.get_device_status()
+
+        # Verify device info fields are included
+        assert status["panel_width"] == 1024
+        assert status["panel_height"] == 768
+        assert status["memory_address"] == "0x1000000"
+        assert status["fw_version"] == "v1.0.0"
+        assert status["lut_version"] == "v2.0.0"

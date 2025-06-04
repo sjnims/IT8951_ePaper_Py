@@ -165,9 +165,11 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
                         raise
 
             # Should not reach here, but just in case
-            if last_exception:
+            if last_exception:  # pragma: no cover
                 raise last_exception
-            raise IT8951Error("Retry logic error: no exception but all attempts failed")
+            raise IT8951Error(
+                "Retry logic error: no exception but all attempts failed"
+            )  # pragma: no cover
 
         # Type checkers struggle with decorator typing - wrapper maintains the
         # same signature as func

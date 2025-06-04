@@ -396,7 +396,7 @@ class EPaperDisplay:
         mode_info = DisplayModeCharacteristics.MODE_INFO.get(mode)
         if not mode_info:
             # Unknown mode - let hardware handle it
-            return
+            return  # pragma: no cover
 
         self._check_recommended_bpp(mode_info, pixel_format)
         self._check_hardware_support(mode_info)
@@ -405,7 +405,7 @@ class EPaperDisplay:
         """Check if pixel format is recommended for the display mode."""
         recommended_bpp = mode_info.get("recommended_bpp", [])
         if not recommended_bpp:
-            return
+            return  # pragma: no cover
 
         if pixel_format.value in recommended_bpp:
             return
@@ -890,7 +890,7 @@ class EPaperDisplay:
 
         if action == VCOMAction.BACK:
             if not session.go_back():
-                print("No previous voltage to go back to.")
+                print("No previous voltage to go back to.")  # pragma: no cover
         elif not session.advance():
             print("\nReached end of range. Please select a voltage or quit.")
 

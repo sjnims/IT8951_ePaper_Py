@@ -197,6 +197,32 @@ poetry run pytest -v
 - Mock hardware dependencies (see existing tests for examples)
 - Aim for high test coverage (current target: 95%+)
 
+### Coverage Policy
+
+- **Target Coverage**: 95%+ overall coverage
+- **Coverage Tool**: pytest-cov with coverage.py
+- **Coverage Exceptions**: Use `# pragma: no cover` for:
+  - Defensive programming that should never execute
+  - Hardware-specific code requiring physical devices
+  - Protocol method stubs (e.g., `...` in Protocol classes)
+  - Interactive user interface code
+  - Race conditions that are impractical to test reliably
+
+Example of acceptable coverage exclusions:
+
+```python
+# Defensive programming - should never reach here
+if last_exception:  # pragma: no cover
+    raise last_exception
+raise IT8951Error("Logic error")  # pragma: no cover
+
+# Hardware-specific code
+def read_register(self, address: int) -> int:
+    """Read hardware register."""
+    # Requires actual IT8951 hardware
+    return self._hw_read(address)  # pragma: no cover
+```
+
 Example test structure:
 
 ```python

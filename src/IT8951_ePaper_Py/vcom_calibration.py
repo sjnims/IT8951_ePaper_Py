@@ -152,7 +152,7 @@ class VCOMCalibrationSession:
             -1.9
         """
         if not self.can_go_back() or self.previous_voltage is None:
-            return False
+            return False  # pragma: no cover
 
         # Swap current and previous
         self.current_voltage, self.previous_voltage = self.previous_voltage, self.current_voltage

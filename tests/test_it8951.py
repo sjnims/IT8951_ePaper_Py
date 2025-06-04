@@ -419,6 +419,20 @@ class TestIT8951:
 
         assert "Display operation timed out after 100ms" in str(exc_info.value)
 
+    def test_wait_display_ready_becomes_ready(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test wait_display_ready when display becomes ready."""
+        mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+        driver.init()
+
+        # Mock MISC register to return busy then ready
+        mock_spi.set_read_data([0x80, 0x00])  # First read: busy, second read: ready
+
+        # Should not raise timeout
+        driver._wait_display_ready(timeout_ms=1000)  # type: ignore[reportPrivateUsage]
+
+        # Verify it completed without timeout (success is that no exception was raised)
+
     def test_set_target_memory_addr(self, driver: IT8951, mock_spi: MockSPI) -> None:
         """Test setting target memory address."""
         mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)
