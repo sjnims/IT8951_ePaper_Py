@@ -181,14 +181,19 @@ When pyright complains about external libraries:
 ### Release Workflow
 
 1. Complete all features for the release
-2. Update version in `src/IT8951_ePaper_Py/__init__.py`
-3. Update version in `pyproject.toml` if using dynamic versioning
+2. Update version in `src/IT8951_ePaper_Py/__init__.py` (single source of truth)
+3. Run `python scripts/sync_version.py` to update pyproject.toml
 4. Update CHANGELOG.md with release notes
 5. Update README.md with new version and features
 6. Commit version bump to `main`
 7. Create annotated tag: `git tag -a v0.x.0 -m "Release notes"`
 8. Push tag: `git push origin v0.x.0`
 9. Create GitHub release from tag if desired
+
+### Version Management
+
+The version is maintained in `src/IT8951_ePaper_Py/__init__.py` as the single source of truth.
+Use `scripts/sync_version.py` to synchronize with pyproject.toml before releases.
 
 ## Common Tasks
 

@@ -3,10 +3,13 @@
 import concurrent.futures
 import threading
 import time
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
 import pytest
+from PIL import Image
 
+from IT8951_ePaper_Py.constants import DisplayMode, PixelFormat, PowerState, Rotation
+from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay, thread_safe_method
 
 
@@ -78,6 +81,19 @@ class TestThreadSafeMethod:
         # Verify lock is released (we can acquire it)
         assert obj._lock.acquire(blocking=False)
         obj._lock.release()
+
+    def test_decorator_without_lock(self):
+        """Test that decorator works when object has no _lock attribute."""
+
+        class TestClass:
+            @thread_safe_method
+            def test_method(self, x: int) -> int:
+                return x * 2
+
+        obj = TestClass()
+        # Should work without a lock
+        result = obj.test_method(5)
+        assert result == 10
 
 
 class TestThreadSafeEPaperDisplay:
@@ -229,3 +245,217 @@ class TestThreadSafeEPaperDisplay:
             method = getattr(display, method_name)
             # The wrapper function will have been created by the decorator
             assert callable(method)
+
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.__init__", return_value=None)
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.init")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.close")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.clear")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.display_image")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.display_image_progressive")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.display_partial")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.set_vcom")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.get_vcom")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.find_optimal_vcom")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.sleep")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.standby")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.wake")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.set_auto_sleep_timeout")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.check_auto_sleep")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.dump_registers")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.get_device_status")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.is_enhanced_driving_enabled")
+    def test_wrapped_methods_call_parent(self, *mocks: Mock) -> None:
+        """Test that wrapped methods properly call parent implementations."""
+        # Unpack mocks in reverse order
+        (
+            mock_is_enhanced,
+            mock_get_status,
+            mock_dump_regs,
+            mock_check_sleep,
+            mock_set_timeout,
+            mock_wake,
+            mock_standby,
+            mock_sleep,
+            mock_find_vcom,
+            mock_get_vcom,
+            mock_set_vcom,
+            mock_partial,
+            mock_progressive,
+            mock_image,
+            mock_clear,
+            mock_close,
+            mock_init,
+            mock_parent_init,
+        ) = mocks
+
+        # Configure mock returns
+        mock_init.return_value = (800, 600)
+        mock_get_vcom.return_value = -2.0
+        mock_find_vcom.return_value = -2.5
+        mock_dump_regs.return_value = {"reg1": 0x1234}
+        mock_get_status.return_value = {"status": "ok"}
+        mock_is_enhanced.return_value = True
+
+        # Create display instance
+        display = ThreadSafeEPaperDisplay(vcom=-2.0)
+
+        # Test init
+        width, height = display.init()
+        assert width == 800
+        assert height == 600
+        mock_init.assert_called_once()
+
+        # Test close
+        display.close()
+        mock_close.assert_called_once()
+
+        # Test clear
+        display.clear(0x80)
+        mock_clear.assert_called_once_with(0x80)
+
+        # Test display_image
+        img = Image.new("L", (100, 100))
+        display.display_image(img, x=10, y=20, mode=DisplayMode.DU)
+        mock_image.assert_called_once_with(
+            img, 10, 20, DisplayMode.DU, Rotation.ROTATE_0, PixelFormat.BPP_4
+        )
+
+        # Test display_image_progressive
+        display.display_image_progressive(img, chunk_height=128)
+        mock_progressive.assert_called_once_with(
+            img, 0, 0, DisplayMode.GC16, Rotation.ROTATE_0, PixelFormat.BPP_4, 128
+        )
+
+        # Test display_partial
+        display.display_partial(img, 50, 60, DisplayMode.A2)
+        mock_partial.assert_called_once_with(img, 50, 60, DisplayMode.A2)
+
+        # Test VCOM operations
+        display.set_vcom(-2.5)
+        mock_set_vcom.assert_called_once_with(-2.5)
+
+        vcom = display.get_vcom()
+        assert vcom == -2.0
+        mock_get_vcom.assert_called_once()
+
+        # Test find_optimal_vcom
+        optimal = display.find_optimal_vcom()
+        assert optimal == -2.5
+        mock_find_vcom.assert_called_once_with(-3.0, -1.0, 0.1, None)
+
+        # Test power management
+        display.sleep()
+        mock_sleep.assert_called_once()
+
+        display.standby()
+        mock_standby.assert_called_once()
+
+        display.wake()
+        mock_wake.assert_called_once()
+
+        # Test auto-sleep
+        display.set_auto_sleep_timeout(30.0)
+        mock_set_timeout.assert_called_once_with(30.0)
+
+        display.check_auto_sleep()
+        mock_check_sleep.assert_called_once()
+
+        # Test debug methods
+        regs = display.dump_registers()
+        assert regs == {"reg1": 0x1234}
+        mock_dump_regs.assert_called_once()
+
+        status = display.get_device_status()
+        assert status == {"status": "ok"}
+        mock_get_status.assert_called_once()
+
+        # Test enhanced driving
+        enabled = display.is_enhanced_driving_enabled()
+        assert enabled is True
+        mock_is_enhanced.assert_called_once()
+
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.__init__", return_value=None)
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.__enter__")
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.__exit__")
+    def test_context_manager_thread_safe(self, mock_exit, mock_enter, mock_init):
+        """Test thread-safe context manager implementation."""
+        # Configure mocks
+        mock_enter.return_value = MagicMock()
+
+        # Test context manager
+        with ThreadSafeEPaperDisplay(vcom=-2.0) as display:
+            # Verify parent __enter__ was called
+            mock_enter.assert_called_once()
+            assert display is not None
+
+        # Verify parent __exit__ was called
+        mock_exit.assert_called_once()
+
+    @patch("IT8951_ePaper_Py.thread_safe.EPaperDisplay.__init__", return_value=None)
+    def test_properties_thread_safe(self, mock_init):
+        """Test thread-safe property access."""
+        display = ThreadSafeEPaperDisplay(vcom=-2.0)
+
+        # Mock the parent property access by patching super()
+        with (
+            patch.object(EPaperDisplay, "power_state", new_callable=PropertyMock) as mock_power,
+            patch.object(EPaperDisplay, "width", new_callable=PropertyMock) as mock_width,
+            patch.object(EPaperDisplay, "height", new_callable=PropertyMock) as mock_height,
+            patch.object(EPaperDisplay, "size", new_callable=PropertyMock) as mock_size,
+            patch.object(
+                EPaperDisplay, "a2_refresh_count", new_callable=PropertyMock
+            ) as mock_count,
+            patch.object(
+                EPaperDisplay, "a2_refresh_limit", new_callable=PropertyMock
+            ) as mock_limit,
+        ):
+            # Configure property returns
+            mock_power.return_value = PowerState.ACTIVE
+            mock_width.return_value = 1024
+            mock_height.return_value = 768
+            mock_size.return_value = (1024, 768)
+            mock_count.return_value = 5
+            mock_limit.return_value = 10
+
+            # Test all properties
+            assert display.power_state == PowerState.ACTIVE
+            assert display.width == 1024
+            assert display.height == 768
+            assert display.size == (1024, 768)
+            assert display.a2_refresh_count == 5
+            assert display.a2_refresh_limit == 10
+
+    def test_concurrent_property_access(self):
+        """Test that property access is thread-safe under concurrent load."""
+        # Create a mock display with properties
+        display = Mock(spec=ThreadSafeEPaperDisplay)
+        display._lock = threading.RLock()
+
+        # Track access order
+        access_log = []
+        access_lock = threading.Lock()
+
+        # Create thread-safe property getter
+        @property
+        @thread_safe_method
+        def test_property(self) -> int:
+            with access_lock:
+                access_log.append(f"read-{threading.current_thread().name}")
+            time.sleep(0.01)  # Simulate property computation
+            return 42
+
+        # Bind property to display
+        type(display).test_property = test_property
+
+        # Access property from multiple threads
+        def access_property(thread_id: int) -> int:
+            threading.current_thread().name = f"Thread-{thread_id}"
+            return display.test_property
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+            futures = [executor.submit(access_property, i) for i in range(3)]
+            results = [f.result() for f in futures]
+
+        # All should get the same value
+        assert all(r == 42 for r in results)
+        assert len(access_log) == 3

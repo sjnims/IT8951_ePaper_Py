@@ -24,7 +24,7 @@ Examples:
 
 from pathlib import Path
 from types import TracebackType
-from typing import TYPE_CHECKING, Any, BinaryIO
+from typing import TYPE_CHECKING, BinaryIO, TypedDict
 
 import numpy as np
 from PIL import Image
@@ -53,6 +53,7 @@ from IT8951_ePaper_Py.constants import (
     DisplayMode,
     DisplayModeCharacteristics,
     MemoryConstants,
+    ModeInfo,
     PixelFormat,
     PowerState,
     Rotation,
@@ -75,6 +76,22 @@ from IT8951_ePaper_Py.vcom_calibration import (
     parse_user_action,
     print_calibration_header,
 )
+
+
+class DeviceStatus(TypedDict):
+    """Device status information returned by get_device_status()."""
+
+    panel_width: int
+    panel_height: int
+    memory_address: str  # Hex string
+    fw_version: str
+    lut_version: str
+    power_state: str
+    vcom_voltage: float | None
+    a2_refresh_count: int
+    a2_refresh_limit: int
+    auto_sleep_timeout: float | None
+    enhanced_driving: bool
 
 
 class EPaperDisplay:
@@ -384,7 +401,7 @@ class EPaperDisplay:
         self._check_recommended_bpp(mode_info, pixel_format)
         self._check_hardware_support(mode_info)
 
-    def _check_recommended_bpp(self, mode_info: dict[str, Any], pixel_format: PixelFormat) -> None:
+    def _check_recommended_bpp(self, mode_info: ModeInfo, pixel_format: PixelFormat) -> None:
         """Check if pixel format is recommended for the display mode."""
         recommended_bpp = mode_info.get("recommended_bpp", [])
         if not recommended_bpp:
@@ -408,7 +425,7 @@ class EPaperDisplay:
             stacklevel=5,
         )
 
-    def _check_hardware_support(self, mode_info: dict[str, Any]) -> None:
+    def _check_hardware_support(self, mode_info: ModeInfo) -> None:
         """Check hardware support warning for extended modes."""
         if mode_info.get("hardware_support") != "varies":
             return
@@ -1089,7 +1106,7 @@ class EPaperDisplay:
         """
         return self._controller.dump_registers()
 
-    def get_device_status(self) -> dict[str, str | int | float | bool | None]:
+    def get_device_status(self) -> DeviceStatus:
         """Get comprehensive device status information.
 
         Returns device information including hardware specs, power state,
@@ -1114,7 +1131,19 @@ class EPaperDisplay:
         """
         self._ensure_initialized()
 
-        status: dict[str, str | int | float | bool | None] = {}
+        status = DeviceStatus(
+            panel_width=0,
+            panel_height=0,
+            memory_address="0x0",
+            fw_version="",
+            lut_version="",
+            power_state=PowerState.ACTIVE.name,
+            vcom_voltage=None,
+            a2_refresh_count=0,
+            a2_refresh_limit=0,
+            auto_sleep_timeout=None,
+            enhanced_driving=False,
+        )
 
         # Add device info
         if self._device_info:

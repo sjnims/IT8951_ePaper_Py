@@ -109,7 +109,9 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
                 raise last_exception
             raise IT8951Error("Retry logic error: no exception but all attempts failed")
 
-        return wrapper  # type: ignore[return-value]
+        # Type checkers struggle with decorator typing - wrapper maintains the
+        # same signature as func
+        return wrapper  # type: ignore[return-value] # Decorator preserves function signature
 
     return decorator
 

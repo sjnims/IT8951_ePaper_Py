@@ -16,7 +16,28 @@ Constant Categories:
 """
 
 from enum import IntEnum
-from typing import ClassVar
+from typing import ClassVar, TypedDict
+
+
+class ModeInfoRequired(TypedDict):
+    """Required fields for display mode information."""
+    
+    name: str
+    grayscale_levels: int
+    speed: str
+    quality: str
+    use_case: str
+    ghosting: str
+    recommended_bpp: list[int]
+
+
+class ModeInfo(ModeInfoRequired, total=False):
+    """Display mode information with optional fields."""
+    
+    description: str
+    hardware_requirements: str | None
+    hardware_support: str
+    warning: str
 
 
 class SystemCommand(IntEnum):
@@ -82,7 +103,7 @@ class DisplayMode(IntEnum):
 class DisplayModeCharacteristics:
     """Characteristics of each display mode for validation and optimization."""
 
-    MODE_INFO: ClassVar[dict[DisplayMode, dict[str, str | int | list[int]]]] = {
+    MODE_INFO: ClassVar[dict[DisplayMode, ModeInfo]] = {
         DisplayMode.INIT: {
             "name": "INIT",
             "grayscale_levels": 1,

@@ -188,7 +188,11 @@ class ManagedBuffer(Generic[BufferT]):
             ManagedBuffer context manager.
         """
         buffer = BufferPool.get_bytes_buffer(size, fill_value)
-        return cls(buffer, BufferPool.return_bytes_buffer, bytes)  # type: ignore[arg-type]
+        # Create instance with explicit type to help inference
+        instance: ManagedBuffer[bytes] = ManagedBuffer(
+            buffer, BufferPool.return_bytes_buffer, bytes
+        )
+        return instance
 
     @classmethod
     def array(
@@ -204,5 +208,9 @@ class ManagedBuffer(Generic[BufferT]):
         Returns:
             ManagedBuffer context manager.
         """
-        array = BufferPool.get_array_buffer(shape, dtype, fill_value)
-        return cls(array, BufferPool.return_array_buffer, np.ndarray)  # type: ignore[arg-type]
+        buffer = BufferPool.get_array_buffer(shape, dtype, fill_value)
+        # Create instance with explicit type to help inference
+        instance: ManagedBuffer[NDArray[np.generic]] = ManagedBuffer(
+            buffer, BufferPool.return_array_buffer, np.ndarray
+        )
+        return instance

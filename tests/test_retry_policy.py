@@ -246,6 +246,46 @@ class TestRetrySPIInterface:
         # Close should not retry
         assert mock_spi.close.call_count == 1
 
+    def test_reset_retry(self, mocker):
+        """Test reset() method with retry logic."""
+        mock_spi = Mock()
+        mock_spi.reset.side_effect = [CommunicationError("fail"), None]
+
+        policy = RetryPolicy(max_attempts=3, delay=0.01)
+        retry_spi = RetrySPIInterface(mock_spi, policy)
+
+        retry_spi.reset()
+
+        assert mock_spi.reset.call_count == 2
+
+    def test_write_data_retry(self, mocker):
+        """Test write_data() method with retry logic."""
+        mock_spi = Mock()
+        mock_spi.write_data.side_effect = [CommunicationError("fail"), None]
+
+        policy = RetryPolicy(max_attempts=3, delay=0.01)
+        retry_spi = RetrySPIInterface(mock_spi, policy)
+
+        retry_spi.write_data(0xABCD)
+
+        assert mock_spi.write_data.call_count == 2
+        mock_spi.write_data.assert_called_with(0xABCD)
+
+    def test_read_data_bulk_retry(self, mocker):
+        """Test read_data_bulk() method with retry logic."""
+        mock_spi = Mock()
+        expected_data = [0x12, 0x34, 0x56, 0x78]
+        mock_spi.read_data_bulk.side_effect = [CommunicationError("fail"), expected_data]
+
+        policy = RetryPolicy(max_attempts=3, delay=0.01)
+        retry_spi = RetrySPIInterface(mock_spi, policy)
+
+        result = retry_spi.read_data_bulk(4)
+
+        assert result == expected_data
+        assert mock_spi.read_data_bulk.call_count == 2
+        mock_spi.read_data_bulk.assert_called_with(4)
+
 
 class TestCreateRetrySPIInterface:
     """Test the factory function."""

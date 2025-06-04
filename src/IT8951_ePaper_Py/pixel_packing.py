@@ -4,9 +4,10 @@ This module provides numpy-optimized implementations of pixel packing functions
 for improved performance when working with large images.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 from IT8951_ePaper_Py.constants import PixelFormat, ProtocolConstants
 from IT8951_ePaper_Py.exceptions import InvalidParameterError
@@ -15,14 +16,12 @@ from IT8951_ePaper_Py.exceptions import InvalidParameterError
 _POWERS_OF_2_CACHE = np.array([128, 64, 32, 16, 8, 4, 2, 1], dtype=np.uint8)
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
-
     NumpyArray = NDArray[np.uint8]
 else:
     NumpyArray = np.ndarray
 
 
-def pack_pixels_numpy(pixels: bytes | NumpyArray, pixel_format: PixelFormat) -> bytes:
+def pack_pixels_numpy(pixels: bytes | NDArray[Any], pixel_format: PixelFormat) -> bytes:
     """Pack pixel data using numpy optimizations.
 
     This function provides significantly faster pixel packing for large images

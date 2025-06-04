@@ -430,12 +430,15 @@ class RaspberryPiSPI(SPIInterface):
             import spidev  # pyright: ignore[reportMissingModuleSource]
             from RPi import GPIO  # pyright: ignore[reportMissingModuleSource]
 
-            self._gpio = GPIO  # type: ignore[assignment]
+            # GPIO is a module with module-level functions, not a class instance
+            # We store a reference to it for easier access and cleanup
+            self._gpio = GPIO  # type: ignore[assignment] # Module doesn't match GPIOInterface protocol
             self._gpio.setmode(GPIO.BCM)
             self._gpio.setup(GPIOPin.RESET, GPIO.OUT)
             self._gpio.setup(GPIOPin.BUSY, GPIO.IN)
 
-            self._spi = spidev.SpiDev()  # type: ignore[assignment]
+            # spidev.SpiDev is the actual implementation but doesn't perfectly match our protocol
+            self._spi = spidev.SpiDev()  # type: ignore[assignment] # Implementation details differ from protocol
             self._spi.open(0, 0)
             # Auto-detect Pi version and use appropriate speed, or use override
             self._spi.max_speed_hz = get_spi_speed_for_pi(override_hz=self._spi_speed_hz)

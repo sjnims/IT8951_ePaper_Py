@@ -753,6 +753,18 @@ model name      : ARMv7 Processor
         version = detect_raspberry_pi_version()
         assert version == 4  # Conservative default
 
+    def test_detect_short_revision_string(self, mocker: MockerFixture) -> None:
+        """Test handling short revision strings (less than 6 chars) to cover line 64."""
+        cpuinfo = """processor       : 0
+model name      : ARMv7 Processor
+Revision        : a32
+"""
+        mock_open = mocker.mock_open(read_data=cpuinfo)
+        mocker.patch("builtins.open", mock_open)
+
+        version = detect_raspberry_pi_version()
+        assert version == 4  # Should fall back to conservative default
+
     def test_detect_file_error(self, mocker: MockerFixture) -> None:
         """Test handling file read error."""
         mocker.patch("builtins.open", side_effect=OSError("File not found"))

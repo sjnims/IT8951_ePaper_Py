@@ -92,6 +92,50 @@ class TestIT8951:
 
         assert "Failed to initialize IT8951" in str(exc_info.value)
 
+    def test_double_init_returns_cached_info(self, driver: IT8951, mock_spi: MockSPI) -> None:
+        """Test double initialization returns cached device info without re-initializing."""
+        # First initialization
+        mock_spi.set_read_data(
+            [
+                1024,  # panel_width
+                768,  # panel_height
+                MemoryConstants.IMAGE_BUFFER_ADDR_L,
+                MemoryConstants.IMAGE_BUFFER_ADDR_H,
+                49,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # fw_version "1.0"
+                50,
+                46,
+                48,
+                0,
+                0,
+                0,
+                0,
+                0,  # lut_version "2.0"
+            ]
+        )
+        mock_spi.set_read_data([0x0000])  # REG_0204 read
+
+        info1 = driver.init()
+
+        # Store the last command after first init
+        last_command_after_first = mock_spi.get_last_command()
+
+        # Second initialization should return cached info
+        info2 = driver.init()
+
+        # The last command should not change (no new commands sent)
+        last_command_after_second = mock_spi.get_last_command()
+
+        # Should return same info without additional commands
+        assert info2 == info1
+        assert last_command_after_second == last_command_after_first
+
     def test_close(self, driver: IT8951, mock_spi: MockSPI) -> None:
         """Test driver close."""
         mock_spi.set_read_data([1024, 768, 0, 0] + [0] * 16)

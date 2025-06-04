@@ -15,7 +15,6 @@ Examples:
             lut_version="M841"
         )
 """
-# ruff: noqa: PLR2004
 
 from pydantic import BaseModel, Field, field_validator
 

@@ -34,7 +34,7 @@ from numpy.typing import NDArray
 from PIL import Image
 
 from IT8951_ePaper_Py.constants import DisplayMode, PixelFormat, PowerState, Rotation
-from IT8951_ePaper_Py.display import EPaperDisplay
+from IT8951_ePaper_Py.display import DeviceStatus, EPaperDisplay
 from IT8951_ePaper_Py.spi_interface import SPIInterface
 
 NumpyArray = NDArray[np.uint8]
@@ -56,7 +56,8 @@ def thread_safe_method(func: F) -> F:
     @wraps(func)
     def wrapper(self: object, *args: object, **kwargs: object) -> object:
         if hasattr(self, "_lock"):
-            with self._lock:  # type: ignore[attr-defined]
+            # _lock is dynamically added to instances that use this decorator
+            with self._lock:  # type: ignore[attr-defined] # Dynamic attribute on thread-safe classes
                 return func(self, *args, **kwargs)
         return func(self, *args, **kwargs)
 
@@ -226,7 +227,7 @@ class ThreadSafeEPaperDisplay(EPaperDisplay):
         return super().dump_registers()
 
     @thread_safe_method
-    def get_device_status(self) -> dict[str, str | int | float | bool | None]:
+    def get_device_status(self) -> DeviceStatus:
         """Thread-safe device status retrieval."""
         return super().get_device_status()
 

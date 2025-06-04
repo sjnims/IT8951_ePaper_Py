@@ -280,6 +280,7 @@ for t in threads:
 ```
 
 The `ThreadSafeEPaperDisplay` class:
+
 - Provides automatic thread synchronization using a reentrant lock
 - Has identical API to `EPaperDisplay` - just change the class name
 - Allows nested method calls within the same thread
@@ -302,6 +303,7 @@ with display_lock:
 ```
 
 Thread safety issues to be aware of:
+
 - SPI transactions must be atomic (chip select, data transfer)
 - Command/data sequences can be corrupted by concurrent access
 - Power state changes affect all operations

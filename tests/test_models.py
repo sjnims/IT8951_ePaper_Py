@@ -210,3 +210,20 @@ class TestVCOMConfig:
         """Test VCOM voltage is rounded to 2 decimal places."""
         config = VCOMConfig(voltage=-2.567)
         assert config.voltage == -2.57
+
+    def test_vcom_boundary_values(self) -> None:
+        """Test VCOM validation at exact boundaries to cover line 262."""
+        # Test exact minimum boundary
+        config_min = VCOMConfig(voltage=-5.0)
+        assert config_min.voltage == -5.0
+
+        # Test exact maximum boundary
+        config_max = VCOMConfig(voltage=-0.2)
+        assert config_max.voltage == -0.2
+
+        # Test just outside boundaries
+        with pytest.raises(ValidationError):
+            VCOMConfig(voltage=-5.01)
+
+        with pytest.raises(ValidationError):
+            VCOMConfig(voltage=-0.19)

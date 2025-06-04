@@ -1,10 +1,12 @@
 """Tests for pixel packing functionality."""
 
+import numpy as np
 import pytest
 
 from IT8951_ePaper_Py.constants import PixelFormat
 from IT8951_ePaper_Py.exceptions import InvalidParameterError
 from IT8951_ePaper_Py.it8951 import IT8951
+from IT8951_ePaper_Py.pixel_packing import pack_pixels_numpy
 
 
 class TestPixelPacking:
@@ -159,3 +161,191 @@ class TestPixelPacking:
         """Test endian conversion with empty data."""
         assert IT8951.convert_endian_1bpp(b"", reverse_bits=False) == b""
         assert IT8951.convert_endian_1bpp(b"", reverse_bits=True) == b""
+
+
+class TestPixelPackingNumpy:
+    """Test numpy-optimized pixel packing functions directly."""
+
+    def test_pack_pixels_numpy_8bpp_bytes(self) -> None:
+        """Test 8bpp packing with bytes input (no change)."""
+        pixels = bytes([0, 64, 128, 192, 255])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_8)
+        assert packed == pixels
+
+    def test_pack_pixels_numpy_8bpp_array(self) -> None:
+        """Test 8bpp packing with numpy array input."""
+        pixels = np.array([0, 64, 128, 192, 255], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_8)
+        assert packed == bytes([0, 64, 128, 192, 255])
+
+    def test_pack_pixels_numpy_8bpp_different_dtype(self) -> None:
+        """Test 8bpp packing with non-uint8 array."""
+        pixels = np.array([0, 64, 128, 192, 255], dtype=np.int32)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_8)
+        assert packed == bytes([0, 64, 128, 192, 255])
+
+    def test_pack_pixels_numpy_4bpp_bytes(self) -> None:
+        """Test 4bpp packing with bytes input."""
+        pixels = bytes([0x00, 0xFF, 0x80, 0x40, 0xC0, 0x20])
+        expected = bytes([0x0F, 0x84, 0xC2])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_4)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_4bpp_array(self) -> None:
+        """Test 4bpp packing with numpy array."""
+        pixels = np.array([0x00, 0xFF, 0x80, 0x40, 0xC0, 0x20], dtype=np.uint8)
+        expected = bytes([0x0F, 0x84, 0xC2])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_4)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_4bpp_odd_length(self) -> None:
+        """Test 4bpp packing with odd number of pixels."""
+        pixels = np.array([0xF0, 0x80, 0x40], dtype=np.uint8)
+        expected = bytes([0xF8, 0x40])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_4)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_4bpp_empty(self) -> None:
+        """Test 4bpp packing with empty data."""
+        pixels = np.array([], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_4)
+        assert packed == b""
+
+    def test_pack_pixels_numpy_2bpp_bytes(self) -> None:
+        """Test 2bpp packing with bytes input."""
+        pixels = bytes([0x00, 0xFF, 0x80, 0x40, 0xC0, 0x20, 0x60, 0xA0])
+        expected = bytes([0x39, 0xC6])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_2bpp_array(self) -> None:
+        """Test 2bpp packing with numpy array."""
+        pixels = np.array([0x00, 0xFF, 0x80, 0x40, 0xC0, 0x20, 0x60, 0xA0], dtype=np.uint8)
+        expected = bytes([0x39, 0xC6])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_2bpp_partial(self) -> None:
+        """Test 2bpp packing with less than 4 pixels."""
+        # Test with 1 pixel
+        pixels = np.array([0xC0], dtype=np.uint8)
+        expected = bytes([0xC0])  # 11000000
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == expected
+
+        # Test with 2 pixels
+        pixels = np.array([0xC0, 0x80], dtype=np.uint8)
+        expected = bytes([0xE0])  # 11100000
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == expected
+
+        # Test with 3 pixels
+        pixels = np.array([0xC0, 0x80, 0x40], dtype=np.uint8)
+        expected = bytes([0xE4])  # 11100100
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_2bpp_empty(self) -> None:
+        """Test 2bpp packing with empty data."""
+        pixels = np.array([], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert packed == b""
+
+    def test_pack_pixels_numpy_1bpp_bytes(self) -> None:
+        """Test 1bpp packing with bytes input."""
+        pixels = bytes([0, 255, 100, 200, 50, 150, 0, 255])
+        expected = bytes([0b01010101])  # MSB first
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_1bpp_array(self) -> None:
+        """Test 1bpp packing with numpy array."""
+        pixels = np.array([0, 255, 100, 200, 50, 150, 0, 255], dtype=np.uint8)
+        expected = bytes([0b01010101])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_1bpp_partial(self) -> None:
+        """Test 1bpp packing with partial byte."""
+        # Test with 1 pixel
+        pixels = np.array([255], dtype=np.uint8)
+        expected = bytes([0b10000000])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+        # Test with 3 pixels
+        pixels = np.array([0, 255, 128], dtype=np.uint8)
+        expected = bytes([0b01100000])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+        # Test with 7 pixels
+        pixels = np.array([255, 0, 255, 0, 255, 0, 255], dtype=np.uint8)
+        expected = bytes([0b10101010])
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == expected
+
+    def test_pack_pixels_numpy_1bpp_threshold(self) -> None:
+        """Test 1bpp threshold behavior (128)."""
+        # Values below 128 -> 0
+        pixels = np.array([0, 50, 100, 127], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == bytes([0b00000000])
+
+        # Values >= 128 -> 1
+        pixels = np.array([128, 150, 200, 255], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == bytes([0b11110000])
+
+    def test_pack_pixels_numpy_1bpp_empty(self) -> None:
+        """Test 1bpp packing with empty data."""
+        pixels = np.array([], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == b""
+
+    def test_pack_pixels_numpy_invalid_format(self) -> None:
+        """Test invalid pixel format raises error."""
+        pixels = bytes([0, 255])
+
+        # Test with an invalid format value
+        with pytest.raises(InvalidParameterError, match="Pixel format .* not yet implemented"):
+            pack_pixels_numpy(pixels, 99)  # type: ignore[arg-type]
+
+    def test_pack_pixels_numpy_empty_bytes(self) -> None:
+        """Test packing empty bytes for all formats."""
+        pixels = b""
+
+        assert pack_pixels_numpy(pixels, PixelFormat.BPP_8) == b""
+        assert pack_pixels_numpy(pixels, PixelFormat.BPP_4) == b""
+        assert pack_pixels_numpy(pixels, PixelFormat.BPP_2) == b""
+        assert pack_pixels_numpy(pixels, PixelFormat.BPP_1) == b""
+
+    def test_pack_pixels_numpy_large_data(self) -> None:
+        """Test packing with larger data to verify performance optimizations."""
+        # Create a 1024x768 image worth of pixels
+        size = 1024 * 768
+        pixels = np.random.randint(0, 256, size=size, dtype=np.uint8)
+
+        # Test all formats work with large data
+        packed_8bpp = pack_pixels_numpy(pixels, PixelFormat.BPP_8)
+        assert len(packed_8bpp) == size
+
+        packed_4bpp = pack_pixels_numpy(pixels, PixelFormat.BPP_4)
+        assert len(packed_4bpp) == size // 2
+
+        packed_2bpp = pack_pixels_numpy(pixels, PixelFormat.BPP_2)
+        assert len(packed_2bpp) == size // 4
+
+        packed_1bpp = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert len(packed_1bpp) == size // 8
+
+    def test_pack_pixels_numpy_powers_of_2_cache(self) -> None:
+        """Test that 1bpp packing uses the cached powers array correctly."""
+        # This indirectly tests the _POWERS_OF_2_CACHE usage
+        pixels = np.array([255, 255, 255, 255, 255, 255, 255, 255], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == bytes([0xFF])
+
+        pixels = np.array([255, 0, 255, 0, 255, 0, 255, 0], dtype=np.uint8)
+        packed = pack_pixels_numpy(pixels, PixelFormat.BPP_1)
+        assert packed == bytes([0xAA])

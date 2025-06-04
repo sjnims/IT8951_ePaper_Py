@@ -267,3 +267,182 @@ class TestAlignmentEdgeCases:
         assert align_dimension(31) == 32
         assert align_coordinate(13) == 12
         assert align_coordinate(16) == 16
+
+    def test_get_alignment_description(self):
+        """Test human-readable alignment descriptions."""
+        from IT8951_ePaper_Py.alignment import get_alignment_description
+
+        # Test all pixel formats
+        assert get_alignment_description(PixelFormat.BPP_1) == "32-pixel (4-byte)"
+        assert get_alignment_description(PixelFormat.BPP_2) == "4-pixel"
+        assert get_alignment_description(PixelFormat.BPP_4) == "4-pixel"
+        assert get_alignment_description(PixelFormat.BPP_8) == "4-pixel"
+
+        # Test default (None)
+        assert get_alignment_description(None) == "4-pixel"
+        assert get_alignment_description() == "4-pixel"
+
+    def test_validate_alignment_warnings(self):
+        """Test detailed warning messages from alignment validation."""
+        # Test misaligned 4bpp parameters
+        valid, warnings = validate_alignment(13, 17, 101, 105, PixelFormat.BPP_4)
+        assert not valid
+        assert len(warnings) == 4
+
+        # Check specific warning messages
+        assert (
+            "X coordinate 13 not aligned to 4-pixel boundary. Will be adjusted to 12" in warnings[0]
+        )
+        assert (
+            "Y coordinate 17 not aligned to 4-pixel boundary. Will be adjusted to 16" in warnings[1]
+        )
+        assert "Width 101 not aligned to 4-pixel boundary. Will be adjusted to 104" in warnings[2]
+        assert "Height 105 not aligned to 4-pixel boundary. Will be adjusted to 108" in warnings[3]
+
+    def test_validate_alignment_1bpp_special_warning(self):
+        """Test special warning for 1bpp alignment issues."""
+        # Misaligned 1bpp parameters should include special note
+        valid, warnings = validate_alignment(10, 20, 50, 100, PixelFormat.BPP_1)
+        assert not valid
+        assert len(warnings) == 5  # 1 special note + 4 alignment warnings
+
+        # Check special warning is first
+        assert warnings[0].startswith("Note: 1bpp mode requires strict 32-pixel alignment")
+        assert "Image may be cropped or padded" in warnings[0]
+
+        # Check parameter warnings
+        assert "X coordinate 10" in warnings[1]
+        assert "Y coordinate 20" in warnings[2]
+        assert "Width 50" in warnings[3]
+        assert "Height 100" in warnings[4]
+
+        # No special warning when everything is aligned
+        valid, warnings = validate_alignment(32, 64, 128, 256, PixelFormat.BPP_1)
+        assert valid
+        assert len(warnings) == 0
+
+    def test_check_parameter_alignment_internal(self):
+        """Test internal parameter checking function."""
+        from IT8951_ePaper_Py.alignment import _check_parameter_alignment
+
+        # Test with all parameters misaligned
+        warnings = _check_parameter_alignment(13, 17, 101, 105, PixelFormat.BPP_4)
+        assert len(warnings) == 4
+
+        # Test with some parameters aligned
+        warnings = _check_parameter_alignment(12, 17, 100, 105, PixelFormat.BPP_4)
+        assert len(warnings) == 2  # Only Y and Height misaligned
+
+        # Test with all parameters aligned
+        warnings = _check_parameter_alignment(12, 16, 100, 104, PixelFormat.BPP_4)
+        assert len(warnings) == 0
+
+    def test_check_single_parameter_internal(self):
+        """Test internal single parameter checking function."""
+        from IT8951_ePaper_Py.alignment import _check_single_parameter
+
+        # Test coordinate misalignment (rounds down)
+        warning = _check_single_parameter(
+            "X coordinate", 13, align_coordinate, PixelFormat.BPP_4, 4, "4-pixel"
+        )
+        assert warning == "X coordinate 13 not aligned to 4-pixel boundary. Will be adjusted to 12"
+
+        # Test dimension misalignment (rounds up)
+        warning = _check_single_parameter(
+            "Width", 101, align_dimension, PixelFormat.BPP_4, 4, "4-pixel"
+        )
+        assert warning == "Width 101 not aligned to 4-pixel boundary. Will be adjusted to 104"
+
+        # Test aligned parameter
+        warning = _check_single_parameter(
+            "X coordinate", 16, align_coordinate, PixelFormat.BPP_4, 4, "4-pixel"
+        )
+        assert warning is None
+
+    def test_get_1bpp_warning_internal(self):
+        """Test internal 1bpp warning message function."""
+        from IT8951_ePaper_Py.alignment import _get_1bpp_warning
+
+        warning = _get_1bpp_warning()
+        assert "1bpp mode requires strict 32-pixel alignment" in warning
+        assert "Image may be cropped or padded" in warning
+
+    def test_alignment_with_different_pixel_formats(self):
+        """Test alignment functions with all pixel formats."""
+        from IT8951_ePaper_Py.alignment import get_alignment_description
+
+        # Test each format has correct behavior
+        formats_4px = [PixelFormat.BPP_2, PixelFormat.BPP_4, PixelFormat.BPP_8]
+
+        for fmt in formats_4px:
+            # Should all use 4-pixel alignment
+            assert get_alignment_boundary(fmt) == 4
+            assert align_coordinate(13, fmt) == 12
+            assert align_dimension(13, fmt) == 16
+            assert get_alignment_description(fmt) == "4-pixel"
+
+        # 1bpp should use 32-pixel alignment
+        assert get_alignment_boundary(PixelFormat.BPP_1) == 32
+        assert align_coordinate(35, PixelFormat.BPP_1) == 32
+        assert align_dimension(35, PixelFormat.BPP_1) == 64
+        assert get_alignment_description(PixelFormat.BPP_1) == "32-pixel (4-byte)"
+
+    def test_negative_coordinate_alignment(self):
+        """Test alignment with negative coordinates (edge case)."""
+        # Negative coordinates should still align properly
+        assert align_coordinate(-1, PixelFormat.BPP_4) == -4
+        assert align_coordinate(-4, PixelFormat.BPP_4) == -4
+        assert align_coordinate(-5, PixelFormat.BPP_4) == -8
+        assert align_coordinate(-13, PixelFormat.BPP_4) == -16
+
+        # For 1bpp
+        assert align_coordinate(-1, PixelFormat.BPP_1) == -32
+        assert align_coordinate(-32, PixelFormat.BPP_1) == -32
+        assert align_coordinate(-33, PixelFormat.BPP_1) == -64
+
+    def test_alignment_mathematical_properties(self):
+        """Test mathematical properties of alignment functions."""
+        # Test idempotence: aligning an already aligned value should not change it
+        for val in [0, 4, 8, 12, 16, 100, 1000]:
+            assert align_coordinate(val, PixelFormat.BPP_4) == val
+            assert align_dimension(val, PixelFormat.BPP_4) == val
+            assert align_coordinate(
+                align_coordinate(val + 1, PixelFormat.BPP_4), PixelFormat.BPP_4
+            ) == align_coordinate(val + 1, PixelFormat.BPP_4)
+
+        # Test monotonicity: larger inputs produce larger or equal outputs
+        for i in range(100):
+            assert align_dimension(i, PixelFormat.BPP_4) <= align_dimension(
+                i + 1, PixelFormat.BPP_4
+            )
+            assert align_coordinate(i, PixelFormat.BPP_4) <= align_coordinate(
+                i + 1, PixelFormat.BPP_4
+            )
+
+    def test_alignment_with_max_display_dimensions(self):
+        """Test alignment near maximum display dimensions."""
+        # IT8951 supports up to 2048x2048
+        max_dim = 2048
+
+        # Test at and near maximum
+        assert align_dimension(max_dim, PixelFormat.BPP_4) == max_dim
+        assert align_dimension(max_dim - 1, PixelFormat.BPP_4) == max_dim
+        assert align_dimension(max_dim - 3, PixelFormat.BPP_4) == max_dim
+        assert align_dimension(max_dim - 4, PixelFormat.BPP_4) == max_dim - 4
+
+        # Test coordinate alignment at maximum
+        assert align_coordinate(max_dim, PixelFormat.BPP_4) == max_dim
+        assert align_coordinate(max_dim - 1, PixelFormat.BPP_4) == max_dim - 4
+
+    def test_validate_alignment_with_none_pixel_format(self):
+        """Test validate_alignment with None pixel format to cover default case."""
+        # Test with None pixel format (should use 4bpp default)
+        valid, warnings = validate_alignment(0, 0, 100, 100, None)
+        assert valid
+        assert len(warnings) == 0
+
+        # Test with misaligned values and None pixel format
+        valid, warnings = validate_alignment(13, 17, 101, 105, None)
+        assert not valid
+        assert len(warnings) == 4
+        assert "4-pixel" in warnings[0]  # Should use 4-pixel alignment
