@@ -50,7 +50,7 @@ def diagnose_communication(display: EPaperDisplay) -> None:
         status = display.get_device_status()
         print("✓ SPI communication OK")
         print(f"  Power state: {status['power_state']}")
-        print(f"  Display size: {status['width']}x{status['height']}")
+        print(f"  Display size: {status['panel_width']}x{status['panel_height']}")
 
         # Test register access
         print("\nTesting register access...")

@@ -97,8 +97,7 @@ def status_monitor(display: ThreadSafeEPaperDisplay, duration: float) -> None:
         # Get device status
         status = display.get_device_status()
         logger.info(
-            f"Display status - Power: {status['power_state']}, "
-            f"Temperature: {status['temperature']}°C"
+            f"Display status - Power: {status['power_state']}, VCOM: {status['vcom_voltage']}V"
         )
 
         # Check auto-sleep
