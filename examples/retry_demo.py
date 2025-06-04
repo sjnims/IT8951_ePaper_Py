@@ -73,9 +73,7 @@ def demonstrate_basic_retry() -> None:
     spi = create_retry_spi_interface(retry_policy=retry_policy)
 
     # Create display using the retry-enabled SPI
-    display = EPaperDisplay(vcom=-2.0, spi_interface=spi)
-
-    try:
+    with EPaperDisplay(vcom=-2.0, spi_interface=spi) as display:
         # Initialize display (will retry on failure)
         logger.info("Initializing display with retry capability...")
         width, height = display.init()
@@ -99,9 +97,6 @@ def demonstrate_basic_retry() -> None:
 
         logger.info("Display operation completed successfully!")
 
-    finally:
-        display.close()
-
 
 def demonstrate_progressive_retry() -> None:
     """Demonstrate retry with progressive policy adjustments."""
@@ -116,9 +111,7 @@ def demonstrate_progressive_retry() -> None:
 
     # Create display with aggressive retry
     spi = create_retry_spi_interface(retry_policy=aggressive_policy)
-    display = EPaperDisplay(vcom=-2.0, spi_interface=spi)
-
-    try:
+    with EPaperDisplay(vcom=-2.0, spi_interface=spi) as display:
         width, height = display.init()
 
         # Create a series of images with increasing complexity
@@ -161,9 +154,6 @@ def demonstrate_progressive_retry() -> None:
 
             logger.info(f"{name} pattern displayed successfully")
 
-    finally:
-        display.close()
-
 
 def demonstrate_custom_retry_handling() -> None:
     """Demonstrate custom retry handling for specific scenarios."""
@@ -172,9 +162,7 @@ def demonstrate_custom_retry_handling() -> None:
     # Create a display with standard retry policy
     standard_policy = RetryPolicy()
     spi = create_retry_spi_interface(retry_policy=standard_policy)
-    display = EPaperDisplay(vcom=-2.0, spi_interface=spi)
-
-    try:
+    with EPaperDisplay(vcom=-2.0, spi_interface=spi) as display:
         width, height = display.init()
 
         # Demonstrate different display modes with retry
@@ -208,9 +196,6 @@ def demonstrate_custom_retry_handling() -> None:
                 logger.info(f"{mode.name} completed successfully")
             except Exception as e:
                 logger.error(f"{mode.name} failed after retries: {e}")
-
-    finally:
-        display.close()
 
 
 def main() -> None:
