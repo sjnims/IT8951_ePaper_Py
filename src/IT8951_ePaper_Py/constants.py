@@ -21,7 +21,7 @@ from typing import ClassVar, TypedDict
 
 class ModeInfoRequired(TypedDict):
     """Required fields for display mode information."""
-    
+
     name: str
     grayscale_levels: int
     speed: str
@@ -33,7 +33,7 @@ class ModeInfoRequired(TypedDict):
 
 class ModeInfo(ModeInfoRequired, total=False):
     """Display mode information with optional fields."""
-    
+
     description: str
     hardware_requirements: str | None
     hardware_support: str
