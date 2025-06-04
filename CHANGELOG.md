@@ -8,6 +8,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.12.0] - 2025-02-03
+
+### Added
+
+- Comprehensive integration test suite (test_integration.py) with 16 tests
+- Power management + display mode combination tests
+- Progressive loading + bit depth optimization tests  
+- Error propagation tests across components
+- Thread safety tests for concurrent operations
+- Memory management tests for large images
+- Complex multi-feature workflow tests
+- Integration test marker (@pytest.mark.integration)
+
+### Changed
+
+- Fixed buffer pool efficiency test to avoid dangerous builtins.bytes patching
+- Improved test stability by using targeted mocking
+
+### Fixed
+
+- Integration test failures related to mock method signatures
+- BufferPool method name mismatch (get_bytes_buffer vs get_buffer)
+- Import errors (SystemCommand vs Command)
+- AreaImageInfo attribute access (width/height vs area_w/area_h)
+
+## [0.11.3] - 2025-02-03
+
+### Fixed
+
+- Code scanning alerts: Added context managers in retry_demo.py
+
+## [0.11.2] - 2025-02-03
+
+### Fixed
+
+- Trailing whitespace in constants.py TypedDict docstrings
+
+## [0.11.1] - 2025-02-03
+
+### Fixed
+
+- Type annotations for all inner test functions in test_thread_safety.py
+- Removed unused variables in power state transition tests
+- Broad exception handling now uses specific exception types
+
+## [0.11.0] - 2025-02-02
+
+### Added
+
+- Thread-safe display wrapper (ThreadSafeEPaperDisplay) with RLock protection
+- Thread-safe decorators for critical operations
+- Comprehensive concurrency tests
+- Thread safety documentation and guarantees
+- thread_safety_demo.py example
+- TypedDict for complex return types (DeviceStatus, ModeInfo)
+- Type comments for all type ignores
+
+### Changed
+
+- Fixed all remaining type ignores with explanatory comments
+- Achieved 100% type coverage with pyright strict mode
+- Enhanced thread safety documentation in docstrings
+
 ## [0.10.0] - 2025-02-02
 
 ### Added
@@ -229,7 +292,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Type hints throughout codebase
 - Modern Python 3.11+ support
 
-[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.11.3...v0.12.0
+[0.11.3]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.11.2...v0.11.3
+[0.11.2]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.11.1...v0.11.2
+[0.11.1]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.11.0...v0.11.1
+[0.11.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.10.0...v0.11.0
+[0.10.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.7.0...v0.9.0
 [0.7.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/sjnims/IT8951_ePaper_Py/compare/v0.5.0...v0.6.0

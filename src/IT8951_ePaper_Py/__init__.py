@@ -50,7 +50,7 @@ from IT8951_ePaper_Py.retry_policy import (
 )
 from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay
 
-__version__ = "0.11.3"
+__version__ = "0.12.0"
 __all__ = [
     "BackoffStrategy",
     "CommunicationError",

@@ -9,9 +9,11 @@
 
 A pure Python implementation of the Waveshare IT8951 e-paper controller driver for Raspberry Pi. This driver provides a clean, modern Python interface for controlling e-paper displays using the IT8951 controller chip.
 
-**New in v0.10.0:** Critical CI/CD fixes including enabled ATS execution, standardized cache keys, and extracted magic numbers for better maintainability.
+**New in v0.12.0:** Comprehensive integration test suite with 16 tests covering multi-feature workflows, power management combinations, progressive loading optimizations, error recovery, thread safety, and memory management. Phase 12 of the roadmap is now complete!
 
-**v0.9.0:** CI/CD optimizations with Automated Test Selection (ATS), parallel test execution (~2 second test runs), and improved code maintainability through reduced cyclomatic complexity.
+**v0.11.0:** Thread-safe display wrapper (ThreadSafeEPaperDisplay) for concurrent operations, complete type safety with pyright strict mode, and comprehensive concurrency tests.
+
+**v0.10.0:** Critical CI/CD fixes including enabled ATS execution, standardized cache keys, and extracted magic numbers for better maintainability.
 
 ## Features
 
@@ -21,7 +23,7 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 - **🔋 Power Management** - Standby/sleep modes with auto-sleep timeout for battery-powered devices
 - **🎯 Smart Defaults** - 4bpp mode by default (50% less data, same quality as 8bpp)
 - **🛡️ Memory Safety** - Progressive loading for large images with automatic memory warnings
-- **🧪 Development-Friendly** - 98.35% test coverage, type hints, and mock SPI for testing without hardware
+- **🧪 Development-Friendly** - 99.18% test coverage, type hints, and mock SPI for testing without hardware
 - **⚡ Production-Ready** - Auto-alignment, VCOM calibration, A2 ghosting prevention, and comprehensive error handling
 - **📊 Performance Testing** - Built-in benchmarks for pixel packing, display operations, and memory usage
 - **🔍 Troubleshooting Tools** - Interactive diagnostics, register dumps, and guided problem resolution
