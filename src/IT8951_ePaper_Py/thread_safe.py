@@ -27,7 +27,7 @@ from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
 from types import TracebackType
-from typing import Any, BinaryIO, TypeVar, cast
+from typing import BinaryIO, ParamSpec, TypeVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -39,11 +39,12 @@ from IT8951_ePaper_Py.spi_interface import SPIInterface
 
 NumpyArray = NDArray[np.uint8]
 
-# Type variable for generic function signatures
-F = TypeVar("F", bound=Callable[..., Any])
+# Type variables for generic function signatures
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
-def thread_safe_method(func: F) -> F:
+def thread_safe_method(func: Callable[P, R]) -> Callable[P, R]:
     """Decorator to make a method thread-safe using the instance's lock.
 
     Args:
@@ -54,14 +55,16 @@ def thread_safe_method(func: F) -> F:
     """
 
     @wraps(func)
-    def wrapper(self: object, *args: object, **kwargs: object) -> object:
-        if hasattr(self, "_lock"):
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+        # First argument should be self for instance methods
+        if args and hasattr(args[0], "_lock"):
+            self = args[0]
             # _lock is dynamically added to instances that use this decorator
             with self._lock:  # type: ignore[attr-defined] # Dynamic attribute on thread-safe classes
-                return func(self, *args, **kwargs)
-        return func(self, *args, **kwargs)
+                return func(*args, **kwargs)
+        return func(*args, **kwargs)
 
-    return cast(F, wrapper)
+    return wrapper
 
 
 class ThreadSafeEPaperDisplay(EPaperDisplay):

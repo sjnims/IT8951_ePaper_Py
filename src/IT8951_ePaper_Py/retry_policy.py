@@ -49,12 +49,13 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from functools import wraps
-from typing import Any, TypeVar
+from typing import ParamSpec, TypeVar
 
 from IT8951_ePaper_Py.exceptions import CommunicationError, IT8951Error, IT8951TimeoutError
 from IT8951_ePaper_Py.spi_interface import SPIInterface
 
-F = TypeVar("F", bound=Callable[..., Any])
+P = ParamSpec("P")
+R = TypeVar("R")
 
 
 class BackoffStrategy(Enum):
@@ -129,7 +130,7 @@ class RetryPolicy:
         return min(delay, self.max_delay)
 
 
-def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
+def with_retry(policy: RetryPolicy) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Decorator to add retry logic to a function.
 
     Args:
@@ -146,9 +147,9 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
         ...     pass
     """
 
-    def decorator(func: F) -> F:
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
-        def wrapper(*args: object, **kwargs: object) -> object:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             last_exception: Exception | None = None
 
             for attempt in range(policy.max_attempts):
@@ -171,9 +172,7 @@ def with_retry(policy: RetryPolicy) -> Callable[[F], F]:
                 "Retry logic error: no exception but all attempts failed"
             )  # pragma: no cover
 
-        # Type checkers struggle with decorator typing - wrapper maintains the
-        # same signature as func
-        return wrapper  # type: ignore[return-value] # Decorator preserves function signature
+        return wrapper
 
     return decorator
 

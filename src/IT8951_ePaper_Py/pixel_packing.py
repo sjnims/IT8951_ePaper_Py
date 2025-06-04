@@ -4,7 +4,7 @@ This module provides numpy-optimized implementations of pixel packing functions
 for improved performance when working with large images.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from numpy.typing import NDArray
@@ -21,7 +21,7 @@ else:
     NumpyArray = np.ndarray
 
 
-def pack_pixels_numpy(pixels: bytes | NDArray[Any], pixel_format: PixelFormat) -> bytes:
+def pack_pixels_numpy(pixels: bytes | NDArray[np.generic], pixel_format: PixelFormat) -> bytes:
     """Pack pixel data using numpy optimizations.
 
     This function provides significantly faster pixel packing for large images
@@ -41,7 +41,8 @@ def pack_pixels_numpy(pixels: bytes | NDArray[Any], pixel_format: PixelFormat) -
     if isinstance(pixels, bytes):
         arr = np.frombuffer(pixels, dtype=np.uint8)
     else:
-        arr = pixels.astype(np.uint8) if pixels.dtype != np.uint8 else pixels
+        # Ensure we have uint8 array
+        arr = pixels.astype(np.uint8)
 
     # Use dictionary dispatch
     packers = {
