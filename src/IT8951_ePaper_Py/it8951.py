@@ -167,6 +167,26 @@ class IT8951:
         self._spi.write_data(register)
         return self._spi.read_data()
 
+    def read_register(self, address: int) -> int:
+        """Read a 16-bit register value (public API).
+
+        Args:
+            address: Register address to read.
+
+        Returns:
+            16-bit register value.
+
+        Raises:
+            DeviceError: If the device is not initialized.
+
+        Example:
+            >>> # Read the LUT busy status register
+            >>> value = controller.read_register(RegisterAddress.MISC)
+            >>> is_busy = bool(value & 0x80)
+        """
+        self._ensure_initialized()
+        return self._read_register(address)
+
     def _write_register(self, register: int, value: int) -> None:
         """Write a register value.
 

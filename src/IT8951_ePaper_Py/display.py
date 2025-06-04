@@ -1106,6 +1106,26 @@ class EPaperDisplay:
         """
         return self._controller.dump_registers()
 
+    def read_register(self, address: int) -> int:
+        """Read a 16-bit register value.
+
+        Args:
+            address: Register address to read.
+
+        Returns:
+            16-bit register value.
+
+        Raises:
+            DisplayError: If the display is not initialized.
+
+        Example:
+            >>> # Read a register value
+            >>> value = display.read_register(0x1234)
+            >>> print(f"Register 0x1234 = 0x{value:04X}")
+        """
+        self._ensure_initialized()
+        return self._controller.read_register(address)
+
     def get_device_status(self) -> DeviceStatus:
         """Get comprehensive device status information.
 
