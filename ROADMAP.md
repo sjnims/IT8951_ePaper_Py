@@ -295,13 +295,15 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 **Essential documentation for adoption**
 
-### 13.1 API Documentation
+### 13.1 API Documentation ❌ (Not Pursued)
 
-13.1.1 Set up Sphinx for API documentation generation
-13.1.2 Configure autodoc to generate from docstrings
-13.1.3 Deploy documentation to GitHub Pages
-13.1.4 Create versioned documentation
-13.1.5 Add interactive examples to docs
+**Decision**: After attempting to implement Sphinx documentation, it was found that the auto-generated documentation contained numerous inaccuracies and references to non-existent methods. The existing comprehensive Markdown documentation in the `docs/` directory provides accurate, well-organized information without the complexity and maintenance burden of Sphinx.
+
+13.1.1 ❌ Set up Sphinx for API documentation generation - Reverted due to quality issues
+13.1.2 ❌ Configure autodoc to generate from docstrings - Generated incorrect documentation
+13.1.3 ❌ Deploy documentation to GitHub Pages - Not needed with current docs
+13.1.4 ❌ Create versioned documentation - Can be done with Markdown if needed
+13.1.5 ❌ Add interactive examples to docs - Examples work well as standalone files
 
 ### 13.2 Diagnostic Utilities
 
