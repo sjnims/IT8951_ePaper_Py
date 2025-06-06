@@ -31,6 +31,7 @@ from abc import ABC, abstractmethod
 from typing import Protocol
 
 from IT8951_ePaper_Py.constants import GPIOPin, ProtocolConstants, SPIConstants, TimingConstants
+from IT8951_ePaper_Py.debug_mode import debug_method, debug_mode, debug_timing
 from IT8951_ePaper_Py.exceptions import CommunicationError, InitializationError, IT8951TimeoutError
 
 
@@ -421,11 +422,14 @@ class RaspberryPiSPI(SPIInterface):
         self._initialized = False
         self._spi_speed_hz = spi_speed_hz
 
+    @debug_timing("spi")
     def init(self) -> None:
         """Initialize SPI interface."""
         if self._initialized:
+            debug_mode.debug("SPI already initialized", "spi")
             return
 
+        debug_mode.info("Initializing Raspberry Pi SPI interface", "spi")
         try:
             import spidev  # pyright: ignore[reportMissingModuleSource]
             from RPi import GPIO  # pyright: ignore[reportMissingModuleSource]
@@ -436,6 +440,9 @@ class RaspberryPiSPI(SPIInterface):
             self._gpio.setmode(GPIO.BCM)
             self._gpio.setup(GPIOPin.RESET, GPIO.OUT)
             self._gpio.setup(GPIOPin.BUSY, GPIO.IN)
+            debug_mode.debug(
+                "GPIO initialized", "spi", reset_pin=GPIOPin.RESET, busy_pin=GPIOPin.BUSY
+            )
 
             # spidev.SpiDev is the actual implementation but doesn't perfectly match our protocol
             self._spi = spidev.SpiDev()  # type: ignore[assignment] # Implementation details differ from protocol
@@ -443,6 +450,9 @@ class RaspberryPiSPI(SPIInterface):
             # Auto-detect Pi version and use appropriate speed, or use override
             self._spi.max_speed_hz = get_spi_speed_for_pi(override_hz=self._spi_speed_hz)
             self._spi.mode = SPIConstants.SPI_MODE
+            debug_mode.info(
+                "SPI configured", "spi", speed_hz=self._spi.max_speed_hz, mode=self._spi.mode
+            )
 
             self._initialized = True
             self.reset()
@@ -466,11 +476,13 @@ class RaspberryPiSPI(SPIInterface):
 
         self._initialized = False
 
+    @debug_timing("spi")
     def reset(self) -> None:
         """Hardware reset the device."""
         if not self._gpio:
             raise InitializationError("GPIO not initialized")
 
+        debug_mode.debug("Performing hardware reset", "spi")
         self._gpio.output(GPIOPin.RESET, 0)
         time.sleep(TimingConstants.RESET_DURATION_S)
         self._gpio.output(GPIOPin.RESET, 1)
@@ -487,13 +499,18 @@ class RaspberryPiSPI(SPIInterface):
                 return
             time.sleep(TimingConstants.BUSY_POLL_FAST_S)
 
-        raise IT8951TimeoutError(f"Device busy timeout after {timeout_ms}ms")
+        raise IT8951TimeoutError(
+            f"Device busy timeout after {timeout_ms}ms",
+            context={"timeout_ms": timeout_ms, "gpio_pin": GPIOPin.BUSY},
+        )
 
+    @debug_method("spi")
     def write_command(self, command: int) -> None:
         """Write a command to the device."""
         if not self._spi:
             raise CommunicationError("SPI not initialized")
 
+        debug_mode.trace(f"Writing command: 0x{command:04X}", "spi")
         self.wait_busy()
         preamble = SPIConstants.PREAMBLE_CMD
         self._spi.writebytes(

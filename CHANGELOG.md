@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.13.0] - 2025-01-06
+
+### Added
+
+- Enhanced debug mode with configurable verbosity levels (Phase 13.2.1)
+  - New `debug_mode.py` module with 6 debug levels: OFF, ERROR, WARNING, INFO, DEBUG, TRACE
+  - Component-specific debug levels (e.g., different verbosity for SPI vs display components)
+  - Environment variable configuration support (`IT8951_DEBUG`, `IT8951_DEBUG_SPI`, etc.)
+  - Debug decorators: `@debug_method` and `@debug_timing` for automatic logging
+  - Integration with Python's logging framework
+  - New convenience functions: `enable_debug()`, `disable_debug()`, `set_component_debug()`
+- Enhanced error messages with diagnostic context (Phase 13.2.2)
+  - All exceptions now accept an optional `context` parameter for additional diagnostic information
+  - Error messages include formatted context: "Error message [key1=value1 | key2=value2]"
+  - Critical error paths updated to include relevant context (power state, error type, etc.)
+- New example: `debug_mode_demo.py` demonstrating all debug features
+- Comprehensive test suite for debug mode functionality (23 tests)
+- Documentation for debug mode usage in README.md
+
+### Changed
+
+- Updated exception base class `IT8951Error` to support diagnostic context
+- Added debug logging to critical paths in SPI interface and display initialization
+- Marked Phase 13 as complete in ROADMAP.md
+
+### Fixed
+
+- Type annotations to use `dict[str, object]` instead of `dict[str, any]`
+- Various linting and type checking issues
+
 ## [0.12.1] - 2025-02-03
 
 ### Fixed

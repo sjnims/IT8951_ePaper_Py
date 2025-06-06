@@ -30,6 +30,12 @@ Thread Safety:
     >>> # Can be safely used from multiple threads
 """  # noqa: N999
 
+from IT8951_ePaper_Py.debug_mode import (
+    DebugLevel,
+    disable_debug,
+    enable_debug,
+    set_component_debug,
+)
 from IT8951_ePaper_Py.display import EPaperDisplay
 from IT8951_ePaper_Py.exceptions import (
     CommunicationError,
@@ -50,10 +56,11 @@ from IT8951_ePaper_Py.retry_policy import (
 )
 from IT8951_ePaper_Py.thread_safe import ThreadSafeEPaperDisplay
 
-__version__ = "0.12.1"
+__version__ = "0.13.0"
 __all__ = [
     "BackoffStrategy",
     "CommunicationError",
+    "DebugLevel",
     "DeviceError",
     "DisplayError",
     "EPaperDisplay",
@@ -67,4 +74,7 @@ __all__ = [
     "ThreadSafeEPaperDisplay",
     "VCOMError",
     "create_retry_spi_interface",
+    "disable_debug",
+    "enable_debug",
+    "set_component_debug",
 ]

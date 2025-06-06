@@ -108,7 +108,14 @@ class IT8951:
             return self._device_info
         except Exception as e:
             self.close()
-            raise InitializationError(f"Failed to initialize IT8951: {e}") from e
+            context: dict[str, object] = {
+                "error_type": type(e).__name__,
+                "power_state": self._power_state.name if self._power_state else "UNKNOWN",
+            }
+            if self._device_info:
+                context["panel_width"] = self._device_info.panel_width
+                context["panel_height"] = self._device_info.panel_height
+            raise InitializationError(f"Failed to initialize IT8951: {e}", context=context) from e
 
     def close(self) -> None:
         """Close the driver and cleanup resources."""

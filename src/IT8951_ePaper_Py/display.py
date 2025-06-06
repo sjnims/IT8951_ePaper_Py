@@ -59,6 +59,7 @@ from IT8951_ePaper_Py.constants import (
     Rotation,
     RotationAngle,
 )
+from IT8951_ePaper_Py.debug_mode import debug_mode
 from IT8951_ePaper_Py.exceptions import (
     DisplayError,
     InvalidParameterError,
@@ -164,14 +165,26 @@ class EPaperDisplay:
             Tuple of (width, height) in pixels.
         """
         if self._initialized:
+            debug_mode.debug(
+                "Display already initialized", "display", width=self._width, height=self._height
+            )
             return (self._width, self._height)
 
+        debug_mode.info("Initializing display", "display", vcom=self._vcom)
         device_info = self._controller.init()
         self._device_info = device_info
         self._width = device_info.panel_width
         self._height = device_info.panel_height
         self._initialized = True
+        debug_mode.info(
+            "Display initialized",
+            "display",
+            width=self._width,
+            height=self._height,
+            memory_addr=f"0x{device_info.memory_addr_h:04X}{device_info.memory_addr_l:04X}",
+        )
 
+        debug_mode.debug("Setting VCOM voltage", "display", vcom=self._vcom)
         self._controller.set_vcom(self._vcom)
 
         # Verify VCOM was set correctly

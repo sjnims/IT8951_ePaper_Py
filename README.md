@@ -467,6 +467,63 @@ python examples/retry_demo.py
 
 See [Error Recovery Guide](docs/ERROR_RECOVERY.md) for detailed recovery procedures and best practices.
 
+## Debug Mode
+
+The driver includes comprehensive debug logging for troubleshooting and development:
+
+### Enabling Debug Mode
+
+```python
+from IT8951_ePaper_Py import enable_debug, disable_debug, DebugLevel
+
+# Enable debug logging
+enable_debug(DebugLevel.DEBUG)
+
+# Use the display - will show debug output
+display = EPaperDisplay(vcom=-2.0)
+display.init()
+
+# Disable when done
+disable_debug()
+```
+
+### Component-Specific Debugging
+
+```python
+from IT8951_ePaper_Py import set_component_debug, DebugLevel
+
+# Set different levels for different components
+set_component_debug("spi", DebugLevel.TRACE)      # Very verbose SPI logging
+set_component_debug("display", DebugLevel.INFO)   # General display info
+set_component_debug("power", DebugLevel.DEBUG)    # Detailed power management
+```
+
+### Environment Variables
+
+Configure debug mode via environment:
+
+```bash
+# Global debug level
+export IT8951_DEBUG=INFO
+
+# Component-specific levels
+export IT8951_DEBUG_SPI=TRACE
+export IT8951_DEBUG_DISPLAY=DEBUG
+
+python your_script.py
+```
+
+### Debug Levels
+
+- `OFF` - No debug output (default)
+- `ERROR` - Only errors
+- `WARNING` - Warnings and errors
+- `INFO` - General information
+- `DEBUG` - Detailed debug info
+- `TRACE` - Very detailed trace info
+
+See `examples/debug_mode_demo.py` for comprehensive examples.
+
 ## Documentation
 
 - [Performance Guide](docs/PERFORMANCE_GUIDE.md) - Optimization tips and benchmarks
@@ -481,7 +538,7 @@ See [Error Recovery Guide](docs/ERROR_RECOVERY.md) for detailed recovery procedu
 
 ## Roadmap
 
-See our [Development Roadmap](ROADMAP.md) for completed and planned features. **Phase 9 (v0.9.0) is now complete**, featuring CI/CD optimizations and code quality improvements. Next up: Critical fixes and thread safety implementation.
+See our [Development Roadmap](ROADMAP.md) for completed and planned features. **Phase 13.2 diagnostic enhancements are now complete**, featuring debug mode with configurable verbosity levels and enhanced error messages with diagnostic context.
 
 ## Contributing
 

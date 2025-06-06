@@ -35,9 +35,29 @@ Examples:
 
 
 class IT8951Error(Exception):
-    """Base exception for all IT8951-related errors."""
+    """Base exception for all IT8951-related errors.
 
-    pass
+    Attributes:
+        context: Optional diagnostic context for the error.
+    """
+
+    def __init__(self, message: str, context: dict[str, object] | None = None) -> None:
+        """Initialize with message and optional context.
+
+        Args:
+            message: Error message.
+            context: Optional diagnostic context.
+        """
+        super().__init__(message)
+        self.context = context or {}
+
+    def __str__(self) -> str:
+        """Return string representation with context if available."""
+        base_msg = super().__str__()
+        if self.context:
+            context_str = " | ".join(f"{k}={v}" for k, v in self.context.items())
+            return f"{base_msg} [{context_str}]"
+        return base_msg
 
 
 class CommunicationError(IT8951Error):
