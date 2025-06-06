@@ -467,14 +467,14 @@ class TestRaspberryPiSPI:
         data = [0x1111, 0x2222, 0x3333]
         spi.write_data_bulk(data)
 
-        # Should write preamble + 3 data values = 4 calls
-        assert mock_spi_instance.writebytes.call_count == 4
+        # Should write preamble + bulk data = 2 calls (optimized)
+        assert mock_spi_instance.writebytes.call_count == 2
         # Preamble
         mock_spi_instance.writebytes.assert_any_call([0x00, 0x00])
-        # Data values
-        mock_spi_instance.writebytes.assert_any_call([0x11, 0x11])
-        mock_spi_instance.writebytes.assert_any_call([0x22, 0x22])
-        mock_spi_instance.writebytes.assert_any_call([0x33, 0x33])
+        # All data values in one call (now as bytearray for zero-copy)
+        mock_spi_instance.writebytes.assert_any_call(
+            bytearray([0x11, 0x11, 0x22, 0x22, 0x33, 0x33])
+        )
 
         spi.close()
 

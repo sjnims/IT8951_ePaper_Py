@@ -1,6 +1,8 @@
 """Performance comparison tests for different pixel formats."""
 
 import time
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pytest
@@ -121,3 +123,116 @@ class TestPerformance:
         # Both should complete in reasonable time
         assert time_8bpp < 1.0  # Should pack in under 1 second
         assert time_4bpp < 1.0  # Should pack in under 1 second
+
+
+class TestPerformanceRegression:
+    """Performance regression tests to ensure optimizations don't degrade."""
+
+    def _measure_performance(self, func: Callable[[], Any], iterations: int = 100) -> float:
+        """Measure average execution time of a function."""
+        times = []
+        for _ in range(iterations):
+            start = time.perf_counter()
+            func()
+            end = time.perf_counter()
+            times.append(end - start)
+        return sum(times) / len(times)
+
+    @pytest.mark.slow
+    def test_spi_bulk_write_performance(self):
+        """Test that bulk write optimization improves performance."""
+        # Use MockSPI to test performance without hardware
+        spi = MockSPI()
+        spi.init()
+
+        # Test data
+        data = list(range(1000))
+
+        # Measure performance
+        def bulk_write() -> None:
+            spi.write_data_bulk(data)
+
+        avg_time = self._measure_performance(bulk_write, iterations=10)
+
+        # Should complete quickly
+        assert avg_time < 0.01  # 10ms max
+
+        spi.close()
+
+    @pytest.mark.slow
+    def test_pixel_packing_performance_regression(self):
+        """Test that pixel packing optimizations maintain performance."""
+        # Test different sizes
+        test_cases = [
+            (100, PixelFormat.BPP_4),
+            (1000, PixelFormat.BPP_4),
+            (10000, PixelFormat.BPP_4),
+            (100, PixelFormat.BPP_2),
+            (1000, PixelFormat.BPP_2),
+            (100, PixelFormat.BPP_1),
+            (1000, PixelFormat.BPP_1),
+        ]
+
+        for size, pixel_format in test_cases:
+            test_pixels = bytes(range(256)) * (size // 256 + 1)
+            test_pixels = test_pixels[:size]
+
+            # Create a closure that properly captures the loop variables
+            def make_pack_func(pixels: bytes, fmt: PixelFormat) -> Callable[[], None]:
+                def pack() -> None:
+                    IT8951.pack_pixels(pixels, fmt)
+
+                return pack
+
+            pack_func = make_pack_func(test_pixels, pixel_format)
+            avg_time = self._measure_performance(pack_func, iterations=50)
+
+            # Performance thresholds (very generous for CI)
+            if size <= 1000:
+                assert avg_time < 0.001  # 1ms for small data
+            else:
+                assert avg_time < 0.01  # 10ms for larger data
+
+    def test_list_preallocation_performance(self):
+        """Test that list pre-allocation improves performance."""
+        # Test pre-allocated list vs append
+        size = 10000
+
+        def with_append() -> list[int]:
+            result = []
+            for i in range(size):
+                result.append(i * 2)
+            return result
+
+        def with_prealloc() -> list[int]:
+            result = [0] * size
+            for i in range(size):
+                result[i] = i * 2
+            return result
+
+        # Measure both approaches
+        append_time = self._measure_performance(with_append, iterations=50)
+        prealloc_time = self._measure_performance(with_prealloc, iterations=50)
+
+        # Pre-allocation should be faster (or at least not slower)
+        assert prealloc_time <= append_time * 1.1  # Allow 10% variance
+
+    @pytest.mark.slow
+    def test_bulk_read_performance(self, mocker: MockerFixture):
+        """Test that bulk read optimization maintains performance."""
+        spi = MockSPI()
+        spi.init()
+
+        # Set up test data
+        test_data = list(range(100))
+        spi.set_read_data(test_data)
+
+        def bulk_read() -> list[int]:
+            return spi.read_data_bulk(100)
+
+        avg_time = self._measure_performance(bulk_read, iterations=100)
+
+        # Should be very fast for mock
+        assert avg_time < 0.001  # 1ms max
+
+        spi.close()

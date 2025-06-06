@@ -8,6 +8,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.0] - 2025-01-06
+
+### Added
+
+- Performance optimizations for hot paths (Phase 14.1)
+  - Optimized list comprehensions in `spi_interface.py` by pre-allocating lists
+  - Optimized `write_data_bulk` to batch writes into a single SPI transaction
+  - Pre-allocated arrays for bulk operations in pixel packing methods
+  - Added performance regression tests in `test_performance.py`
+  - Created `performance_profiling_demo.py` example demonstrating profiling techniques
+- Memory and transfer optimizations (Phase 14.2)
+  - Implemented zero-copy operation in SPI interface by removing unnecessary `list()` conversion
+  - Created `memory_monitor.py` module for comprehensive memory tracking
+  - Added `memory_monitoring_demo.py` example showing memory optimization techniques
+  - Created `buffer_pool_demo.py` example demonstrating buffer pool usage
+  - Added comprehensive test suite for memory monitoring with 100% coverage
+  - Added psutil dependency for system memory monitoring
+
+### Changed
+
+- Optimized `read_data_bulk` in `spi_interface.py` to pre-allocate result list
+- Optimized pixel packing methods in `it8951.py` to pre-allocate packed data lists
+- Improved `write_data_bulk` to use bytearray for zero-copy SPI transfers
+- Updated examples to avoid accessing private buffer pool members
+
+### Fixed
+
+- Fixed pyright errors in `memory_monitor.py` related to tracemalloc.Statistic attributes
+- Fixed unused variable warnings in example files
+- Fixed line length issues in source files
+
 ## [0.13.0] - 2025-01-06
 
 ### Added

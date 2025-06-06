@@ -446,14 +446,15 @@ class IT8951:
             return data
 
         # Reverse bits in each byte
-        result: list[int] = []
-        for byte in data:
+        # Pre-allocate list for better performance
+        result = [0] * len(data)
+        for idx, byte in enumerate(data):
             # Reverse bits: 0b10110010 -> 0b01001101
             reversed_byte = 0
             for i in range(ProtocolConstants.BITS_PER_BYTE):
                 if byte & (1 << i):
                     reversed_byte |= 1 << (ProtocolConstants.PIXEL_SHIFT_1BPP_BITS - i)
-            result.append(reversed_byte)
+            result[idx] = reversed_byte
         return bytes(result)
 
     @staticmethod
@@ -562,16 +563,18 @@ class IT8951:
             >>> hex(packed[0])  # 0x0 and 0x8 packed
             '0x8'
         """
-        packed: list[int] = []
-        for i in range(0, len(pixels), ProtocolConstants.PIXELS_PER_BYTE_4BPP):
+        # Pre-allocate list for better performance
+        num_bytes = (len(pixels) + 1) // ProtocolConstants.PIXELS_PER_BYTE_4BPP
+        packed = [0] * num_bytes
+
+        for idx, i in enumerate(range(0, len(pixels), ProtocolConstants.PIXELS_PER_BYTE_4BPP)):
             # Each pixel is reduced to 4 bits (0-15 range)
             pixel1 = (pixels[i] >> ProtocolConstants.PIXEL_SHIFT_4BPP) if i < len(pixels) else 0
             pixel2 = (
                 (pixels[i + 1] >> ProtocolConstants.PIXEL_SHIFT_4BPP) if i + 1 < len(pixels) else 0
             )
             # Pack two pixels into one byte (pixel1 in high nibble, pixel2 in low nibble)
-            packed_byte = (pixel1 << ProtocolConstants.PIXEL_SHIFT_4BPP) | pixel2
-            packed.append(packed_byte)
+            packed[idx] = (pixel1 << ProtocolConstants.PIXEL_SHIFT_4BPP) | pixel2
         return bytes(packed)
 
     @staticmethod
@@ -601,21 +604,22 @@ class IT8951:
             >>> bin(packed[0])  # 00 01 10 11
             '0b11011'
         """
-        packed: list[int] = []
         pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_2BPP
+        # Pre-allocate list for better performance
+        num_bytes = (len(pixels) + pixels_per_byte - 1) // pixels_per_byte
+        packed = [0] * num_bytes
 
-        for i in range(0, len(pixels), pixels_per_byte):
+        for idx, i in enumerate(range(0, len(pixels), pixels_per_byte)):
             # Get pixels for this byte, with bounds checking
             pixel_values = [IT8951._get_pixel_2bit(pixels, i + j) for j in range(pixels_per_byte)]
 
             # Pack into byte with proper bit positions
-            packed_byte = (
+            packed[idx] = (
                 (pixel_values[0] << 6)
                 | (pixel_values[1] << 4)
                 | (pixel_values[2] << 2)
                 | pixel_values[3]
             )
-            packed.append(packed_byte)
 
         return bytes(packed)
 
@@ -677,13 +681,14 @@ class IT8951:
             1bpp mode requires 32-pixel alignment on some IT8951 models
             for proper display operation.
         """
-        packed: list[int] = []
         pixels_per_byte = ProtocolConstants.PIXELS_PER_BYTE_1BPP
         threshold = ProtocolConstants.PIXEL_SHIFT_1BPP_THRESHOLD
+        # Pre-allocate list for better performance
+        num_bytes = (len(pixels) + pixels_per_byte - 1) // pixels_per_byte
+        packed = [0] * num_bytes
 
-        for i in range(0, len(pixels), pixels_per_byte):
-            packed_byte = IT8951._pack_byte_1bpp(pixels, i, pixels_per_byte, threshold)
-            packed.append(packed_byte)
+        for idx, i in enumerate(range(0, len(pixels), pixels_per_byte)):
+            packed[idx] = IT8951._pack_byte_1bpp(pixels, i, pixels_per_byte, threshold)
 
         return bytes(packed)
 

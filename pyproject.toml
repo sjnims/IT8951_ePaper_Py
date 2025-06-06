@@ -23,6 +23,7 @@ dependencies = [
     "pydantic>=2.9",
     "pillow>=10.4",
     "numpy>=1.26,<2.0",  # Stay on 1.x to avoid breaking changes
+    "psutil (>=7.0.0,<8.0.0)",
 ]
 dynamic = ["version"]
 
@@ -41,7 +42,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry]
-version = "0.13.0"  # Actual version is in src/IT8951_ePaper_Py/__init__.py
+version = "0.14.0"  # Actual version is in src/IT8951_ePaper_Py/__init__.py
 packages = [{include = "IT8951_ePaper_Py", from = "src"}]
 
 [tool.poetry.dependencies]

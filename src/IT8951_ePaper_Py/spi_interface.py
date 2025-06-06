@@ -28,6 +28,7 @@ Examples:
 import sys
 import time
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Protocol
 
 from IT8951_ePaper_Py.constants import GPIOPin, ProtocolConstants, SPIConstants, TimingConstants
@@ -258,11 +259,11 @@ class SPIDeviceInterface(Protocol):
             device: SPI device number.
         """
 
-    def writebytes(self, values: list[int]) -> None:
+    def writebytes(self, values: Sequence[int]) -> None:
         """Write bytes to SPI.
 
         Args:
-            values: List of byte values to write.
+            values: Sequence of byte values to write.
         """
 
     def xfer2(
@@ -545,10 +546,16 @@ class RaspberryPiSPI(SPIInterface):
             [preamble >> ProtocolConstants.BYTE_SHIFT, preamble & ProtocolConstants.BYTE_MASK]
         )
 
+        # Pre-allocate byte array for better performance
+        byte_data = bytearray(len(data) * 2)
+        idx = 0
         for value in data:
-            self._spi.writebytes(
-                [value >> ProtocolConstants.BYTE_SHIFT, value & ProtocolConstants.BYTE_MASK]
-            )
+            byte_data[idx] = value >> ProtocolConstants.BYTE_SHIFT
+            byte_data[idx + 1] = value & ProtocolConstants.BYTE_MASK
+            idx += 2
+
+        # Write all bytes at once (bytearray is a Sequence[int])
+        self._spi.writebytes(byte_data)
 
     def read_data(self) -> int:
         """Read data from the device."""
@@ -585,10 +592,11 @@ class RaspberryPiSPI(SPIInterface):
             [dummy >> ProtocolConstants.BYTE_SHIFT, dummy & ProtocolConstants.BYTE_MASK]
         )
 
-        data: list[int] = []
-        for _ in range(length):
+        # Pre-allocate list for better performance
+        data = [0] * length
+        for i in range(length):
             result = self._spi.xfer2(SPIConstants.READ_DUMMY_BYTES)
-            data.append((result[0] << ProtocolConstants.BYTE_SHIFT) | result[1])
+            data[i] = (result[0] << ProtocolConstants.BYTE_SHIFT) | result[1]
 
         return data
 
@@ -674,12 +682,17 @@ class MockSPI(SPIInterface):
             raise CommunicationError("Mock SPI not initialized")
 
         self.wait_busy()
-        data: list[int] = []
-        for _ in range(length):
-            if self._read_data:
-                data.append(self._read_data.pop(0))
-            else:
-                data.append(SPIConstants.MOCK_DEFAULT_VALUE)
+        # Use list comprehension for better performance
+        if self._read_data:
+            # Take from _read_data as long as available, then fill with default
+            available = min(length, len(self._read_data))
+            data = self._read_data[:available]
+            self._read_data = self._read_data[available:]
+            if available < length:
+                data.extend([SPIConstants.MOCK_DEFAULT_VALUE] * (length - available))
+        else:
+            # All default values
+            data = [SPIConstants.MOCK_DEFAULT_VALUE] * length
         return data
 
     def set_read_data(self, data: list[int]) -> None:
