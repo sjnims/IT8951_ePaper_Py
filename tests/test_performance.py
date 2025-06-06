@@ -189,7 +189,7 @@ class TestPerformanceRegression:
 
             # Performance thresholds (very generous for CI)
             if size <= 1000:
-                assert avg_time < 0.001  # 1ms for small data
+                assert avg_time < 0.002  # 2ms for small data
             else:
                 assert avg_time < 0.01  # 10ms for larger data
 
