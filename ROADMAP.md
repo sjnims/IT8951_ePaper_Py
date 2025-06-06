@@ -79,7 +79,7 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 ### 3.1 Critical Fixes ✅
 
-3.1.1 ✅ Update Python version constraint from `>=3.11.12,<3.12` to `>=3.11.12,<3.13`
+3.1.1 ✅ Update Python version constraint from `>=3.11.13,<3.12` to `>=3.11.13,<3.13`
 3.1.2 ✅ Sync version in pyproject.toml with `__init__.py` (0.3.0)
 3.1.3 ✅ Update documentation references from 8bpp to 4bpp default
 3.1.4 ✅ Create missing `.pre-commit-config.yaml` file
@@ -247,7 +247,7 @@ This roadmap outlines the phased implementation of missing features and improvem
 
 10.1.1 ✅ Remove --dry-run flag from ATS workflow for actual execution
 10.1.2 ✅ Fix dependency duplication in pyproject.toml (lines 21-25 and 44-48)
-10.1.3 ✅ Relax Python version constraint to `>=3.11` (from `>=3.11.12,<3.13`)
+10.1.3 ✅ Relax Python version constraint to `>=3.11` (from `>=3.11.13,<3.13`)
 10.1.4 ✅ Standardize cache keys between CI and ATS workflows
 10.1.5 ✅ Extract magic numbers (VCOM tolerance 0.05V, numpy threshold 10000)
 

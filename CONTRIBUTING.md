@@ -41,11 +41,11 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 ## Development Setup
 
-This project uses Poetry for dependency management and requires Python 3.11.12 or later.
+This project uses Poetry for dependency management and requires Python 3.11.13 or later.
 
 ### Prerequisites
 
-- Python 3.11.12+ (supports 3.11 and 3.12)
+- Python 3.11.13+ (supports 3.11 and 3.12)
 - Poetry (install via `pipx install poetry` or see [Poetry installation](https://python-poetry.org/docs/#installation))
 - Git
 
@@ -400,7 +400,7 @@ Example:
 ```markdown
 ## Environment
 - OS: Raspberry Pi OS (64-bit)
-- Python: 3.11.12
+- Python: 3.11.13
 - IT8951_ePaper_Py version: 0.5.0
 - Hardware: Waveshare 10.3" e-Paper HAT
 

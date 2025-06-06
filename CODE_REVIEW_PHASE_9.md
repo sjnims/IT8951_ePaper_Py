@@ -127,7 +127,7 @@ data = [self.read_data() for _ in range(word_count)]
    - Should be removed for production use
 
 3. **Python Version Constraint**:
-   - `>=3.11.12,<3.13` is overly restrictive
+   - `>=3.11.13,<3.13` is overly restrictive
    - Should be `>=3.11` for better compatibility
 
 4. **Cache Key Inconsistency**:

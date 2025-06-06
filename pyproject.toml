@@ -56,7 +56,7 @@ RPi-GPIO = {version = "^0.7.1", markers = "platform_machine == 'aarch64' or plat
 pytest = "^8.4.0"
 pytest-cov = "^6.1.1"
 pytest-mock = "^3.14.1"
-ruff = "^0.11.12"
+ruff = "^0.11.13"
 pyright = "^1.1.401"
 radon = "^6.0.1"
 pytest-xdist = "^3.7.0"
@@ -206,7 +206,7 @@ addopts = [
     "-ra",
     "--strict-markers",
     "--strict-config",
-    "-vv",  # Restored verbose output
+    "-vv",
     "--maxfail=3",  # Stop after 3 failures
     "--tb=short",  # Shorter traceback format
     "--dist=loadgroup",  # Group tests by module for better performance

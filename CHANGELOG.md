@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Comprehensive integration test suite (test_integration.py) with 16 tests
 - Power management + display mode combination tests
-- Progressive loading + bit depth optimization tests  
+- Progressive loading + bit depth optimization tests
 - Error propagation tests across components
 - Thread safety tests for concurrent operations
 - Memory management tests for large images
@@ -87,7 +87,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Removed --dry-run flag from ATS workflow to enable actual test selection
-- Relaxed Python version specification in CI workflows from "3.11.12" to "3.11"
+- Relaxed Python version specification in CI workflows from "3.11.13" to "3.11"
 - Standardized cache keys between CI and ATS workflows using PYTHON_VERSION variable
 - Extracted magic numbers to named constants:
   - VCOM_TOLERANCE in DisplayConstants (was hardcoded 0.05)
