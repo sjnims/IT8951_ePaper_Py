@@ -153,7 +153,7 @@ Security measures in place:
 
 ## Security Audit
 
-Last security review: January 2025
+Last security review: June 2025
 
 - [x] Dependency audit
 - [x] CodeQL analysis

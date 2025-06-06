@@ -1,0 +1,69 @@
+name: Windows Compatibility Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+# This workflow tests basic compatibility on Windows
+# Since this is a Raspberry Pi driver, we only verify that:
+# 1. The package can be installed
+# 2. MockSPI works correctly
+# 3. Basic imports work
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  windows-test:
+    name: Windows Compatibility Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      
+      - name: Install Poetry
+        run: |
+          (Invoke-WebRequest -Uri https://install.python-poetry.org -UseBasicParsing).Content | python -
+          $env:Path += ";$env:APPDATA\Python\Scripts"
+          echo "$env:APPDATA\Python\Scripts" >> $env:GITHUB_PATH
+      
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create true
+          poetry config virtualenvs.in-project true
+      
+      - name: Install dependencies
+        run: poetry install --no-interaction
+      
+      - name: Test basic imports
+        run: |
+          poetry run python -c "import IT8951_ePaper_Py; print('✅ Package imports successfully')"
+          poetry run python -c "from IT8951_ePaper_Py.spi_interface import MockSPI; print('✅ MockSPI imports successfully')"
+          poetry run python -c "from IT8951_ePaper_Py import EPaperDisplay; print('✅ EPaperDisplay imports successfully')"
+      
+      - name: Run MockSPI tests
+        run: |
+          poetry run pytest tests/test_spi_interface.py::TestMockSPI -v
+      
+      - name: Create Windows compatibility report
+        if: always()
+        run: |
+          echo "## Windows Compatibility Report" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+          echo "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          echo "This library is designed for Raspberry Pi but supports development on Windows via MockSPI." | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          echo "" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          if ($LASTEXITCODE -eq 0) {
+            echo "✅ Windows compatibility verified:" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            echo "- Package can be installed" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            echo "- MockSPI works correctly" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+            echo "- Basic imports successful" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          } else {
+            echo "❌ Windows compatibility issues detected" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+          }

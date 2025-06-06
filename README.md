@@ -44,6 +44,17 @@ A pure Python implementation of the Waveshare IT8951 e-paper controller driver f
 
 ## Installation
 
+### Platform Support
+
+This library supports multiple platforms:
+
+- **Raspberry Pi** (ARM/ARM64) - Full hardware support
+- **Linux** (x86_64) - Development with MockSPI
+- **macOS** (Intel/Apple Silicon) - Development with MockSPI
+- **Windows** - Basic compatibility with MockSPI
+
+See [Platform Support Guide](docs/PLATFORM_SUPPORT.md) for detailed platform-specific instructions.
+
 ### Using Poetry (recommended)
 
 ```bash
@@ -61,6 +72,9 @@ poetry install -E rpi
 git clone https://github.com/sjnims/IT8951_ePaper_Py.git
 cd IT8951_ePaper_Py
 pip install -e .
+
+# For Raspberry Pi with GPIO:
+pip install -e ".[rpi]"
 ```
 
 ## Quick Start
@@ -526,6 +540,7 @@ See `examples/debug_mode_demo.py` for comprehensive examples.
 
 ## Documentation
 
+- [Platform Support](docs/PLATFORM_SUPPORT.md) - Multi-platform installation and compatibility
 - [Performance Guide](docs/PERFORMANCE_GUIDE.md) - Optimization tips and benchmarks
 - [Display Modes](docs/DISPLAY_MODES.md) - Detailed explanation of all display modes
 - [Power Management](docs/POWER_MANAGEMENT.md) - Battery optimization and power states
@@ -533,6 +548,9 @@ See `examples/debug_mode_demo.py` for comprehensive examples.
 - [Bit Depth Support](docs/BIT_DEPTH_SUPPORT.md) - Using different pixel formats
 - [Thread Safety](docs/THREAD_SAFETY.md) - Multi-threading considerations and solutions
 - [Error Recovery](docs/ERROR_RECOVERY.md) - Retry policies and recovery procedures
+- [Hardware Setup](docs/HARDWARE_SETUP.md) - Raspberry Pi GPIO connections and troubleshooting
+- [Migration Guide](docs/MIGRATION_GUIDE.md) - Migrating from the C driver to Python
+- [Best Practices](docs/BEST_PRACTICES.md) - Production deployment and optimization tips
 - [ATS Monitoring](docs/ATS_MONITORING.md) - Automated Test Selection CI/CD optimization
 - [Docstring Style Guide](docs/DOCSTRING_EXAMPLES.md) - Examples of Google-style docstrings for contributors
 
@@ -563,11 +581,15 @@ Contributions are welcome! Please:
 This project uses GitHub Actions for continuous integration:
 
 - **Linting**: ruff (linting + formatting), pyright
-- **Testing**: pytest with coverage on Ubuntu (98.35% coverage)
+- **Testing**: pytest with coverage on multiple platforms
+  - Ubuntu (x86_64) - Python 3.11, 3.12, 3.13
+  - macOS (Intel/ARM) - Python 3.13
+  - ARM64 (via QEMU) - Python 3.11
+  - Windows - Basic compatibility check
 - **Security**: CodeQL for comprehensive security analysis
 - **Complexity**: radon for maintainability metrics
 - **Performance**: Benchmark tests for critical paths
-- **Python Version**: 3.11 or later (supports 3.11 and 3.12)
+- **Coverage**: 98.35% code coverage maintained
 
 PRs must pass all checks before merging.
 
