@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.14.1] - 2025-01-06
+
+### Fixed
+
+- Adjusted performance test threshold from 1ms to 2ms for CI environments to prevent false failures
+
 ## [0.14.0] - 2025-01-06
 
 ### Added
